@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from pathlib import Path
+from datetime import datetime, timedelta
 
 st.set_page_config(layout="wide")
 
@@ -27,7 +28,7 @@ def get_available_exercises(muscle_groups):
         "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
         "Brust": ["Push", "Butterfly"],
         "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
-        "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
+        "Glutes": ["Hip Thrust", "bulgarian Split Squats", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
         "Bizeps": ["Hammer curl", "Biceps curl"],
         "Trizeps": ["Dips", "Push down"],
         "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
@@ -114,7 +115,14 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
         exercise = st.selectbox("Übung", available_exercises, key=f"exercise_{i}")
         machine = st.selectbox("Machine", ["Cable", "Freigewicht", "Maschine"], key=f"machine_{i}")
-        griff = st.selectbox("Griff", ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"], key=f"grip_{i}")
+        if exercise in exercises_by_group["Beine"] or exercise in exercises_by_group["Glutes"]:
+            griff = "Nicht relevant"
+        else:
+            griff = st.selectbox(
+                "Griff",
+                ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"],
+                key=f"grip_{i}"
+            )
         note = st.text_input("Notiz zur Übung", key=f"note_{i}")
 
         if any(group in muscle_groups for group in ["Rücken", "Schultern"]):
@@ -147,7 +155,7 @@ def training_form(username, user_file, saved_df, edit_date=None):
                     "Wdh",
                     min_value=0.0,
                     max_value=50.0,
-                    value=0.0,
+                    value=8.0,
                     step=0.5,
                     key=f"reps_{i}_{s}"
                 )
@@ -246,7 +254,11 @@ if not st.session_state.logged_in:
             st.error("Benutzername oder Passwort falsch")
 
     st.stop()
-
+st.session_state.login_time = datetime.now()
+if datetime.now() - st.session_state.login_time > timedelta(minutes=120):
+    st.session_state.logged_in = False
+    st.warning("Session abgelaufen. Bitte neu einloggen.")
+    st.rerun()
 
 username = st.session_state.username
 user_file = get_user_file(username)
