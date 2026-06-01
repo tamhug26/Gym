@@ -51,20 +51,22 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
     if last_mode not in mode_options:
         last_mode = "Maintaining"
-
-    mode = st.selectbox(
-        "Modus",
-        mode_options,
-        index=mode_options.index(last_mode)
-    )
-
-    calories = st.number_input(
-        "Kalorienziel",
-        min_value=0,
-        max_value=10000,
-        value=last_calories,
-        step=50
-    )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        mode = st.selectbox(
+            "Modus",
+            mode_options,
+            index=mode_options.index(last_mode)
+        )
+    with col2: 
+        calories = st.number_input(
+            "Kalorienziel",
+            min_value=0,
+            max_value=10000,
+            value=last_calories,
+            step=50
+        )
     period_mode = st.checkbox("Period Mode")
 
     period_start = ""
