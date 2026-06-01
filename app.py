@@ -3,6 +3,34 @@ import pandas as pd
 from datetime import date
 #st.set_page_config(layout="wide")
 
+USERS = {
+    "tamara": "deinpasswort"
+}
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🔐 Login")
+
+    username = st.text_input("Benutzername")
+    password = st.text_input("Passwort", type="password")
+
+    if st.button("Einloggen"):
+        if username in USERS and USERS[username] == password:
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.rerun()
+        else:
+            st.error("Benutzername oder Passwort falsch")
+
+    st.stop()
+st.sidebar.success(f"Eingeloggt als {st.session_state.username}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
+
 st.title("🏋️ Gym Notes")
 
 # Datum auswählen
