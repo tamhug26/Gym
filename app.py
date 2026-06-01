@@ -4,7 +4,8 @@ from datetime import date
 #st.set_page_config(layout="wide")
 
 USERS = {
-    "tamara": "deinpasswort"
+    "tamara": "deinpasswort",
+    "Can": "1010"
 }
 
 if "logged_in" not in st.session_state:
