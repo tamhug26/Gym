@@ -4,7 +4,7 @@ from datetime import date
 #st.set_page_config(layout="wide")
 
 USERS = {
-    "tamara": "deinpasswort",
+    "tamara": "1010",
     "Can": "1010"
 }
 
