@@ -16,18 +16,12 @@ DATA_DIR.mkdir(exist_ok=True)
 
 def get_user_file(username):
     return DATA_DIR / f"{username}_gym_log.csv"
-
-
 def load_data(user_file):
     if user_file.exists():
         return pd.read_csv(user_file)
     return pd.DataFrame()
-
-
 def save_data(user_file, df):
     df.to_csv(user_file, index=False)
-
-
 def get_available_exercises(muscle_groups):
     exercises_by_group = {
         "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
@@ -44,9 +38,7 @@ def get_available_exercises(muscle_groups):
         available.extend(exercises_by_group[group])
 
     return sorted(set(available))
-
-
-def training_form(username, user_file, edit_date=None):
+def training_form(username, user_file, saved_df, edit_date=None):
     if edit_date:
         training_date = st.date_input("Datum", value=pd.to_datetime(edit_date).date())
     else:
@@ -124,6 +116,16 @@ def training_form(username, user_file, edit_date=None):
         machine = st.selectbox("Machine", ["Cable", "Freigewicht", "Maschine"], key=f"machine_{i}")
         griff = st.selectbox("Griff", ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"], key=f"grip_{i}")
         note = st.text_input("Notiz zur Übung", key=f"note_{i}")
+
+        if any(group in muscle_groups for group in ["Rücken", "Schultern"]):
+            st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
+
+        last_weight = get_last_set2_weight(saved_df, exercise, machine, griff)
+
+        if last_weight is not None:
+            st.info(f"Letztes Mal bei genau dieser Übung: Set 2 = {last_weight} kg")
+        else:
+            st.caption("Noch kein früherer Eintrag für diese genaue Übung gefunden.")
 
         cols = st.columns(4)
         sets = []
@@ -204,7 +206,23 @@ def training_form(username, user_file, edit_date=None):
         st.success("Gespeichert!")
         st.session_state.edit_date = None
         st.dataframe(new_df, use_container_width=True, hide_index=True)
+def get_last_set2_weight(saved_df, exercise, machine, griff):
+    if saved_df.empty:
+        return None
 
+    df = saved_df.copy()
+    df["Datum"] = pd.to_datetime(df["Datum"])
+
+    matches = df[
+        (df["Übung"] == exercise) &
+        (df["Machine"] == machine) &
+        (df["Griff"] == griff)
+    ].sort_values("Datum", ascending=False)
+
+    if matches.empty:
+        return None
+
+    return matches.iloc[0]["Set 2 Gewicht"]
 
 # Login
 if "logged_in" not in st.session_state:
@@ -247,7 +265,7 @@ st.title("🏋️ Gym Notes")
 
 if st.session_state.edit_date:
     st.warning(f"Bearbeitungsmodus für Training vom {st.session_state.edit_date}")
-    training_form(username, user_file, edit_date=st.session_state.edit_date)
+    training_form(username, user_file, saved_df, edit_date=st.session_state.edit_date)
 
     if st.button("Bearbeitung abbrechen"):
         st.session_state.edit_date = None
@@ -257,7 +275,7 @@ else:
     tab1, tab2 = st.tabs(["➕ Neues Training", "📖 Gespeicherte Trainings"])
 
     with tab1:
-        training_form(username, user_file)
+        training_form(username, user_file, saved_df)
 
     with tab2:
         st.subheader("📖 Gespeicherte Trainings")
@@ -268,8 +286,13 @@ else:
             saved_df["Datum"] = saved_df["Datum"].astype(str)
             available_dates = sorted(saved_df["Datum"].unique(), reverse=True)
 
-            selected_date = st.date_input("Datum auswählen", value=pd.to_datetime(available_dates[0]).date())
-            selected_date_str = str(selected_date)
+            date_options = []
+            for d in available_dates:
+                date_options.append(f"🔴 {d}")
+
+            selected_date_label = st.selectbox("Trainingstag auswählen", date_options)
+            selected_date_str = selected_date_label.replace("🔴 ", "")
+            selected_date = pd.to_datetime(selected_date_str).date()
 
             day_df = saved_df[saved_df["Datum"] == selected_date_str]
 
