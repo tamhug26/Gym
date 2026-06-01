@@ -38,8 +38,10 @@ def get_available_exercises(muscle_groups):
         available.extend(exercises_by_group[group])
     return sorted(set(available))
 def training_form(username, user_file, saved_df, edit_date=None):
-    if edit_date:
-        training_date = st.date_input("Datum", value=pd.to_datetime(edit_date).date())
+    edit_df = pd.DataFrame()
+
+    if edit_date and not saved_df.empty:
+        edit_df = saved_df[saved_df["Datum"].astype(str) == str(edit_date)].copy()
     else:
         training_date = st.date_input("Datum", value=date.today())
 
@@ -124,29 +126,61 @@ def training_form(username, user_file, saved_df, edit_date=None):
         st.info("Wähle mindestens eine Muskelgruppe aus.")
         return
 
+    default_rows = len(edit_df) if edit_date and not edit_df.empty else 3
+
     rows = st.number_input(
         "Wie viele Übungen möchtest du eintragen?",
         min_value=1,
         max_value=20,
-        value=3
+        value=default_rows
     )
 
     entries = []
 
     for i in range(rows):
+        old_row = None
+
+        if edit_date and not edit_df.empty and i < len(edit_df):
+            old_row = edit_df.iloc[i]
         st.markdown(f"### Übung {i + 1}")
 
-        exercise = st.selectbox("Übung", available_exercises, key=f"exercise_{i}")
-        machine = st.selectbox("Machine", ["Cable", "Freigewicht", "Maschine"], key=f"machine_{i}")
+        old_exercise = old_row["Übung"] if old_row is not None and "Übung" in old_row else available_exercises[0]
+        exercise_index = available_exercises.index(old_exercise) if old_exercise in available_exercises else 0
+
+        exercise = st.selectbox(
+            "Übung",
+            available_exercises,
+            index=exercise_index,
+            key=f"exercise_{i}"
+        )
+
+        machine_options = ["Cable", "Freigewicht", "Maschine"]
+        old_machine = old_row["Machine"] if old_row is not None and "Machine" in old_row else "Cable"
+        machine_index = machine_options.index(old_machine) if old_machine in machine_options else 0
+
+        machine = st.selectbox(
+            "Machine",
+            machine_options,
+            index=machine_index,
+            key=f"machine_{i}"
+        )
+
         if exercise in exercises_by_group["Beine"] or exercise in exercises_by_group["Glutes"]:
             griff = "Nicht relevant"
         else:
+            grip_options = ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"]
+            old_griff = old_row["Griff"] if old_row is not None and "Griff" in old_row else "Neutral"
+            grip_index = grip_options.index(old_griff) if old_griff in grip_options else 0
+
             griff = st.selectbox(
                 "Griff",
-                ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"],
+                grip_options,
+                index=grip_index,
                 key=f"grip_{i}"
             )
-        note = st.text_input("Notiz zur Übung", key=f"note_{i}")
+
+        old_note = old_row["Notiz Übung"] if old_row is not None and "Notiz Übung" in old_row else ""
+        note = st.text_input("Notiz zur Übung", value=str(old_note), key=f"note_{i}")
 
         if any(group in muscle_groups for group in ["Rücken", "Schultern"]):
             st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
@@ -169,7 +203,7 @@ def training_form(username, user_file, saved_df, edit_date=None):
                     "Gewicht",
                     min_value=0.0,
                     max_value=400.0,
-                    value=0.0,
+                    value=float(old_row[f"Set {s + 1} Gewicht"]) if old_row is not None and f"Set {s + 1} Gewicht" in old_row else 0.0,
                     step=0.5,
                     key=f"weight_{i}_{s}"
                 )
@@ -178,12 +212,18 @@ def training_form(username, user_file, saved_df, edit_date=None):
                     "Wdh",
                     min_value=0.0,
                     max_value=50.0,
-                    value=8.0,
+                    value=float(old_row[f"Set {s + 1} Wdh"]) if old_row is not None and f"Set {s + 1} Wdh" in old_row else 8.0,
                     step=0.5,
                     key=f"reps_{i}_{s}"
                 )
 
-                note_set = st.text_input("Set-Notiz", key=f"note_set_{i}_{s}")
+                old_set_note = old_row[f"Set {s + 1} Notiz"] if old_row is not None and f"Set {s + 1} Notiz" in old_row else ""
+
+                note_set = st.text_input(
+                    "Set-Notiz",
+                    value=str(old_set_note),
+                    key=f"note_set_{i}_{s}"
+                )
 
                 sets.append((weight, reps, note_set))
 
