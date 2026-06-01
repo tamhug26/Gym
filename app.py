@@ -6,7 +6,7 @@ from pathlib import Path
 st.set_page_config(layout="wide")
 
 USERS = {
-    "tamara": "1010",
+    "Tamara": "1010",
     "Can": "1010"
 }
 
