@@ -4,7 +4,6 @@ st.title("🏋️ Gym Notes")
 st.write("test2")
 
 st.text_input("Day", key="date")
-
 uebung_col, set1, set2, set3, set4, note = st.columns(6)
 
 with uebung_col:
