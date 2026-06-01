@@ -116,8 +116,8 @@ else:
         "Set 4 Wdh": sets[3][1],
         "Set 4 Notiz": sets[3][2],
     })
-    if st.button("Training speichern"):
-        df = pd.DataFrame(entries)
-        st.success("Training gespeichert!")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+if st.button("Training speichern"):
+    df = pd.DataFrame(entries)
+    st.success("Training gespeichert!")
+    st.dataframe(df, use_container_width=True, hide_index=True)
     
