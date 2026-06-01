@@ -119,5 +119,5 @@ else:
     if st.button("Training speichern"):
         df = pd.DataFrame(entries)
         st.success("Training gespeichert!")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
     
