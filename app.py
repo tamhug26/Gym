@@ -18,66 +18,96 @@ def get_user_file(username):
     return DATA_DIR / f"{username}_gym_log.csv"
 
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    st.title("🔐 Login")
-
-    username = st.text_input("Benutzername")
-    password = st.text_input("Passwort", type="password")
-
-    if st.button("Einloggen"):
-        if username in USERS and USERS[username] == password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.rerun()
-        else:
-            st.error("Benutzername oder Passwort falsch")
-
-    st.stop()
+def load_data(user_file):
+    if user_file.exists():
+        return pd.read_csv(user_file)
+    return pd.DataFrame()
 
 
-username = st.session_state.username
-user_file = get_user_file(username)
-
-st.sidebar.success(f"Eingeloggt als {username}")
-
-if st.sidebar.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
+def save_data(user_file, df):
+    df.to_csv(user_file, index=False)
 
 
-st.title("🏋️ Gym Notes")
+def get_available_exercises(muscle_groups):
+    exercises_by_group = {
+        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
+        "Brust": ["Push", "Butterfly"],
+        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
+        "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
+        "Bizeps": ["Hammer curl", "Biceps curl"],
+        "Trizeps": ["Dips", "Push down"],
+        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
+    }
 
-training_date = st.date_input("Datum", value=date.today())
+    available = []
+    for group in muscle_groups:
+        available.extend(exercises_by_group[group])
 
-muscle_groups = st.multiselect(
-    "Welche Muskelgruppen hast du trainiert?",
-    ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
-)
+    return sorted(set(available))
 
-exercises_by_group = {
-    "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
-    "Brust": ["Push", "Butterfly"],
-    "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
-    "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
-    "Bizeps": ["Hammer curl", "Biceps curl"],
-    "Trizeps": ["Dips", "Push down"],
-    "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
-}
 
-available_exercises = []
-for group in muscle_groups:
-    available_exercises.extend(exercises_by_group[group])
+def training_form(username, user_file, edit_date=None):
+    if edit_date:
+        training_date = st.date_input("Datum", value=pd.to_datetime(edit_date).date())
+    else:
+        training_date = st.date_input("Datum", value=date.today())
 
-available_exercises = sorted(set(available_exercises))
+    st.subheader("Allgemeine Angaben")
 
-st.subheader("Training eintragen")
+    mode = st.selectbox("Modus", ["Maintaining", "Bulk", "Cut"])
 
-if not available_exercises:
-    st.info("Wähle zuerst mindestens eine Muskelgruppe aus.")
-else:
+    if mode == "Bulk":
+        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=2500, step=50)
+    elif mode == "Cut":
+        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=1800, step=50)
+    else:
+        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=2200, step=50)
+
+    mood = st.slider(
+        "Stimmung / Gefühl",
+        min_value=1,
+        max_value=5,
+        value=3,
+        help="1 = super toll, 3 = normal, 5 = dreckig"
+    )
+
+    pain = ""
+    if mood >= 4:
+        pain = st.text_input("Gab es Schmerzen? Wenn ja, wo?")
+
+    st.subheader("Cardio")
+
+    cardio_type = st.selectbox(
+        "Cardio-Form",
+        ["Kein Cardio", "Laufen", "Fahrrad", "Stepper", "Stairmaster", "Crosstrainer", "Rudern", "Walking", "Anderes"]
+    )
+
+    cardio_time = 0.0
+    cardio_distance = 0.0
+    cardio_calories = 0.0
+
+    if cardio_type != "Kein Cardio":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            cardio_time = st.number_input("Cardio Zeit in Minuten", min_value=0.0, max_value=500.0, value=0.0, step=1.0)
+        with c2:
+            cardio_distance = st.number_input("Distanz in km", min_value=0.0, max_value=200.0, value=0.0, step=0.1)
+        with c3:
+            cardio_calories = st.number_input("Cardio Kalorien", min_value=0.0, max_value=3000.0, value=0.0, step=10.0)
+
+    st.subheader("Krafttraining")
+
+    muscle_groups = st.multiselect(
+        "Welche Muskelgruppen hast du trainiert?",
+        ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
+    )
+
+    available_exercises = get_available_exercises(muscle_groups)
+
+    if not available_exercises:
+        st.info("Wähle mindestens eine Muskelgruppe aus.")
+        return
+
     rows = st.number_input(
         "Wie viele Übungen möchtest du eintragen?",
         min_value=1,
@@ -127,6 +157,16 @@ else:
         entries.append({
             "Benutzer": username,
             "Datum": training_date,
+            "Modus": mode,
+            "Kalorienziel": calories,
+            "Stimmung": mood,
+            "Schmerzen": pain,
+
+            "Cardio Form": cardio_type,
+            "Cardio Zeit min": cardio_time,
+            "Cardio Distanz km": cardio_distance,
+            "Cardio Kalorien": cardio_calories,
+
             "Übung": exercise,
             "Machine": machine,
             "Griff": griff,
@@ -149,25 +189,105 @@ else:
             "Set 4 Notiz": sets[3][2],
         })
 
-    if st.button("Training speichern"):
+    button_text = "Änderungen speichern" if edit_date else "Training speichern"
+
+    if st.button(button_text):
         new_df = pd.DataFrame(entries)
+        old_df = load_data(user_file)
 
-        if user_file.exists():
-            old_df = pd.read_csv(user_file)
-            full_df = pd.concat([old_df, new_df], ignore_index=True)
-        else:
-            full_df = new_df
+        if edit_date and not old_df.empty:
+            old_df = old_df[old_df["Datum"] != str(edit_date)]
 
-        full_df.to_csv(user_file, index=False)
+        full_df = pd.concat([old_df, new_df], ignore_index=True)
+        save_data(user_file, full_df)
 
-        st.success("Training gespeichert!")
+        st.success("Gespeichert!")
+        st.session_state.edit_date = None
         st.dataframe(new_df, use_container_width=True, hide_index=True)
 
 
-st.subheader("📖 Meine gespeicherten Trainings")
+# Login
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-if user_file.exists():
-    saved_df = pd.read_csv(user_file)
-    st.dataframe(saved_df, use_container_width=True, hide_index=True)
+if "edit_date" not in st.session_state:
+    st.session_state.edit_date = None
+
+if not st.session_state.logged_in:
+    st.title("🔐 Login")
+
+    username_input = st.text_input("Benutzername")
+    password = st.text_input("Passwort", type="password")
+
+    if st.button("Einloggen"):
+        if username_input in USERS and USERS[username_input] == password:
+            st.session_state.logged_in = True
+            st.session_state.username = username_input
+            st.rerun()
+        else:
+            st.error("Benutzername oder Passwort falsch")
+
+    st.stop()
+
+
+username = st.session_state.username
+user_file = get_user_file(username)
+saved_df = load_data(user_file)
+
+st.sidebar.success(f"Eingeloggt als {username}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.session_state.edit_date = None
+    st.rerun()
+
+
+st.title("🏋️ Gym Notes")
+
+
+if st.session_state.edit_date:
+    st.warning(f"Bearbeitungsmodus für Training vom {st.session_state.edit_date}")
+    training_form(username, user_file, edit_date=st.session_state.edit_date)
+
+    if st.button("Bearbeitung abbrechen"):
+        st.session_state.edit_date = None
+        st.rerun()
+
 else:
-    st.info("Noch keine gespeicherten Trainings vorhanden.")
+    tab1, tab2 = st.tabs(["➕ Neues Training", "📖 Gespeicherte Trainings"])
+
+    with tab1:
+        training_form(username, user_file)
+
+    with tab2:
+        st.subheader("📖 Gespeicherte Trainings")
+
+        if saved_df.empty:
+            st.info("Noch keine gespeicherten Trainings vorhanden.")
+        else:
+            saved_df["Datum"] = saved_df["Datum"].astype(str)
+            available_dates = sorted(saved_df["Datum"].unique(), reverse=True)
+
+            selected_date = st.date_input("Datum auswählen", value=pd.to_datetime(available_dates[0]).date())
+            selected_date_str = str(selected_date)
+
+            day_df = saved_df[saved_df["Datum"] == selected_date_str]
+
+            if day_df.empty:
+                st.info("Für dieses Datum gibt es kein gespeichertes Training.")
+            else:
+                st.dataframe(day_df, use_container_width=True, hide_index=True)
+
+                c1, c2 = st.columns(2)
+
+                with c1:
+                    if st.button("Dieses Training bearbeiten"):
+                        st.session_state.edit_date = selected_date_str
+                        st.rerun()
+
+                with c2:
+                    if st.button("Dieses Training löschen"):
+                        saved_df = saved_df[saved_df["Datum"] != selected_date_str]
+                        save_data(user_file, saved_df)
+                        st.success("Training gelöscht.")
+                        st.rerun()
