@@ -14,6 +14,15 @@ USERS = {
 DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
+exercises_by_group = {
+        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
+        "Brust": ["Push", "Butterfly"],
+        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
+        "Glutes": ["Hip Thrust", "bulgarian Split Squats", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
+        "Bizeps": ["Hammer curl", "Biceps curl"],
+        "Trizeps": ["Dips", "Push down"],
+        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
+    }
 
 def get_user_file(username):
     return DATA_DIR / f"{username}_gym_log.csv"
@@ -24,20 +33,9 @@ def load_data(user_file):
 def save_data(user_file, df):
     df.to_csv(user_file, index=False)
 def get_available_exercises(muscle_groups):
-    exercises_by_group = {
-        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
-        "Brust": ["Push", "Butterfly"],
-        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
-        "Glutes": ["Hip Thrust", "bulgarian Split Squats", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
-        "Bizeps": ["Hammer curl", "Biceps curl"],
-        "Trizeps": ["Dips", "Push down"],
-        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
-    }
-
     available = []
     for group in muscle_groups:
         available.extend(exercises_by_group[group])
-
     return sorted(set(available))
 def training_form(username, user_file, saved_df, edit_date=None):
     if edit_date:
@@ -55,6 +53,18 @@ def training_form(username, user_file, saved_df, edit_date=None):
         calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=1800, step=50)
     else:
         calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=2200, step=50)
+
+    period_mode = st.checkbox("Period Mode")
+
+    period_start = ""
+    period_end = ""
+
+    if period_mode:
+        p1, p2 = st.columns(2)
+        with p1:
+            period_start = st.date_input("Periode Start", value=training_date)
+        with p2:
+            period_end = st.date_input("Periode Ende", value=training_date)
 
     mood = st.slider(
         "Stimmung / Gefühl",
@@ -169,6 +179,9 @@ def training_form(username, user_file, saved_df, edit_date=None):
             "Datum": training_date,
             "Modus": mode,
             "Kalorienziel": calories,
+            "Period Mode": period_mode,
+            "Periode Start": period_start,
+            "Periode Ende": period_end,
             "Stimmung": mood,
             "Schmerzen": pain,
 
@@ -249,14 +262,18 @@ if not st.session_state.logged_in:
         if username_input in USERS and USERS[username_input] == password:
             st.session_state.logged_in = True
             st.session_state.username = username_input
+            st.session_state.login_time = datetime.now()
             st.rerun()
         else:
             st.error("Benutzername oder Passwort falsch")
 
     st.stop()
-st.session_state.login_time = datetime.now()
+if "login_time" not in st.session_state:
+    st.session_state.login_time = datetime.now()
+
 if datetime.now() - st.session_state.login_time > timedelta(minutes=120):
     st.session_state.logged_in = False
+    st.session_state.edit_date = None
     st.warning("Session abgelaufen. Bitte neu einloggen.")
     st.rerun()
 
@@ -271,9 +288,8 @@ if st.sidebar.button("Logout"):
     st.session_state.edit_date = None
     st.rerun()
 
-
+#----------------------------------------
 st.title("🏋️ Gym Notes")
-
 
 if st.session_state.edit_date:
     st.warning(f"Bearbeitungsmodus für Training vom {st.session_state.edit_date}")
