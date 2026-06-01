@@ -47,6 +47,16 @@ else:
             available_exercises,
             key=f"exercise_{i}"
         )
+        machine = st.selectbox(
+            "Machine",
+            ["Cable", "Freigewicht", "Maschine"],
+            key=f"machine_{i}"
+        )
+        griff = st.selectbox(
+            "Griff",
+            ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"],
+            key=f"grip_{i}"
+        )
 
         note = st.text_input("Notiz", key=f"note_{i}")
 
@@ -104,6 +114,8 @@ else:
     entries.append({
         "Datum": training_date,
         "Übung": exercise,
+        "Machine": machine,
+        "Griff": griff,
 
         "Set 1 Gewicht": sets[0][0],
         "Set 1 Wdh": sets[0][1],
