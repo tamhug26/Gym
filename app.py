@@ -56,7 +56,8 @@ else:
 
         for s in range(4):
             with cols[s]:
-                st.write(f"Set {s + 1}")
+                st.write(f"Set {s+1}")
+
                 weight = st.number_input(
                     "Gewicht",
                     min_value=0.0,
@@ -65,16 +66,22 @@ else:
                     step=0.5,
                     key=f"weight_{i}_{s}"
                 )
+
                 reps = st.number_input(
                     "Wdh",
                     min_value=0.0,
-                    max_value=100.0,
+                    max_value=50.0,
                     value=0.0,
                     step=0.5,
                     key=f"reps_{i}_{s}"
                 )
 
-                sets.append((weight, reps))
+                note_set = st.text_input(
+                    "Notiz",
+                    key=f"note_{i}_{s}"
+                )
+
+                sets.append((weight, reps, note_set))
 
         entries.append({
             "Datum": training_date,
@@ -94,3 +101,23 @@ else:
         df = pd.DataFrame(entries)
         st.success("Training gespeichert!")
         st.dataframe(df, use_container_width=True)
+    entries.append({
+        "Datum": training_date,
+        "Übung": exercise,
+
+        "Set 1 Gewicht": sets[0][0],
+        "Set 1 Wdh": sets[0][1],
+        "Set 1 Notiz": sets[0][2],
+
+        "Set 2 Gewicht": sets[1][0],
+        "Set 2 Wdh": sets[1][1],
+        "Set 2 Notiz": sets[1][2],
+
+        "Set 3 Gewicht": sets[2][0],
+        "Set 3 Wdh": sets[2][1],
+        "Set 3 Notiz": sets[2][2],
+
+        "Set 4 Gewicht": sets[3][0],
+        "Set 4 Wdh": sets[3][1],
+        "Set 4 Notiz": sets[3][2],
+    })
