@@ -314,73 +314,73 @@ else:
                         save_data(user_file, saved_df)
                         st.success("Training gelöscht.")
                         st.rerun()
-        with tab3:
-            st.subheader("📊 Statistik")
+    with tab3:
+        st.subheader("📊 Statistik")
 
-            st.subheader("📤 Export")
+        st.subheader("📤 Export")
 
-            csv_data = saved_df.to_csv(index=False).encode("utf-8")
+        csv_data = saved_df.to_csv(index=False).encode("utf-8")
 
+        st.download_button(
+            label="⬇️ CSV exportieren",
+            data=csv_data,
+            file_name=f"{username}_gym_export.csv",
+            mime="text/csv"
+        )
+
+        excel_buffer = saved_df.to_excel("temp.xlsx", index=False)
+
+        with open("temp.xlsx", "rb") as f:
             st.download_button(
-                label="⬇️ CSV exportieren",
-                data=csv_data,
-                file_name=f"{username}_gym_export.csv",
-                mime="text/csv"
+                label="⬇️ Excel exportieren",
+                data=f,
+                file_name=f"{username}_gym_export.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            excel_buffer = saved_df.to_excel("temp.xlsx", index=False)
+        if saved_df.empty:
+            st.info("Noch keine Daten für Statistik vorhanden.")
+        else:
+            stats_df = saved_df.copy()
+            stats_df["Datum"] = pd.to_datetime(stats_df["Datum"])
 
-            with open("temp.xlsx", "rb") as f:
-                st.download_button(
-                    label="⬇️ Excel exportieren",
-                    data=f,
-                    file_name=f"{username}_gym_export.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+            st.metric("Anzahl Trainings", stats_df["Datum"].nunique())
+            st.metric("Anzahl Übungen gesamt", len(stats_df))
 
-            if saved_df.empty:
-                st.info("Noch keine Daten für Statistik vorhanden.")
-            else:
-                stats_df = saved_df.copy()
-                stats_df["Datum"] = pd.to_datetime(stats_df["Datum"])
+            st.subheader("Trainings pro Muskelgruppe / Übung")
+            exercise_counts = stats_df["Übung"].value_counts()
+            st.bar_chart(exercise_counts)
 
-                st.metric("Anzahl Trainings", stats_df["Datum"].nunique())
-                st.metric("Anzahl Übungen gesamt", len(stats_df))
+            st.subheader("Gewichtsentwicklung pro Übung")
 
-                st.subheader("Trainings pro Muskelgruppe / Übung")
-                exercise_counts = stats_df["Übung"].value_counts()
-                st.bar_chart(exercise_counts)
+            selected_exercise = st.selectbox(
+                "Übung für Verlauf auswählen",
+                sorted(stats_df["Übung"].dropna().unique())
+            )
 
-                st.subheader("Gewichtsentwicklung pro Übung")
+            progress_df = stats_df[stats_df["Übung"] == selected_exercise].copy()
+            progress_df = progress_df.sort_values("Datum")
 
-                selected_exercise = st.selectbox(
-                    "Übung für Verlauf auswählen",
-                    sorted(stats_df["Übung"].dropna().unique())
-                )
+            chart_df = progress_df[[
+                "Datum",
+                "Set 1 Gewicht",
+                "Set 2 Gewicht",
+                "Set 3 Gewicht",
+                "Set 4 Gewicht"
+            ]].set_index("Datum")
 
-                progress_df = stats_df[stats_df["Übung"] == selected_exercise].copy()
-                progress_df = progress_df.sort_values("Datum")
+            st.line_chart(chart_df)
 
-                chart_df = progress_df[[
-                    "Datum",
-                    "Set 1 Gewicht",
-                    "Set 2 Gewicht",
-                    "Set 3 Gewicht",
-                    "Set 4 Gewicht"
-                ]].set_index("Datum")
+            st.subheader("Durchschnittliche Stimmung")
+            avg_mood = stats_df["Stimmung"].mean()
+            st.metric("Ø Stimmung", round(avg_mood, 2))
 
-                st.line_chart(chart_df)
+            st.subheader("Cardio gesamt")
+            total_cardio_time = stats_df["Cardio Zeit min"].sum()
+            total_cardio_distance = stats_df["Cardio Distanz km"].sum()
+            total_cardio_calories = stats_df["Cardio Kalorien"].sum()
 
-                st.subheader("Durchschnittliche Stimmung")
-                avg_mood = stats_df["Stimmung"].mean()
-                st.metric("Ø Stimmung", round(avg_mood, 2))
-
-                st.subheader("Cardio gesamt")
-                total_cardio_time = stats_df["Cardio Zeit min"].sum()
-                total_cardio_distance = stats_df["Cardio Distanz km"].sum()
-                total_cardio_calories = stats_df["Cardio Kalorien"].sum()
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Cardio Minuten", round(total_cardio_time, 1))
-                c2.metric("Cardio km", round(total_cardio_distance, 1))
-                c3.metric("Cardio kcal", round(total_cardio_calories, 0))
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Cardio Minuten", round(total_cardio_time, 1))
+            c2.metric("Cardio km", round(total_cardio_distance, 1))
+            c3.metric("Cardio kcal", round(total_cardio_calories, 0))    
