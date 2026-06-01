@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
+st.set_page_config(layout="wide")
 
 st.title("🏋️ Gym Notes")
 
