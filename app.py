@@ -45,15 +45,26 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
     st.subheader("Allgemeine Angaben")
 
-    mode = st.selectbox("Modus", ["Maintaining", "Bulk", "Cut"])
+    last_mode, last_calories = get_last_mode_and_calories(saved_df)
 
-    if mode == "Bulk":
-        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=2500, step=50)
-    elif mode == "Cut":
-        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=1800, step=50)
-    else:
-        calories = st.number_input("Kalorienziel", min_value=0, max_value=10000, value=2200, step=50)
+    mode_options = ["Maintaining", "Bulk", "Cut"]
 
+    if last_mode not in mode_options:
+        last_mode = "Maintaining"
+
+    mode = st.selectbox(
+        "Modus",
+        mode_options,
+        index=mode_options.index(last_mode)
+    )
+
+    calories = st.number_input(
+        "Kalorienziel",
+        min_value=0,
+        max_value=10000,
+        value=last_calories,
+        step=50
+    )
     period_mode = st.checkbox("Period Mode")
 
     period_start = ""
@@ -244,6 +255,21 @@ def get_last_set2_weight(saved_df, exercise, machine, griff):
         return None
 
     return matches.iloc[0]["Set 2 Gewicht"]
+def get_last_mode_and_calories(saved_df):
+    if saved_df.empty:
+        return "Maintaining", 2200
+
+    df = saved_df.copy()
+    df["Datum"] = pd.to_datetime(df["Datum"])
+    df = df.sort_values("Datum", ascending=False)
+
+    last_row = df.iloc[0]
+
+    last_mode = last_row.get("Modus", "Maintaining")
+    last_calories = int(last_row.get("Kalorienziel", 2200))
+
+    return last_mode, last_calories
+
 
 # Login
 if "logged_in" not in st.session_state:
