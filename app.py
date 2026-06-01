@@ -1,109 +1,47 @@
 import streamlit as st
 
 st.title("🏋️ Gym Notes")
-
 st.write("test2")
 
-st.text_input(
-        "Day",
-        key="Date",
-    )
+st.text_input("Day", key="date")
 
-Übung, set1, set2, set3, set4, note =st.columns(6)
-with Übung:
-    Splitday = st.multiselect(
-        "Übung",
+uebung_col, set1, set2, set3, set4, note = st.columns(6)
+
+with uebung_col:
+    splitday = st.selectbox(
+        "Muskelgruppe",
         ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
     )
 
-    if Splitday == "Rücken":
-        st.selectbox(
-        "Übung",
-        ["T row", "Lat pull down", "Überzüge", "Rudern"]
-    )
-        st.selectbox(
-        "Machine",
-        ["cable", "Freigewicht", "Maschine"]
-    )
-        
-    if Splitday == "Brust":
-        st.selectbox(
-        "Übung",
-        ["Push", "Butterfly"]
-    )
-        st.selectbox(
-        "Richtung",
-        ["down", "up", "Straight"]
-    )
-        st.selectbox(
-        "Machine",
-        ["cable", "Freigewicht", "Maschine"]
-    )
-    
-    if Splitday == "Beine":
-        st.selectbox(
-        "Übung",
-        ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"]
-        )
-        st.selectbox(
-            "Machine",
-            ["cable", "Freigewicht", "Maschine"]
-        )
-    
-    if Splitday == "Glutes":
-        st.selectbox(
-        "Übung",
-        ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "cable kick back", "lunges", "back extension"]
-        )
-        st.selectbox(
-            "Machine",
-            ["cable", "Freigewicht", "Maschine"]
-        )
+    exercises = {
+        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
+        "Brust": ["Push", "Butterfly"],
+        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
+        "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
+        "Bizeps": ["Hammer curl", "Biceps curl"],
+        "Trizeps": ["Dips", "Push down"],
+        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
+    }
 
-    if Splitday == "Biceps":
-        st.selectbox(
-        "Übung",
-        ["Hammer curl", "Biceps curl"]
-        )
-        st.selectbox(
-            "Machine",
-            ["cable", "Freigewicht", "Maschine"]
-        )
-    if Splitday == "Triceps":
-        st.selectbox(
-        "Übung",
-        ["Dips", "Push down"  ]
-        )
-        st.selectbox(
-            "Machine",
-            ["cable", "Freigewicht", "Maschine"]
-        )
-
-    if Splitday == "Shoulders":
-        st.selectbox(
-            "Übung",
-            ["Lateral raises", "front raises", "Shoulder Press"]
-        )
-        st.selectbox(
-            "Machine",
-            ["cable", "Freigewicht", "Maschine"]
-        )
+    exercise = st.selectbox("Übung", exercises[splitday])
+    machine = st.selectbox("Machine", ["Cable", "Freigewicht", "Maschine"])
 
 with set1:
-    Gewicht = st.number_input("Gewicht", 0, 400, 20)
-    Wdh = st.number_input("Wiederholungen", 0, 30, 8)
+    gewicht1 = st.number_input("Gewicht Set 1", 0, 400, 20, key="gewicht1")
+    wdh1 = st.number_input("Wdh Set 1", 0, 30, 8, key="wdh1")
+
 with set2:
-    Gewicht = st.number_input("Gewicht", 0, 400, 20)
-    Wdh = st.number_input("Wiederholungen", 0, 30, 8)
+    gewicht2 = st.number_input("Gewicht Set 2", 0, 400, 20, key="gewicht2")
+    wdh2 = st.number_input("Wdh Set 2", 0, 30, 8, key="wdh2")
+
 with set3:
-    Gewicht = st.number_input("Gewicht", 0, 400, 20)
-    Wdh = st.number_input("Wiederholungen", 0, 30, 8)
+    gewicht3 = st.number_input("Gewicht Set 3", 0, 400, 20, key="gewicht3")
+    wdh3 = st.number_input("Wdh Set 3", 0, 30, 8, key="wdh3")
+
 with set4:
-    Gewicht = st.number_input("Gewicht", 0, 400, 20)
-    Wdh = st.number_input("Wiederholungen", 0, 30, 8)
+    gewicht4 = st.number_input("Gewicht Set 4", 0, 400, 20, key="gewicht4")
+    wdh4 = st.number_input("Wdh Set 4", 0, 30, 8, key="wdh4")
+
 with note:
-    st.text_input(
-        "Note",
-        key="Note",
-    )
+    st.text_input("Note", key="note")
 
