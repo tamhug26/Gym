@@ -94,30 +94,30 @@ else:
 
                 sets.append((weight, reps, note_set))
 
-    entries.append({
-        "Datum": training_date,
-        "Übung": exercise,
-        "Machine": machine,
-        "Griff": griff,
+        entries.append({
+            "Datum": training_date,
+            "Übung": exercise,
+            "Machine": machine,
+            "Griff": griff,
 
-        "Set 1 Gewicht": sets[0][0],
-        "Set 1 Wdh": sets[0][1],
-        "Set 1 Notiz": sets[0][2],
+            "Set 1 Gewicht": sets[0][0],
+            "Set 1 Wdh": sets[0][1],
+            "Set 1 Notiz": sets[0][2],
 
-        "Set 2 Gewicht": sets[1][0],
-        "Set 2 Wdh": sets[1][1],
-        "Set 2 Notiz": sets[1][2],
+            "Set 2 Gewicht": sets[1][0],
+            "Set 2 Wdh": sets[1][1],
+            "Set 2 Notiz": sets[1][2],
 
-        "Set 3 Gewicht": sets[2][0],
-        "Set 3 Wdh": sets[2][1],
-        "Set 3 Notiz": sets[2][2],
+            "Set 3 Gewicht": sets[2][0],
+            "Set 3 Wdh": sets[2][1],
+            "Set 3 Notiz": sets[2][2],
 
-        "Set 4 Gewicht": sets[3][0],
-        "Set 4 Wdh": sets[3][1],
-        "Set 4 Notiz": sets[3][2],
-    })
-if st.button("Training speichern"):
-    df = pd.DataFrame(entries)
-    st.success("Training gespeichert!")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+            "Set 4 Gewicht": sets[3][0],
+            "Set 4 Wdh": sets[3][1],
+            "Set 4 Notiz": sets[3][2],
+        })
+    if st.button("Training speichern"):
+        df = pd.DataFrame(entries)
+        st.success("Training gespeichert!")
+        st.dataframe(df, use_container_width=True, hide_index=True)
     
