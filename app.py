@@ -1,46 +1,96 @@
 import streamlit as st
+import pandas as pd
+from datetime import date
 
 st.title("🏋️ Gym Notes")
-st.write("test2")
 
-st.text_input("Day", key="date")
-uebung_col, set1, set2, set3, set4, note = st.columns(6)
+# Datum auswählen
+training_date = st.date_input("Datum", value=date.today())
 
-with uebung_col:
-    splitday = st.selectbox(
-        "Muskelgruppe",
-        ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
-    )
+# Muskelgruppen auswählen
+muscle_groups = st.multiselect(
+    "Welche Muskelgruppen hast du trainiert?",
+    ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
+)
 
-    exercises = {
-        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
-        "Brust": ["Push", "Butterfly"],
-        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
-        "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
-        "Bizeps": ["Hammer curl", "Biceps curl"],
-        "Trizeps": ["Dips", "Push down"],
-        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
-    }
+exercises_by_group = {
+    "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
+    "Brust": ["Push", "Butterfly"],
+    "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
+    "Glutes": ["Hip Thrust", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
+    "Bizeps": ["Hammer curl", "Biceps curl"],
+    "Trizeps": ["Dips", "Push down"],
+    "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
+}
 
-    exercise = st.selectbox("Übung", exercises[splitday])
-    machine = st.selectbox("Machine", ["Cable", "Freigewicht", "Maschine"])
+# Übungen aus den gewählten Gruppen sammeln
+available_exercises = []
+for group in muscle_groups:
+    available_exercises.extend(exercises_by_group[group])
 
-with set1:
-    gewicht1 = st.number_input("Gewicht Set 1", 0, 400, 20, key="gewicht1")
-    wdh1 = st.number_input("Wdh Set 1", 0, 30, 8, key="wdh1")
+available_exercises = sorted(set(available_exercises))
 
-with set2:
-    gewicht2 = st.number_input("Gewicht Set 2", 0, 400, 20, key="gewicht2")
-    wdh2 = st.number_input("Wdh Set 2", 0, 30, 8, key="wdh2")
+st.subheader("Training eintragen")
 
-with set3:
-    gewicht3 = st.number_input("Gewicht Set 3", 0, 400, 20, key="gewicht3")
-    wdh3 = st.number_input("Wdh Set 3", 0, 30, 8, key="wdh3")
+if not available_exercises:
+    st.info("Wähle zuerst mindestens eine Muskelgruppe aus.")
+else:
+    rows = st.number_input("Wie viele Übungen möchtest du eintragen?", min_value=1, max_value=20, value=3)
 
-with set4:
-    gewicht4 = st.number_input("Gewicht Set 4", 0, 400, 20, key="gewicht4")
-    wdh4 = st.number_input("Wdh Set 4", 0, 30, 8, key="wdh4")
+    entries = []
 
-with note:
-    st.text_input("Note", key="note")
+    for i in range(rows):
+        st.markdown(f"### Übung {i + 1}")
 
+        exercise = st.selectbox(
+            "Übung",
+            available_exercises,
+            key=f"exercise_{i}"
+        )
+
+        note = st.text_input("Notiz", key=f"note_{i}")
+
+        cols = st.columns(4)
+
+        sets = []
+
+        for s in range(4):
+            with cols[s]:
+                st.write(f"Set {s + 1}")
+                weight = st.number_input(
+                    "Gewicht",
+                    min_value=0.0,
+                    max_value=400.0,
+                    value=0.0,
+                    step=0.5,
+                    key=f"weight_{i}_{s}"
+                )
+                reps = st.number_input(
+                    "Wdh",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=0.0,
+                    step=0.5,
+                    key=f"reps_{i}_{s}"
+                )
+
+                sets.append((weight, reps))
+
+        entries.append({
+            "Datum": training_date,
+            "Übung": exercise,
+            "Set 1 Gewicht": sets[0][0],
+            "Set 1 Wdh": sets[0][1],
+            "Set 2 Gewicht": sets[1][0],
+            "Set 2 Wdh": sets[1][1],
+            "Set 3 Gewicht": sets[2][0],
+            "Set 3 Wdh": sets[2][1],
+            "Set 4 Gewicht": sets[3][0],
+            "Set 4 Wdh": sets[3][1],
+            "Notiz": note,
+        })
+
+    if st.button("Training speichern"):
+        df = pd.DataFrame(entries)
+        st.success("Training gespeichert!")
+        st.dataframe(df, use_container_width=True)
