@@ -42,6 +42,7 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
     if edit_date and not saved_df.empty:
         edit_df = saved_df[saved_df["Datum"].astype(str) == str(edit_date)].copy()
+        training_date = st.date_input("Datum", value=pd.to_datetime(edit_date).date())
     else:
         training_date = st.date_input("Datum", value=date.today())
 
