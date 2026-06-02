@@ -16,14 +16,20 @@ DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
 exercises_by_group = {
-        "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern"],
-        "Brust": ["Push", "Butterfly"],
-        "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat"],
-        "Glutes": ["Hip Thrust", "bulgarian Split Squats", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Back extension"],
-        "Bizeps": ["Hammer curl", "Biceps curl"],
-        "Trizeps": ["Dips", "Push down"],
-        "Schultern": ["Lateral raises", "Front raises", "Shoulder Press"],
-    }
+    "Rücken": ["T row", "Lat pull down", "Überzüge", "Rudern", "Face pulls", "Delt Fly", "Hanging"],
+    "Brust": ["Push", "Butterfly"],
+    "Beine": ["Leg extension", "Leg curl", "Leg press", "Abductor", "Adductor", "Squat", "Calf raises"],
+    "Glutes": ["Hip Thrust", "Bulgarian Split Squats", "RDLs", "Step ups", "Abductor", "Squat", "Cable kick back", "Lunges", "Glute hyperextension"],
+    "Bizeps": ["Hammer curl", "Biceps curl"],
+    "Trizeps": ["Dips", "Push down"],
+    "Schultern": ["Lateral raises", "Front raises", "Shoulder Press", "Delt Fly"],
+    "core": ["Dumbbell side bend", "Lying Alternating Leg Raise", "Lying leg raises", "Dead bug", "Heel tap crunches",
+             "Alternating knee tucks", "Russian twist", "Over unders beide Richtungen", "Ab wheel rollout",
+             "Reverse crunch", "Hanging crunches", "Side plank right", "Side plank left", "Plank"],
+    "Calisthenics": ["Push up", "Pike Push up", "Handstand", "Pull up", "Chin up", "Dips", "Australian Rows", "Squat", "Lunges"],
+    "TRX": ["TRX Row", "TRX Chest Press", "TRX Biceps Curl", "TRX Triceps Extension", "TRX Squat", "TRX Lunge", "TRX Pike", "TRX Plank"]
+}
+
 
 def get_user_file(username):
     return DATA_DIR / f"{username}_gym_log.csv"
@@ -117,7 +123,7 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
     st.subheader("Krafttraining")
 
-    all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
+    all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern", "core", "Calisthenics", "TRX"]
 
     if edit_date and not edit_df.empty:
         old_exercises = sorted(edit_df["Übung"].dropna().unique())
@@ -166,7 +172,10 @@ def training_form(username, user_file, saved_df, edit_date=None):
             key=f"exercise_{i}"
         )
 
-        machine_options = ["Cable", "Freigewicht", "Maschine"]
+        if exercise in exercises_by_group["Calisthenics"] or exercise in exercises_by_group["TRX"] or exercise == "Hanging":
+            machine_options = ["Bodyweight"]
+        else:
+            machine_options = ["Cable", "Freigewicht", "Maschine"]
         old_machine = old_row["Machine"] if old_row is not None and "Machine" in old_row else "Cable"
         machine_index = machine_options.index(old_machine) if old_machine in machine_options else 0
 
@@ -176,6 +185,17 @@ def training_form(username, user_file, saved_df, edit_date=None):
             index=machine_index,
             key=f"machine_{i}"
         )
+
+        extra_info = ""
+
+        if exercise in exercises_by_group["TRX"]:
+            extra_info = st.selectbox(
+                "Schräge / Schwierigkeit",
+                ["Sehr aufrecht / leicht", "Mittel", "Sehr schräg / schwer"],
+                key=f"extra_{i}"
+            )
+        elif exercise == "Hanging":
+            extra_info = st.text_input("Hanging-Variante / Notiz", key=f"extra_{i}")
 
         if exercise in exercises_by_group["Beine"] or exercise in exercises_by_group["Glutes"]:
             griff = "Nicht relevant"
@@ -206,25 +226,52 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
         sets = []
 
+        is_core = exercise in exercises_by_group["core"]
+        is_time_exercise = exercise in ["Side plank right", "Side plank left", "Plank", "Hanging"]
+
+        uses_weight = True
+
+        if is_core:
+            uses_weight = st.checkbox("Mit Gewicht gearbeitet?", value=False, key=f"uses_weight_{i}")
+
         for s in range(4):
             with st.expander(f"Set {s + 1}", expanded=True):
-                weight = st.number_input(
-                    "Gewicht",
-                    min_value=0.0,
-                    max_value=400.0,
-                    value=float(old_row[f"Set {s + 1} Gewicht"]) if old_row is not None and f"Set {s + 1} Gewicht" in old_row else 0.0,
-                    step=0.5,
-                    key=f"weight_{i}_{s}"
-                )
 
-                reps = st.number_input(
-                    "Wdh",
-                    min_value=0.0,
-                    max_value=50.0,
-                    value=float(old_row[f"Set {s + 1} Wdh"]) if old_row is not None and f"Set {s + 1} Wdh" in old_row else 8.0,
-                    step=0.5,
-                    key=f"reps_{i}_{s}"
-                )
+                if is_time_exercise:
+                    duration = st.number_input(
+                        "Zeit in Sekunden",
+                        min_value=0.0,
+                        max_value=600.0,
+                        value=0.0,
+                        step=5.0,
+                        key=f"duration_{i}_{s}"
+                    )
+                    weight = 0.0
+                    reps = 0.0
+
+                else:
+                    if uses_weight:
+                        weight = st.number_input(
+                            "Gewicht",
+                            min_value=0.0,
+                            max_value=400.0,
+                            value=float(old_row[f"Set {s + 1} Gewicht"]) if old_row is not None and f"Set {s + 1} Gewicht" in old_row else 0.0,
+                            step=0.5,
+                            key=f"weight_{i}_{s}"
+                        )
+                    else:
+                        weight = 0.0
+
+                    reps = st.number_input(
+                        "Wdh",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=float(old_row[f"Set {s + 1} Wdh"]) if old_row is not None and f"Set {s + 1} Wdh" in old_row else 8.0,
+                        step=0.5,
+                        key=f"reps_{i}_{s}"
+                    )
+
+                    duration = 0.0
 
                 old_set_note = old_row[f"Set {s + 1} Notiz"] if old_row is not None and f"Set {s + 1} Notiz" in old_row else ""
 
@@ -234,7 +281,7 @@ def training_form(username, user_file, saved_df, edit_date=None):
                     key=f"note_set_{i}_{s}"
                 )
 
-                sets.append((weight, reps, note_set))
+                sets.append((weight, reps, duration, note_set))
 
         entries.append({
             "Benutzer": username,
@@ -252,26 +299,25 @@ def training_form(username, user_file, saved_df, edit_date=None):
             "Cardio Distanz km": cardio_distance,
             "Cardio Kalorien": cardio_calories,
 
-            "Übung": exercise,
-            "Machine": machine,
-            "Griff": griff,
-            "Notiz Übung": note,
-
             "Set 1 Gewicht": sets[0][0],
             "Set 1 Wdh": sets[0][1],
-            "Set 1 Notiz": sets[0][2],
+            "Set 1 Dauer Sekunden": sets[0][2],
+            "Set 1 Notiz": sets[0][3],
 
             "Set 2 Gewicht": sets[1][0],
             "Set 2 Wdh": sets[1][1],
-            "Set 2 Notiz": sets[1][2],
+            "Set 2 Dauer Sekunden": sets[1][2],
+            "Set 2 Notiz": sets[1][3],
 
             "Set 3 Gewicht": sets[2][0],
             "Set 3 Wdh": sets[2][1],
-            "Set 3 Notiz": sets[2][2],
+            "Set 3 Dauer Sekunden": sets[2][2],
+            "Set 3 Notiz": sets[2][3],
 
             "Set 4 Gewicht": sets[3][0],
             "Set 4 Wdh": sets[3][1],
-            "Set 4 Notiz": sets[3][2],
+            "Set 4 Dauer Sekunden": sets[3][2],
+            "Set 4 Notiz": sets[3][3],
         })
 
     button_text = "Änderungen speichern" if edit_date else "Training speichern"
