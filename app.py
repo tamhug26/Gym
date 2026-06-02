@@ -115,12 +115,22 @@ def training_form(username, user_file, saved_df, edit_date=None):
 
     st.subheader("Krafttraining")
 
-    muscle_groups = st.multiselect(
-        "Welche Muskelgruppen hast du trainiert?",
-        ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
-    )
+    all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps", "Schultern"]
 
-    available_exercises = get_available_exercises(muscle_groups)
+    if edit_date and not edit_df.empty:
+        old_exercises = sorted(edit_df["Übung"].dropna().unique())
+        muscle_groups = st.multiselect(
+            "Welche Muskelgruppen hast du trainiert?",
+            all_groups,
+            default=all_groups
+        )
+        available_exercises = sorted(set(get_available_exercises(muscle_groups) + old_exercises))
+    else:
+        muscle_groups = st.multiselect(
+            "Welche Muskelgruppen hast du trainiert?",
+            all_groups
+        )
+        available_exercises = get_available_exercises(muscle_groups)
 
     if not available_exercises:
         st.info("Wähle mindestens eine Muskelgruppe aus.")
