@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date
 from pathlib import Path
 from datetime import datetime, timedelta
+import time
 
 #st.set_page_config(layout="wide")
 
@@ -285,9 +286,10 @@ def training_form(username, user_file, saved_df, edit_date=None):
         full_df = pd.concat([old_df, new_df], ignore_index=True)
         save_data(user_file, full_df)
 
-        st.success("Gespeichert!")
+        st.success("Änderungen gespeichert. Zurück zur Hauptseite...")
+        time.sleep(1)
         st.session_state.edit_date = None
-        st.dataframe(new_df, use_container_width=True, hide_index=True)
+        st.rerun()
 def get_last_set2_weight(saved_df, exercise, machine, griff):
     if saved_df.empty:
         return None
