@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide")
+#st.set_page_config(layout="wide")
 
 USERS = {
     "Tamara": "1010",
@@ -192,13 +192,10 @@ def training_form(username, user_file, saved_df, edit_date=None):
         else:
             st.caption("Noch kein früherer Eintrag für diese genaue Übung gefunden.")
 
-        cols = st.columns(4)
         sets = []
 
         for s in range(4):
-            with cols[s]:
-                st.write(f"Set {s + 1}")
-
+            with st.expander(f"Set {s + 1}", expanded=True):
                 weight = st.number_input(
                     "Gewicht",
                     min_value=0.0,
