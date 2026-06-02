@@ -10,7 +10,8 @@ import time
 USERS = {
     "Tamara": "1010",
     "Can": "1010",
-    "Papa": "aramat"
+    "Papa": "aramat",
+    "Mily": "Katisthebest"
 }
 
 DATA_DIR = Path("data")
