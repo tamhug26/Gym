@@ -12,7 +12,7 @@ USERS = {
     "Can": "1010",
     "Papa": "aramat",
     "Mily": "Katisthebest",
-    "Nomi": "Millyisthebest"
+    "Nomi": "Milyisthebest"
 }
 
 DATA_DIR = Path("data")
