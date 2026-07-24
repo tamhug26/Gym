@@ -372,55 +372,31 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
-st.title("Abweichung zwischen Messung und Simulation")
+parameter = [
+    "Strombedarf",
+    "Eigenverbrauch",
+    "Autarkie",
+    "Netzbezug",
+    "Netzeinspeisung",
+    "PV-Produktion"
+]
 
-df = pd.DataFrame({
-    "Parameter": [
-        "Strombedarf",
-        "Eigenverbrauchsquote",
-        "Autarkiegrad",
-        "Netzbezug",
-        "Netzeinspeisung",
-        "PV-Produktion"
-    ],
-    "Abweichung": [2, -17, -7, 10, 41, 15]
-})
+abweichung = [2, -17, -7, 10, 41, 15]
 
-# Farben
-farben = ["crimson" if x < 0 else "seagreen" for x in df["Abweichung"]]
+farben = ["green" if x > 0 else "red" for x in abweichung]
 
-fig = go.Figure()
+fig, ax = plt.subplots(figsize=(9,5))
+ax.bar(parameter, abweichung, color=farben)
 
-fig.add_trace(
-    go.Bar(
-        x=df["Parameter"],
-        y=df["Abweichung"],
-        marker_color=farben,
-        text=[f"{x:+.0f} %" for x in df["Abweichung"]],
-        textposition="outside"
-    )
-)
+ax.axhline(0, color="black")
+ax.set_ylabel("Abweichung [%]")
+ax.set_title("Abweichung zwischen Messung und Simulation")
 
-fig.update_layout(
-    title="Abweichung der simulierten Werte gegenüber den Messwerten",
-    yaxis_title="Abweichung [%]",
-    xaxis_title="",
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    font=dict(size=15),
-    height=500
-)
+plt.xticks(rotation=20, ha="right")
 
-fig.update_yaxes(
-    zeroline=True,
-    zerolinewidth=2,
-    zerolinecolor="black",
-    gridcolor="lightgrey"
-)
-
-st.plotly_chart(fig, use_container_width=True)
+st.pyplot(fig)
 #--------------------------------------
 
 # Login
