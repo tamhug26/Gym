@@ -400,8 +400,8 @@ st.vega_lite_chart(
             {
                 "mark": {
                     "type": "bar",
-                    "cornerRadiusTopLeft": 4,
-                    "cornerRadiusTopRight": 4,
+                    "cornerRadiusTopLeft": 2,
+                    "cornerRadiusTopRight": 2,
                     "color": "#4C78A8"
                 },
                 "encoding": {
