@@ -372,23 +372,131 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-df = pd.DataFrame(
-    {
-        "Abweichung [%]": [2, -17, -7, 10, 41, 15]
-    },
-    index=[
+df = pd.DataFrame({
+
+    "Parameter": [
+
         "Strombedarf",
+
         "Eigenverbrauchsquote",
+
         "Autarkiegrad",
+
         "Netzbezug",
+
         "Netzeinspeisung",
-        "PV-Produktion",
+
+        "PV-Produktion"
+
     ],
-)
+
+    "Abweichung": [2, -17, -7, 10, 41, 15]
+
+})
 
 st.subheader("Abweichung zwischen Messung und Simulation")
 
-st.bar_chart(df)
+st.vega_lite_chart(
+
+    df,
+
+    {
+
+        "mark": {
+
+            "type": "bar",
+
+            "cornerRadiusEnd": 4
+
+        },
+
+        "encoding": {
+
+            "x": {
+
+                "field": "Parameter",
+
+                "type": "nominal",
+
+                "sort": None,
+
+                "axis": {
+
+                    "title": None,
+
+                    "labelAngle": -25
+
+                }
+
+            },
+
+            "y": {
+
+                "field": "Abweichung",
+
+                "type": "quantitative",
+
+                "axis": {
+
+                    "title": "Abweichung [%]"
+
+                },
+
+                "scale": {
+
+                    "domain": [-20, 45]
+
+                }
+
+            },
+
+            "color": {
+
+                "condition": {
+
+                    "test": "datum.Abweichung >= 0",
+
+                    "value": "#2E8B57"
+
+                },
+
+                "value": "#C83E4D"
+
+            },
+
+            "tooltip": [
+
+                {
+
+                    "field": "Parameter",
+
+                    "type": "nominal",
+
+                    "title": "Parameter"
+
+                },
+
+                {
+
+                    "field": "Abweichung",
+
+                    "type": "quantitative",
+
+                    "title": "Abweichung",
+
+                    "format": "+.0f"
+
+                }
+
+            ]
+
+        }
+
+    },
+
+    use_container_width=True
+
+)
 #--------------------------------------
 
 # Login
