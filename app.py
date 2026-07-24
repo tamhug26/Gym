@@ -372,123 +372,73 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-import streamlit as st
-import pandas as pd
 
-st.subheader(
-    "Einfluss von Batteriekapazität und Strommix auf die CO₂-Emissionen"
-)
 
-# Exakte Werte aus Tabelle 27
 df = pd.DataFrame({
-    "Batteriekapazität": [0, 1, 9, 15, 33],
-    "Netzbezug": [10115, 9706, 7579, 6600, 5858],
-    "Total IWB": [1893, 1913, 1963, 2017, 2207],
-    "Total Schweiz": [2757, 2742, 2609, 2581, 2708]
+    "Parameter": [
+        "PV-Produktion",
+        "Netzbezug",
+        "Netzeinspeisung",
+        "Strombedarf"
+    ],
+    "Abweichung": [
+        21.0,
+        -8.1,
+        -2.6,
+        4.3
+    ]
 })
 
-df_long = df.melt(
-    id_vars=["Batteriekapazität", "Netzbezug"],
-    value_vars=["Total IWB", "Total Schweiz"],
-    var_name="Strommix",
-    value_name="CO2"
-)
-
-df_long["Strommix"] = df_long["Strommix"].replace({
-    "Total IWB": "IWB-Strommix",
-    "Total Schweiz": "Schweizer Strommix"
-})
+st.subheader("Abweichung zwischen Simulation und Messdaten")
 
 st.vega_lite_chart(
-    df_long,
+    df,
     {
-        "width": "container",
-        "height": 480,
-        "layer": [
-            {
-                "mark": {
-                    "type": "line",
-                    "strokeWidth": 3,
-                    "interpolate": "linear"
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative",
-                        "title": "Batteriekapazität [kWh]",
-                        "scale": {"domain": [0, 35]}
-                    },
-                    "y": {
-                        "field": "CO2",
-                        "type": "quantitative",
-                        "title": "Gesamte CO₂-Emissionen [kg CO₂-eq/a]",
-                        "scale": {"zero": False}
-                    },
-                    "color": {
-                        "field": "Strommix",
-                        "type": "nominal",
-                        "title": "Strommix",
-                        "legend": {"orient": "top"}
-                    },
-                    "detail": {
-                        "field": "Strommix"
-                    },
-                    "order": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative"
-                    }
+        "width": 500,
+        "height": 220,
+        "mark": {
+            "type": "bar",
+            "cornerRadiusEnd": 4
+        },
+        "encoding": {
+            "y": {
+                "field": "Parameter",
+                "type": "nominal",
+                "sort": None,
+                "axis": {
+                    "title": None
                 }
             },
-            {
-                "mark": {
-                    "type": "point",
-                    "filled": True,
-                    "size": 100
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative"
-                    },
-                    "y": {
-                        "field": "CO2",
-                        "type": "quantitative"
-                    },
-                    "color": {
-                        "field": "Strommix",
-                        "type": "nominal",
-                        "legend": None
-                    },
-                    "tooltip": [
-                        {
-                            "field": "Strommix",
-                            "type": "nominal",
-                            "title": "Strommix"
-                        },
-                        {
-                            "field": "Batteriekapazität",
-                            "type": "quantitative",
-                            "title": "Batterie",
-                            "format": ".0f"
-                        },
-                        {
-                            "field": "Netzbezug",
-                            "type": "quantitative",
-                            "title": "Netzbezug [kWh/a]",
-                            "format": ",.0f"
-                        },
-                        {
-                            "field": "CO2",
-                            "type": "quantitative",
-                            "title": "CO₂ gesamt [kg/a]",
-                            "format": ",.0f"
-                        }
-                    ]
+            "x": {
+                "field": "Abweichung",
+                "type": "quantitative",
+                "title": "Abweichung [%]",
+                "scale": {
+                    "domain": [-10, 25]
                 }
-            }
-        ]
+            },
+            "color": {
+                "condition": {
+                    "test": "datum.Abweichung >= 0",
+                    "value": "#2E8B57"
+                },
+                "value": "#C83E4D"
+            },
+            "tooltip": [
+                {
+                    "field": "Parameter",
+                    "type": "nominal"
+                },
+                {
+                    "field": "Abweichung",
+                    "type": "quantitative",
+                    "format": "+.1f",
+                    "title": "Abweichung [%]"
+                }
+            ]
+        }
     },
-    use_container_width=True
+    use_container_width=False
 )
 #--------------------------------------
 
