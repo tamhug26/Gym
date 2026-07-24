@@ -394,7 +394,7 @@ st.subheader("Abweichung zwischen Simulation und Messdaten")
 st.vega_lite_chart(
     df,
     {
-        "width": 500,
+        "width": 250,
         "height": 300,
         "layer": [
             {
