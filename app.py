@@ -677,6 +677,281 @@ st.vega_lite_chart(
     use_container_width=True
 
 )
+df = pd.DataFrame({
+
+    "Szenario": [
+
+        "Fall 0\nElektrifiziert",
+
+        "Fall 1\nGasheizung",
+
+        "Fall 1\nÖlheizung",
+
+        "Fall 1\nPelletheizung",
+
+        "Fall 2\nBenzin",
+
+        "Fall 2\nDiesel",
+
+        "Fall 2\nGas"
+
+    ],
+
+    "UBP": [
+
+        4993,
+
+        8589,
+
+        11005,
+
+        6495,
+
+        5549,
+
+        5243,
+
+        5083
+
+    ],
+
+    "CO2": [
+
+        1963,
+
+        5153,
+
+        6819,
+
+        2126,
+
+        2881,
+
+        2663,
+
+        2539
+
+    ]
+
+})
+
+reihenfolge = df["Szenario"].tolist()
+
+st.subheader("Umweltwirkungen der untersuchten Szenarien")
+
+col1, col2 = st.columns(2)
+
+# ---------------------------------------------------------
+
+# UBP-Diagramm
+
+# ---------------------------------------------------------
+
+with col1:
+
+    st.vega_lite_chart(
+
+        df,
+
+        {
+
+            "mark": {
+
+                "type": "bar",
+
+                "cornerRadiusEnd": 4,
+
+                "tooltip": True
+
+            },
+
+            "encoding": {
+
+                "x": {
+
+                    "field": "Szenario",
+
+                    "type": "nominal",
+
+                    "sort": reihenfolge,
+
+                    "axis": {
+
+                        "title": None,
+
+                        "labelAngle": -35
+
+                    }
+
+                },
+
+                "y": {
+
+                    "field": "UBP",
+
+                    "type": "quantitative",
+
+                    "axis": {
+
+                        "title": "Umweltbelastung [kpt UBP/a]",
+
+                        "format": ",.0f"
+
+                    }
+
+                },
+
+                "color": {
+
+                    "field": "Szenario",
+
+                    "type": "nominal",
+
+                    "legend": None
+
+                },
+
+                "tooltip": [
+
+                    {
+
+                        "field": "Szenario",
+
+                        "type": "nominal",
+
+                        "title": "Szenario"
+
+                    },
+
+                    {
+
+                        "field": "UBP",
+
+                        "type": "quantitative",
+
+                        "title": "UBP [kpt/a]",
+
+                        "format": ",.0f"
+
+                    }
+
+                ]
+
+            },
+
+            "title": "Gesamte Umweltbelastung"
+
+        },
+
+        use_container_width=True
+
+    )
+
+# ---------------------------------------------------------
+
+# CO₂-Diagramm
+
+# ---------------------------------------------------------
+
+with col2:
+
+    st.vega_lite_chart(
+
+        df,
+
+        {
+
+            "mark": {
+
+                "type": "bar",
+
+                "cornerRadiusEnd": 4,
+
+                "tooltip": True
+
+            },
+
+            "encoding": {
+
+                "x": {
+
+                    "field": "Szenario",
+
+                    "type": "nominal",
+
+                    "sort": reihenfolge,
+
+                    "axis": {
+
+                        "title": None,
+
+                        "labelAngle": -35
+
+                    }
+
+                },
+
+                "y": {
+
+                    "field": "CO2",
+
+                    "type": "quantitative",
+
+                    "axis": {
+
+                        "title": "Treibhausgasemissionen [kg CO₂-eq/a]",
+
+                        "format": ",.0f"
+
+                    }
+
+                },
+
+                "color": {
+
+                    "field": "Szenario",
+
+                    "type": "nominal",
+
+                    "legend": None
+
+                },
+
+                "tooltip": [
+
+                    {
+
+                        "field": "Szenario",
+
+                        "type": "nominal",
+
+                        "title": "Szenario"
+
+                    },
+
+                    {
+
+                        "field": "CO2",
+
+                        "type": "quantitative",
+
+                        "title": "CO₂-eq [kg/a]",
+
+                        "format": ",.0f"
+
+                    }
+
+                ]
+
+            },
+
+            "title": "Treibhausgasemissionen"
+
+        },
+
+        use_container_width=True
+
+    )
 #--------------------------------------
 
 # Login
