@@ -460,7 +460,7 @@ st.vega_lite_chart(
 
                     "title": None,
 
-                    "labelAngle": -25
+                    "labelAngle": -30
 
                 }
 
@@ -552,64 +552,52 @@ st.vega_lite_chart(
 
 )
 df = pd.DataFrame({
-
     "Szenario": [
 
-        "Fall 0\nElektrifiziert",
+    "Referenz",
 
-        "Fall 1\nGasheizung",
+    "Heizung:\nGas",
 
-        "Fall 1\nÖlheizung",
+    "Heizung:\nÖl",
 
-        "Fall 1\nPelletheizung",
+    "Heizung:\nPellets",
 
-        "Fall 2\nBenzin",
+    "Fahrzeug:\nBenzin",
 
-        "Fall 2\nDiesel",
+    "Fahrzeug:\nDiesel",
 
-        "Fall 2\nGas"
+    "Fahrzeug:\nGas"
 
-    ],
-
+],
     "UBP": [
-
         4993,
-
         8589,
-
         11005,
-
         6495,
-
         5549,
-
         5243,
-
         5083
-
     ],
-
     "CO2": [
-
         1963,
-
         5153,
-
         6819,
-
         2126,
-
         2881,
-
         2663,
-
         2539
-
     ]
-
 })
 
-reihenfolge = df["Szenario"].tolist()
+reihenfolge = [
+    "Referenz",
+    "Heizung:\nGas",
+    "Heizung:\nÖl",
+    "Heizung:\nPellets",
+    "Fahrzeug:\nBenzin",
+    "Fahrzeug:\nDiesel",
+    "Fahrzeug:\nGas"
+]
 
 st.subheader("Umweltwirkungen der untersuchten Szenarien")
 
@@ -637,7 +625,7 @@ with col1:
                     "sort": reihenfolge,
                     "axis": {
                         "title": None,
-                        "labelAngle": -35,
+                        "labelAngle": -30,
                         "labelOverlap": False
                     }
                 },
@@ -710,7 +698,7 @@ with col2:
 
                         "title": None,
 
-                        "labelAngle": -35,
+                        "labelAngle": -30,
 
                         "labelOverlap": False
 
