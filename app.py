@@ -444,7 +444,7 @@ st.vega_lite_chart(
                 "mark": {
                     "type": "rule",
                     "color": "black",
-                    "strokeWidth": 1.5
+                    "strokeWidth": 0.5
                 },
                 "encoding": {
                     "y": {
