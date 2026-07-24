@@ -661,7 +661,239 @@ with col1:
         use_container_width=True
     )
 # ---------------------------------------------------------
+import streamlit as st
+import pandas as pd
 
+st.subheader("Einfluss der Batteriekapazität auf Netzbezug und CO₂-Emissionen")
+
+# ---------------------------------------------------------
+# Daten aus Tabelle 20
+# ---------------------------------------------------------
+
+df = pd.DataFrame({
+    "Batteriekapazität": [
+        0, 1, 3, 6, 9, 12, 15,
+        18, 21, 24, 27, 30, 33, 50
+    ],
+    "Netzbezug": [
+        10115, 9705, 9092, 8296, 7579, 7019, 6600,
+        6300, 6124, 6006, 5932, 5893, 5858, 5750
+    ]
+})
+
+# ---------------------------------------------------------
+# Emissionsfaktoren aus Tabelle 27
+# ---------------------------------------------------------
+
+# IWB: 12 kg CO₂-eq/MWh
+emissionsfaktor_iwb = 0.012
+
+# Schweizer Strommix aus Tabelle 27:
+# 985 kg CO₂-eq bei 10'115 kWh Netzbezug
+emissionsfaktor_ch = 985 / 10115
+
+# Herstellungsbedingte Emissionen:
+# 365 kg CO₂-eq/a bei 33 kWh Batterie
+batterie_co2_pro_kwh = 365 / 33
+
+# ---------------------------------------------------------
+# Berechnungen
+# ---------------------------------------------------------
+
+df["CO2 Batterieherstellung"] = (
+    df["Batteriekapazität"] * batterie_co2_pro_kwh
+)
+
+df["CO2 total IWB"] = (
+    df["Netzbezug"] * emissionsfaktor_iwb
+    + df["CO2 Batterieherstellung"]
+)
+
+df["CO2 total Schweiz"] = (
+    df["Netzbezug"] * emissionsfaktor_ch
+    + df["CO2 Batterieherstellung"]
+)
+
+co2_long = df.melt(
+    id_vars=["Batteriekapazität", "Netzbezug"],
+    value_vars=["CO2 total IWB", "CO2 total Schweiz"],
+    var_name="Strommix",
+    value_name="CO2"
+)
+
+co2_long["Strommix"] = co2_long["Strommix"].replace({
+    "CO2 total IWB": "IWB-Strommix",
+    "CO2 total Schweiz": "Schweizer Strommix"
+})
+
+# ---------------------------------------------------------
+# Grafik 1: Gesamte CO₂-Emissionen
+# ---------------------------------------------------------
+
+st.vega_lite_chart(
+    co2_long,
+    {
+        "width": "container",
+        "height": 380,
+        "title": "Gesamte jährliche CO₂-Emissionen",
+        "layer": [
+            {
+                "mark": {
+                    "type": "line",
+                    "strokeWidth": 3
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative",
+                        "title": "Batteriekapazität [kWh]"
+                    },
+                    "y": {
+                        "field": "CO2",
+                        "type": "quantitative",
+                        "title": "CO₂-Emissionen [kg CO₂-eq/a]",
+                        "scale": {
+                            "zero": False
+                        }
+                    },
+                    "color": {
+                        "field": "Strommix",
+                        "type": "nominal",
+                        "title": "Strommix",
+                        "legend": {
+                            "orient": "top"
+                        }
+                    },
+                    "detail": {
+                        "field": "Strommix"
+                    },
+                    "order": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative"
+                    }
+                }
+            },
+            {
+                "mark": {
+                    "type": "point",
+                    "filled": True,
+                    "size": 80
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative"
+                    },
+                    "y": {
+                        "field": "CO2",
+                        "type": "quantitative"
+                    },
+                    "color": {
+                        "field": "Strommix",
+                        "type": "nominal",
+                        "legend": None
+                    },
+                    "tooltip": [
+                        {
+                            "field": "Strommix",
+                            "type": "nominal",
+                            "title": "Strommix"
+                        },
+                        {
+                            "field": "Batteriekapazität",
+                            "type": "quantitative",
+                            "title": "Batteriekapazität [kWh]",
+                            "format": ".0f"
+                        },
+                        {
+                            "field": "Netzbezug",
+                            "type": "quantitative",
+                            "title": "Netzbezug [kWh/a]",
+                            "format": ",.0f"
+                        },
+                        {
+                            "field": "CO2",
+                            "type": "quantitative",
+                            "title": "CO₂ gesamt [kg/a]",
+                            "format": ",.0f"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    use_container_width=True
+)
+
+# ---------------------------------------------------------
+# Grafik 2: Netzbezug
+# ---------------------------------------------------------
+
+st.vega_lite_chart(
+    df,
+    {
+        "width": "container",
+        "height": 260,
+        "title": "Abnahme des Netzbezugs",
+        "layer": [
+            {
+                "mark": {
+                    "type": "line",
+                    "strokeWidth": 3
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative",
+                        "title": "Batteriekapazität [kWh]"
+                    },
+                    "y": {
+                        "field": "Netzbezug",
+                        "type": "quantitative",
+                        "title": "Netzbezug [kWh/a]",
+                        "scale": {
+                            "zero": False
+                        }
+                    }
+                }
+            },
+            {
+                "mark": {
+                    "type": "point",
+                    "filled": True,
+                    "size": 70
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative"
+                    },
+                    "y": {
+                        "field": "Netzbezug",
+                        "type": "quantitative"
+                    },
+                    "tooltip": [
+                        {
+                            "field": "Batteriekapazität",
+                            "type": "quantitative",
+                            "title": "Batteriekapazität [kWh]",
+                            "format": ".0f"
+                        },
+                        {
+                            "field": "Netzbezug",
+                            "type": "quantitative",
+                            "title": "Netzbezug [kWh/a]",
+                            "format": ",.0f"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    use_container_width=True
+)
+
+#------------
 # CO₂-Diagramm
 
 # ---------------------------------------------------------
