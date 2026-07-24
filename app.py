@@ -373,6 +373,7 @@ def get_last_mode_and_calories(saved_df):
 
 # was anderes
 
+
 df = pd.DataFrame({
     "Parameter": [
         "PV-Produktion",
@@ -393,43 +394,65 @@ st.subheader("Abweichung zwischen Simulation und Messdaten")
 st.vega_lite_chart(
     df,
     {
-        "width": 550,
-        "height": 220,
-        "mark": {
-            "type": "bar",
-            "cornerRadiusEnd": 3,
-            "color": "#4C78A8"   # alle Balken gleiche Farbe
-        },
-        "encoding": {
-            "y": {
-                "field": "Parameter",
-                "type": "nominal",
-                "sort": None,
-                "axis": {
-                    "title": None
-                }
-            },
-            "x": {
-                "field": "Abweichung",
-                "type": "quantitative",
-                "title": "Abweichung [%]",
-                "scale": {
-                    "domain": [-10, 25]
-                }
-            },
-            "tooltip": [
-                {
-                    "field": "Parameter",
-                    "type": "nominal"
+        "width": 500,
+        "height": 300,
+        "layer": [
+            {
+                "mark": {
+                    "type": "bar",
+                    "cornerRadiusTopLeft": 4,
+                    "cornerRadiusTopRight": 4,
+                    "color": "#4C78A8"
                 },
-                {
-                    "field": "Abweichung",
-                    "type": "quantitative",
-                    "title": "Abweichung [%]",
-                    "format": "+.1f"
+                "encoding": {
+                    "x": {
+                        "field": "Parameter",
+                        "type": "nominal",
+                        "sort": None,
+                        "axis": {
+                            "title": None,
+                            "labelAngle": -25,
+                            "labelOverlap": False
+                        }
+                    },
+                    "y": {
+                        "field": "Abweichung",
+                        "type": "quantitative",
+                        "axis": {
+                            "title": "Abweichung [%]"
+                        },
+                        "scale": {
+                            "domain": [-10, 25]
+                        }
+                    },
+                    "tooltip": [
+                        {
+                            "field": "Parameter",
+                            "type": "nominal",
+                            "title": "Parameter"
+                        },
+                        {
+                            "field": "Abweichung",
+                            "type": "quantitative",
+                            "title": "Abweichung [%]",
+                            "format": "+.1f"
+                        }
+                    ]
                 }
-            ]
-        }
+            },
+            {
+                "mark": {
+                    "type": "rule",
+                    "color": "black",
+                    "strokeWidth": 1.5
+                },
+                "encoding": {
+                    "y": {
+                        "datum": 0
+                    }
+                }
+            }
+        ]
     },
     use_container_width=False
 )
