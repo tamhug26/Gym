@@ -372,31 +372,23 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-import matplotlib.pyplot as plt
+df = pd.DataFrame(
+    {
+        "Abweichung [%]": [2, -17, -7, 10, 41, 15]
+    },
+    index=[
+        "Strombedarf",
+        "Eigenverbrauchsquote",
+        "Autarkiegrad",
+        "Netzbezug",
+        "Netzeinspeisung",
+        "PV-Produktion",
+    ],
+)
 
-parameter = [
-    "Strombedarf",
-    "Eigenverbrauch",
-    "Autarkie",
-    "Netzbezug",
-    "Netzeinspeisung",
-    "PV-Produktion"
-]
+st.subheader("Abweichung zwischen Messung und Simulation")
 
-abweichung = [2, -17, -7, 10, 41, 15]
-
-farben = ["green" if x > 0 else "red" for x in abweichung]
-
-fig, ax = plt.subplots(figsize=(9,5))
-ax.bar(parameter, abweichung, color=farben)
-
-ax.axhline(0, color="black")
-ax.set_ylabel("Abweichung [%]")
-ax.set_title("Abweichung zwischen Messung und Simulation")
-
-plt.xticks(rotation=20, ha="right")
-
-st.pyplot(fig)
+st.bar_chart(df)
 #--------------------------------------
 
 # Login
