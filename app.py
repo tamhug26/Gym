@@ -372,397 +372,63 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-df = pd.DataFrame({
-
-    "Parameter": [
-
-        "Strombedarf",
-
-        "Eigenverbrauchsquote",
-
-        "Autarkiegrad",
-
-        "Netzbezug",
-
-        "Netzeinspeisung",
-
-        "PV-Produktion"
-
-    ],
-
-    "BA-Tool": [2, -17, -7, 10, 41, 15],
-
-    "HTW": [None, -32, 14, None, None, None],
-
-    "Minergie": [-2, -23, -23, 21, 34, 0],
-
-    "Energieschweiz": [None, -63, -15, 17, 101, 32]
-
-})
-
-# Für Vega-Lite ins lange Format bringen
-
-df_long = df.melt(
-
-    id_vars="Parameter",
-
-    var_name="Tool",
-
-    value_name="Abweichung"
-
-)
-
-# Fehlende Werte entfernen
-
-df_long = df_long.dropna(subset=["Abweichung"])
-
-st.subheader("Abweichungen der Simulationstools zu den Messwerten")
-
-st.vega_lite_chart(
-
-    df_long,
-
-    {
-
-        "mark": {
-
-            "type": "bar",
-
-            "cornerRadiusEnd": 3
-
-        },
-
-        "encoding": {
-
-            "x": {
-
-                "field": "Parameter",
-
-                "type": "nominal",
-
-                "sort": [
-
-                    "Strombedarf",
-
-                    "Eigenverbrauchsquote",
-
-                    "Autarkiegrad",
-
-                    "Netzbezug",
-
-                    "Netzeinspeisung",
-
-                    "PV-Produktion"
-
-                ],
-
-                "axis": {
-
-                    "title": None,
-
-                    "labelAngle": -30
-
-                }
-
-            },
-
-            "xOffset": {
-
-                "field": "Tool"
-
-            },
-
-            "y": {
-
-                "field": "Abweichung",
-
-                "type": "quantitative",
-
-                "axis": {
-
-                    "title": "Abweichung [%]"
-
-                },
-
-                "scale": {
-
-                    "domain": [-70, 110]
-
-                }
-
-            },
-
-            "color": {
-
-                "field": "Tool",
-
-                "type": "nominal",
-
-                "legend": {
-
-                    "title": "Tool",
-
-                    "orient": "top"
-
-                }
-
-            },
-
-            "tooltip": [
-
-                {
-
-                    "field": "Parameter",
-
-                    "type": "nominal",
-
-                    "title": "Parameter"
-
-                },
-
-                {
-
-                    "field": "Tool",
-
-                    "type": "nominal",
-
-                    "title": "Tool"
-
-                },
-
-                {
-
-                    "field": "Abweichung",
-
-                    "type": "quantitative",
-
-                    "title": "Abweichung",
-
-                    "format": "+.0f"
-
-                }
-
-            ]
-
-        }
-
-    },
-
-    use_container_width=True
-
-)
-df = pd.DataFrame({
-    "Szenario": [
-
-    "Referenz",
-
-    "Heizung:\nGas",
-
-    "Heizung:\nÖl",
-
-    "Heizung:\nPellets",
-
-    "Fahrzeug:\nBenzin",
-
-    "Fahrzeug:\nDiesel",
-
-    "Fahrzeug:\nGas"
-
-],
-    "UBP": [
-        4993,
-        8589,
-        11005,
-        6495,
-        5549,
-        5243,
-        5083
-    ],
-    "CO2": [
-        1963,
-        5153,
-        6819,
-        2126,
-        2881,
-        2663,
-        2539
-    ]
-})
-
-reihenfolge = [
-    "Referenz",
-    "Heizung:\nGas",
-    "Heizung:\nÖl",
-    "Heizung:\nPellets",
-    "Fahrzeug:\nBenzin",
-    "Fahrzeug:\nDiesel",
-    "Fahrzeug:\nGas"
-]
-
-st.subheader("Umweltwirkungen der untersuchten Szenarien")
-
-col1, col2 = st.columns(2)
-
-# ---------------------------------------------------------
-
-# UBP-Diagramm
-
-# ---------------------------------------------------------
-
-with col1:
-    st.vega_lite_chart(
-        df,
-        {
-            "mark": {
-                "type": "bar",
-                "cornerRadiusEnd": 4,
-                "tooltip": True
-            },
-            "encoding": {
-                "x": {
-                    "field": "Szenario",
-                    "type": "nominal",
-                    "sort": reihenfolge,
-                    "axis": {
-                        "title": None,
-                        "labelAngle": -30,
-                        "labelOverlap": False
-                    }
-                },
-                "y": {
-                    "field": "UBP",
-                    "type": "quantitative",
-                    "axis": {
-                        "title": "Umweltbelastung [kpt UBP/a]",
-                        "format": ",.0f"
-                    }
-                },
-                "color": {
-                    "field": "Szenario",
-                    "type": "nominal",
-                    "legend": None
-                },
-                "tooltip": [
-                    {
-                        "field": "Szenario",
-                        "type": "nominal",
-                        "title": "Szenario"
-                    },
-                    {
-                        "field": "UBP",
-                        "type": "quantitative",
-                        "title": "UBP [kpt/a]",
-                        "format": ",.0f"
-                    }
-                ]
-            },
-            "title": "Gesamte Umweltbelastung"
-        },
-        use_container_width=True
-    )
-# ---------------------------------------------------------
 import streamlit as st
 import pandas as pd
 
-st.subheader("Einfluss der Batteriekapazität auf Netzbezug und CO₂-Emissionen")
+st.subheader(
+    "Einfluss von Batteriekapazität und Strommix auf die CO₂-Emissionen"
+)
 
-# ---------------------------------------------------------
-# Daten aus Tabelle 20
-# ---------------------------------------------------------
-
+# Exakte Werte aus Tabelle 27
 df = pd.DataFrame({
-    "Batteriekapazität": [
-        0, 1, 3, 6, 9, 12, 15,
-        18, 21, 24, 27, 30, 33, 50
-    ],
-    "Netzbezug": [
-        10115, 9705, 9092, 8296, 7579, 7019, 6600,
-        6300, 6124, 6006, 5932, 5893, 5858, 5750
-    ]
+    "Batteriekapazität": [0, 1, 9, 15, 33],
+    "Netzbezug": [10115, 9706, 7579, 6600, 5858],
+    "Total IWB": [1893, 1913, 1963, 2017, 2207],
+    "Total Schweiz": [2757, 2742, 2609, 2581, 2708]
 })
 
-# ---------------------------------------------------------
-# Emissionsfaktoren aus Tabelle 27
-# ---------------------------------------------------------
-
-# IWB: 12 kg CO₂-eq/MWh
-emissionsfaktor_iwb = 0.012
-
-# Schweizer Strommix aus Tabelle 27:
-# 985 kg CO₂-eq bei 10'115 kWh Netzbezug
-emissionsfaktor_ch = 985 / 10115
-
-# Herstellungsbedingte Emissionen:
-# 365 kg CO₂-eq/a bei 33 kWh Batterie
-batterie_co2_pro_kwh = 365 / 33
-
-# ---------------------------------------------------------
-# Berechnungen
-# ---------------------------------------------------------
-
-df["CO2 Batterieherstellung"] = (
-    df["Batteriekapazität"] * batterie_co2_pro_kwh
-)
-
-df["CO2 total IWB"] = (
-    df["Netzbezug"] * emissionsfaktor_iwb
-    + df["CO2 Batterieherstellung"]
-)
-
-df["CO2 total Schweiz"] = (
-    df["Netzbezug"] * emissionsfaktor_ch
-    + df["CO2 Batterieherstellung"]
-)
-
-co2_long = df.melt(
+df_long = df.melt(
     id_vars=["Batteriekapazität", "Netzbezug"],
-    value_vars=["CO2 total IWB", "CO2 total Schweiz"],
+    value_vars=["Total IWB", "Total Schweiz"],
     var_name="Strommix",
     value_name="CO2"
 )
 
-co2_long["Strommix"] = co2_long["Strommix"].replace({
-    "CO2 total IWB": "IWB-Strommix",
-    "CO2 total Schweiz": "Schweizer Strommix"
+df_long["Strommix"] = df_long["Strommix"].replace({
+    "Total IWB": "IWB-Strommix",
+    "Total Schweiz": "Schweizer Strommix"
 })
 
-# ---------------------------------------------------------
-# Grafik 1: Gesamte CO₂-Emissionen
-# ---------------------------------------------------------
-
 st.vega_lite_chart(
-    co2_long,
+    df_long,
     {
         "width": "container",
-        "height": 380,
-        "title": "Gesamte jährliche CO₂-Emissionen",
+        "height": 480,
         "layer": [
             {
                 "mark": {
                     "type": "line",
-                    "strokeWidth": 3
+                    "strokeWidth": 3,
+                    "interpolate": "linear"
                 },
                 "encoding": {
                     "x": {
                         "field": "Batteriekapazität",
                         "type": "quantitative",
-                        "title": "Batteriekapazität [kWh]"
+                        "title": "Batteriekapazität [kWh]",
+                        "scale": {"domain": [0, 35]}
                     },
                     "y": {
                         "field": "CO2",
                         "type": "quantitative",
-                        "title": "CO₂-Emissionen [kg CO₂-eq/a]",
-                        "scale": {
-                            "zero": False
-                        }
+                        "title": "Gesamte CO₂-Emissionen [kg CO₂-eq/a]",
+                        "scale": {"zero": False}
                     },
                     "color": {
                         "field": "Strommix",
                         "type": "nominal",
                         "title": "Strommix",
-                        "legend": {
-                            "orient": "top"
-                        }
+                        "legend": {"orient": "top"}
                     },
                     "detail": {
                         "field": "Strommix"
@@ -777,7 +443,7 @@ st.vega_lite_chart(
                 "mark": {
                     "type": "point",
                     "filled": True,
-                    "size": 80
+                    "size": 100
                 },
                 "encoding": {
                     "x": {
@@ -802,7 +468,7 @@ st.vega_lite_chart(
                         {
                             "field": "Batteriekapazität",
                             "type": "quantitative",
-                            "title": "Batteriekapazität [kWh]",
+                            "title": "Batterie",
                             "format": ".0f"
                         },
                         {
@@ -824,181 +490,6 @@ st.vega_lite_chart(
     },
     use_container_width=True
 )
-
-# ---------------------------------------------------------
-# Grafik 2: Netzbezug
-# ---------------------------------------------------------
-
-st.vega_lite_chart(
-    df,
-    {
-        "width": "container",
-        "height": 260,
-        "title": "Abnahme des Netzbezugs",
-        "layer": [
-            {
-                "mark": {
-                    "type": "line",
-                    "strokeWidth": 3
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative",
-                        "title": "Batteriekapazität [kWh]"
-                    },
-                    "y": {
-                        "field": "Netzbezug",
-                        "type": "quantitative",
-                        "title": "Netzbezug [kWh/a]",
-                        "scale": {
-                            "zero": False
-                        }
-                    }
-                }
-            },
-            {
-                "mark": {
-                    "type": "point",
-                    "filled": True,
-                    "size": 70
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative"
-                    },
-                    "y": {
-                        "field": "Netzbezug",
-                        "type": "quantitative"
-                    },
-                    "tooltip": [
-                        {
-                            "field": "Batteriekapazität",
-                            "type": "quantitative",
-                            "title": "Batteriekapazität [kWh]",
-                            "format": ".0f"
-                        },
-                        {
-                            "field": "Netzbezug",
-                            "type": "quantitative",
-                            "title": "Netzbezug [kWh/a]",
-                            "format": ",.0f"
-                        }
-                    ]
-                }
-            }
-        ]
-    },
-    use_container_width=True
-)
-
-#------------
-# CO₂-Diagramm
-
-# ---------------------------------------------------------
-
-with col2:
-
-    st.vega_lite_chart(
-
-        df,
-
-        {
-
-            "mark": {
-
-                "type": "bar",
-
-                "cornerRadiusEnd": 4,
-
-                "tooltip": True
-
-            },
-
-            "encoding": {
-
-                "x": {
-
-                    "field": "Szenario",
-
-                    "type": "nominal",
-
-                    "sort": reihenfolge,
-
-                    "axis": {
-
-                        "title": None,
-
-                        "labelAngle": -30,
-
-                        "labelOverlap": False
-
-                    }
-
-                },
-
-                "y": {
-
-                    "field": "CO2",
-
-                    "type": "quantitative",
-
-                    "axis": {
-
-                        "title": "Treibhausgasemissionen [kg CO₂-eq/a]",
-
-                        "format": ",.0f"
-
-                    }
-
-                },
-
-                "color": {
-
-                    "field": "Szenario",
-
-                    "type": "nominal",
-
-                    "legend": None
-
-                },
-
-                "tooltip": [
-
-                    {
-
-                        "field": "Szenario",
-
-                        "type": "nominal",
-
-                        "title": "Szenario"
-
-                    },
-
-                    {
-
-                        "field": "CO2",
-
-                        "type": "quantitative",
-
-                        "title": "CO₂-eq [kg/a]",
-
-                        "format": ",.0f"
-
-                    }
-
-                ]
-
-            },
-
-            "title": "Treibhausgasemissionen"
-
-        },
-
-        use_container_width=True
-
-    )
 #--------------------------------------
 
 # Login
