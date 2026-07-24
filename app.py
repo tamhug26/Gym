@@ -373,19 +373,18 @@ def get_last_mode_and_calories(saved_df):
 
 # was anderes
 
-
 df = pd.DataFrame({
     "Parameter": [
         "PV-Produktion",
         "Netzbezug",
-        "Netzeinspeisung",
-        "Strombedarf"
+        "Strombedarf",
+        "Netzeinspeisung"
     ],
     "Abweichung": [
         21.0,
         -8.1,
-        -2.6,
-        4.3
+        4.3,
+        -2.6
     ]
 })
 
@@ -394,11 +393,12 @@ st.subheader("Abweichung zwischen Simulation und Messdaten")
 st.vega_lite_chart(
     df,
     {
-        "width": 500,
+        "width": 550,
         "height": 220,
         "mark": {
             "type": "bar",
-            "cornerRadiusEnd": 4
+            "cornerRadiusEnd": 3,
+            "color": "#4C78A8"   # alle Balken gleiche Farbe
         },
         "encoding": {
             "y": {
@@ -417,13 +417,6 @@ st.vega_lite_chart(
                     "domain": [-10, 25]
                 }
             },
-            "color": {
-                "condition": {
-                    "test": "datum.Abweichung >= 0",
-                    "value": "#2E8B57"
-                },
-                "value": "#C83E4D"
-            },
             "tooltip": [
                 {
                     "field": "Parameter",
@@ -432,8 +425,8 @@ st.vega_lite_chart(
                 {
                     "field": "Abweichung",
                     "type": "quantitative",
-                    "format": "+.1f",
-                    "title": "Abweichung [%]"
+                    "title": "Abweichung [%]",
+                    "format": "+.1f"
                 }
             ]
         }
