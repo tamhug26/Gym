@@ -390,132 +390,6 @@ df = pd.DataFrame({
 
     ],
 
-    "Abweichung": [2, -17, -7, 10, 41, 15]
-
-})
-
-st.subheader("Abweichung zwischen Messung und Simulation")
-
-st.vega_lite_chart(
-
-    df,
-
-    {
-
-        "mark": {
-
-            "type": "bar",
-
-            "cornerRadiusEnd": 4
-
-        },
-
-        "encoding": {
-
-            "x": {
-
-                "field": "Parameter",
-
-                "type": "nominal",
-
-                "sort": None,
-
-                "axis": {
-
-                    "title": None,
-
-                    "labelAngle": -25
-
-                }
-
-            },
-
-            "y": {
-
-                "field": "Abweichung",
-
-                "type": "quantitative",
-
-                "axis": {
-
-                    "title": "Abweichung [%]"
-
-                },
-
-                "scale": {
-
-                    "domain": [-20, 45]
-
-                }
-
-            },
-
-            "color": {
-
-                "condition": {
-
-                    "test": "datum.Abweichung >= 0",
-
-                    "value": "#2E8B57"
-
-                },
-
-                "value": "#C83E4D"
-
-            },
-
-            "tooltip": [
-
-                {
-
-                    "field": "Parameter",
-
-                    "type": "nominal",
-
-                    "title": "Parameter"
-
-                },
-
-                {
-
-                    "field": "Abweichung",
-
-                    "type": "quantitative",
-
-                    "title": "Abweichung",
-
-                    "format": "+.0f"
-
-                }
-
-            ]
-
-        }
-
-    },
-
-    use_container_width=True
-
-)
-
-df = pd.DataFrame({
-
-    "Parameter": [
-
-        "Strombedarf",
-
-        "Eigenverbrauchsquote",
-
-        "Autarkiegrad",
-
-        "Netzbezug",
-
-        "Netzeinspeisung",
-
-        "PV-Produktion"
-
-    ],
-
     "BA-Tool": [2, -17, -7, 10, 41, 15],
 
     "HTW": [None, -32, 14, None, None, None],
@@ -748,105 +622,56 @@ col1, col2 = st.columns(2)
 # ---------------------------------------------------------
 
 with col1:
-
     st.vega_lite_chart(
-
         df,
-
         {
-
             "mark": {
-
                 "type": "bar",
-
                 "cornerRadiusEnd": 4,
-
                 "tooltip": True
-
             },
-
             "encoding": {
-
                 "x": {
-
                     "field": "Szenario",
-
                     "type": "nominal",
-
                     "sort": reihenfolge,
-
                     "axis": {
-
                         "title": None,
-
-                        "labelAngle": -35
-
+                        "labelAngle": -35,
+                        "labelOverlap": False
                     }
-
                 },
-
                 "y": {
-
                     "field": "UBP",
-
                     "type": "quantitative",
-
                     "axis": {
-
                         "title": "Umweltbelastung [kpt UBP/a]",
-
                         "format": ",.0f"
-
                     }
-
                 },
-
                 "color": {
-
                     "field": "Szenario",
-
                     "type": "nominal",
-
                     "legend": None
-
                 },
-
                 "tooltip": [
-
                     {
-
                         "field": "Szenario",
-
                         "type": "nominal",
-
                         "title": "Szenario"
-
                     },
-
                     {
-
                         "field": "UBP",
-
                         "type": "quantitative",
-
                         "title": "UBP [kpt/a]",
-
                         "format": ",.0f"
-
                     }
-
                 ]
-
             },
-
             "title": "Gesamte Umweltbelastung"
-
         },
-
         use_container_width=True
-
     )
-
 # ---------------------------------------------------------
 
 # CO₂-Diagramm
@@ -885,7 +710,9 @@ with col2:
 
                         "title": None,
 
-                        "labelAngle": -35
+                        "labelAngle": -35,
+
+                        "labelOverlap": False
 
                     }
 
