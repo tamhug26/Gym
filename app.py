@@ -371,6 +371,57 @@ def get_last_mode_and_calories(saved_df):
 
     return last_mode, last_calories
 
+# was anderes
+import plotly.graph_objects as go
+
+st.title("Abweichung zwischen Messung und Simulation")
+
+df = pd.DataFrame({
+    "Parameter": [
+        "Strombedarf",
+        "Eigenverbrauchsquote",
+        "Autarkiegrad",
+        "Netzbezug",
+        "Netzeinspeisung",
+        "PV-Produktion"
+    ],
+    "Abweichung": [2, -17, -7, 10, 41, 15]
+})
+
+# Farben
+farben = ["crimson" if x < 0 else "seagreen" for x in df["Abweichung"]]
+
+fig = go.Figure()
+
+fig.add_trace(
+    go.Bar(
+        x=df["Parameter"],
+        y=df["Abweichung"],
+        marker_color=farben,
+        text=[f"{x:+.0f} %" for x in df["Abweichung"]],
+        textposition="outside"
+    )
+)
+
+fig.update_layout(
+    title="Abweichung der simulierten Werte gegenüber den Messwerten",
+    yaxis_title="Abweichung [%]",
+    xaxis_title="",
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+    font=dict(size=15),
+    height=500
+)
+
+fig.update_yaxes(
+    zeroline=True,
+    zerolinewidth=2,
+    zerolinecolor="black",
+    gridcolor="lightgrey"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+#--------------------------------------
 
 # Login
 if "logged_in" not in st.session_state:
