@@ -497,6 +497,186 @@ st.vega_lite_chart(
     use_container_width=True
 
 )
+
+df = pd.DataFrame({
+
+    "Parameter": [
+
+        "Strombedarf",
+
+        "Eigenverbrauchsquote",
+
+        "Autarkiegrad",
+
+        "Netzbezug",
+
+        "Netzeinspeisung",
+
+        "PV-Produktion"
+
+    ],
+
+    "BA-Tool": [2, -17, -7, 10, 41, 15],
+
+    "HTW": [None, -32, 14, None, None, None],
+
+    "Minergie": [-2, -23, -23, 21, 34, 0],
+
+    "Energieschweiz": [None, -63, -15, 17, 101, 32]
+
+})
+
+# Für Vega-Lite ins lange Format bringen
+
+df_long = df.melt(
+
+    id_vars="Parameter",
+
+    var_name="Tool",
+
+    value_name="Abweichung"
+
+)
+
+# Fehlende Werte entfernen
+
+df_long = df_long.dropna(subset=["Abweichung"])
+
+st.subheader("Abweichungen der Simulationstools zu den Messwerten")
+
+st.vega_lite_chart(
+
+    df_long,
+
+    {
+
+        "mark": {
+
+            "type": "bar",
+
+            "cornerRadiusEnd": 3
+
+        },
+
+        "encoding": {
+
+            "x": {
+
+                "field": "Parameter",
+
+                "type": "nominal",
+
+                "sort": [
+
+                    "Strombedarf",
+
+                    "Eigenverbrauchsquote",
+
+                    "Autarkiegrad",
+
+                    "Netzbezug",
+
+                    "Netzeinspeisung",
+
+                    "PV-Produktion"
+
+                ],
+
+                "axis": {
+
+                    "title": None,
+
+                    "labelAngle": -25
+
+                }
+
+            },
+
+            "xOffset": {
+
+                "field": "Tool"
+
+            },
+
+            "y": {
+
+                "field": "Abweichung",
+
+                "type": "quantitative",
+
+                "axis": {
+
+                    "title": "Abweichung [%]"
+
+                },
+
+                "scale": {
+
+                    "domain": [-70, 110]
+
+                }
+
+            },
+
+            "color": {
+
+                "field": "Tool",
+
+                "type": "nominal",
+
+                "legend": {
+
+                    "title": "Tool",
+
+                    "orient": "top"
+
+                }
+
+            },
+
+            "tooltip": [
+
+                {
+
+                    "field": "Parameter",
+
+                    "type": "nominal",
+
+                    "title": "Parameter"
+
+                },
+
+                {
+
+                    "field": "Tool",
+
+                    "type": "nominal",
+
+                    "title": "Tool"
+
+                },
+
+                {
+
+                    "field": "Abweichung",
+
+                    "type": "quantitative",
+
+                    "title": "Abweichung",
+
+                    "format": "+.0f"
+
+                }
+
+            ]
+
+        }
+
+    },
+
+    use_container_width=True
+
+)
 #--------------------------------------
 
 # Login
