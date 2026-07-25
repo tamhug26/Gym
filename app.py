@@ -374,61 +374,134 @@ def get_last_mode_and_calories(saved_df):
 import streamlit as st
 import pandas as pd
 
-# ==========================================================
-# Prozentwerte
-# ==========================================================
+st.subheader(
+    "Einfluss der Batteriekapazität auf die CO₂-Emissionen "
+    "in Abhängigkeit vom Strommix"
+)
 
-df_prozent = pd.DataFrame({
-    "Kennzahl": [
-        "Eigenverbrauch",
-        "Autarkie"
-    ],
-    "Fall 0": [86.8, 45.0],
-    "Fall 2": [61.8, 58.7],
-    "Fall 5": [67.4, 52.9]
+df = pd.DataFrame({
+    "Batteriekapazität": [0, 1, 9, 15, 33],
+    "IWB-Strommix": [1893, 1913, 1963, 2017, 2207],
+    "Schweizer Strommix": [2757, 2742, 2609, 2581, 2708]
 })
 
-st.subheader("Eigenverbrauch und Autarkie")
+# Veränderung gegenüber dem jeweiligen Fall ohne Batterie
+df["IWB-Strommix"] = df["IWB-Strommix"] - df.loc[0, "IWB-Strommix"]
+df["Schweizer Strommix"] = (
+    df["Schweizer Strommix"] - df.loc[0, "Schweizer Strommix"]
+)
 
-col1, col2, col3 = st.columns([2, 5, 2])
+df_long = df.melt(
+    id_vars="Batteriekapazität",
+    var_name="Strommix",
+    value_name="CO2_Aenderung"
+)
 
-with col2:
-    st.bar_chart(
-        df_prozent,
-        x="Kennzahl",
-        y=["Fall 0", "Fall 2", "Fall 5"],
-        stack=False,
-        y_label="Anteil [%]"
-    )
-
-
-# ==========================================================
-# Energiemengen
-# ==========================================================
-
-df_kwh = pd.DataFrame({
-    "Kennzahl": [
-        "Netzbezug",
-        "Netzeinspeisung",
-        "PV-Produktion"
-    ],
-    "Fall 0": [27913, 3480, 26457],
-    "Fall 2": [21205, 18808, 49297],
-    "Fall 5": [23966, 13166, 40336]
-})
-
-st.subheader("Energiemengen")
-
-col1, col2, col3 = st.columns([2, 5, 2])
-
-with col2:
-    st.bar_chart(
-        df_kwh,
-        x="Kennzahl",
-        y=["Fall 0", "Fall 2", "Fall 5"],
-        stack=False,
-        y_label="Energie [kWh/a]"
-    )
+st.vega_lite_chart(
+    df_long,
+    {
+        "width": "container",
+        "height": 480,
+        "layer": [
+            {
+                "mark": {
+                    "type": "line",
+                    "strokeWidth": 3,
+                    "interpolate": "linear"
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative",
+                        "title": "Batteriekapazität [kWh]",
+                        "scale": {
+                            "domain": [0, 35],
+                            "zero": True
+                        }
+                    },
+                    "y": {
+                        "field": "CO2_Aenderung",
+                        "type": "quantitative",
+                        "title": "Veränderung gegenüber 0 kWh "
+                                 "[kg CO₂-eq/a]",
+                        "scale": {
+                            "domain": [-200, 350]
+                        }
+                    },
+                    "color": {
+                        "field": "Strommix",
+                        "type": "nominal",
+                        "title": "Strommix",
+                        "legend": {
+                            "orient": "top"
+                        }
+                    },
+                    "detail": {
+                        "field": "Strommix"
+                    },
+                    "order": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative"
+                    }
+                }
+            },
+            {
+                "mark": {
+                    "type": "point",
+                    "filled": True,
+                    "size": 100
+                },
+                "encoding": {
+                    "x": {
+                        "field": "Batteriekapazität",
+                        "type": "quantitative"
+                    },
+                    "y": {
+                        "field": "CO2_Aenderung",
+                        "type": "quantitative"
+                    },
+                    "color": {
+                        "field": "Strommix",
+                        "type": "nominal",
+                        "legend": None
+                    },
+                    "tooltip": [
+                        {
+                            "field": "Strommix",
+                            "type": "nominal",
+                            "title": "Strommix"
+                        },
+                        {
+                            "field": "Batteriekapazität",
+                            "type": "quantitative",
+                            "title": "Batteriekapazität [kWh]",
+                            "format": ".0f"
+                        },
+                        {
+                            "field": "CO2_Aenderung",
+                            "type": "quantitative",
+                            "title": "CO₂-Veränderung [kg/a]",
+                            "format": "+.0f"
+                        }
+                    ]
+                }
+            },
+            {
+                "mark": {
+                    "type": "rule",
+                    "strokeWidth": 2,
+                    "strokeDash": [6, 4]
+                },
+                "encoding": {
+                    "y": {
+                        "datum": 0
+                    }
+                }
+            }
+        ]
+    },
+    use_container_width=True
+)
 #--------------------------------------
 
 # Login
