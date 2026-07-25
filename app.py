@@ -371,87 +371,64 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-# ---------------------------------------------------------
+import streamlit as st
+import pandas as pd
 
+# ==========================================================
 # Prozentwerte
-
-# ---------------------------------------------------------
+# ==========================================================
 
 df_prozent = pd.DataFrame({
-
     "Kennzahl": [
-
         "Eigenverbrauch",
-
         "Autarkie"
-
     ],
-
     "Fall 0": [86.8, 45.0],
-
     "Fall 2": [61.8, 58.7],
-
     "Fall 5": [67.4, 52.9]
-
 })
 
 st.subheader("Eigenverbrauch und Autarkie")
 
-st.bar_chart(
+col1, col2, col3 = st.columns([2, 5, 2])
 
-    df_prozent,
+with col2:
+    st.bar_chart(
+        df_prozent,
+        x="Kennzahl",
+        y=["Fall 0", "Fall 2", "Fall 5"],
+        stack=False,
+        y_label="Anteil [%]"
+    )
 
-    x="Kennzahl",
 
-    y=["Fall 0", "Fall 2", "Fall 5"],
-
-    stack=False,
-
-    y_label="Anteil in %"
-
-)
-
-# ---------------------------------------------------------
-
+# ==========================================================
 # Energiemengen
-
-# ---------------------------------------------------------
+# ==========================================================
 
 df_kwh = pd.DataFrame({
-
     "Kennzahl": [
-
         "Netzbezug",
-
         "Netzeinspeisung",
-
         "PV-Produktion"
-
     ],
-
     "Fall 0": [27913, 3480, 26457],
-
     "Fall 2": [21205, 18808, 49297],
-
     "Fall 5": [23966, 13166, 40336]
-
 })
 
-st.subheader("Jährliche Energiemengen")
+st.subheader("Energiemengen")
 
-st.bar_chart(
+col1, col2, col3 = st.columns([2, 5, 2])
 
-    df_kwh,
-
-    x="Kennzahl",
-
-    y=["Fall 0", "Fall 2", "Fall 5"],
-
-    stack=False,
-
-    y_label="Energie in kWh/a"
-
-)
+with col2:
+    st.bar_chart(
+        df_kwh,
+        x="Kennzahl",
+        y=["Fall 0", "Fall 2", "Fall 5"],
+        stack=False,
+        y_label="Energie [kWh/a]"
+    )
 #--------------------------------------
 
 # Login
