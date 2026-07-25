@@ -374,18 +374,23 @@ def get_last_mode_and_calories(saved_df):
 import streamlit as st
 import pandas as pd
 
-# Daten
 df = pd.DataFrame({
-    "Fall": ["Fall 0", "Fall 2", "Fall 5"],
-    "PV-Produktion": [26457, 49297, 40336],
-    "Netzbezug": [27913, 21205, 23966],
-    "Netzeinspeisung": [3480, 18808, 13166],
+    "Kennzahl": [
+        "Netzbezug",
+        "Eigenverbrauch",
+        "Netzeinspeisung",
+        "Autarkie",
+        "PV-Produktion"
+    ],
+    "Fall 0": [27913, 86.8, 3480, 45.0, 26457],
+    "Fall 2": [21205, 61.8, 18808, 58.7, 49297],
+    "Fall 5": [23966, 67.4, 13166, 52.9, 40336]
 })
 
-st.subheader("Energiemengen")
-
 st.bar_chart(
-    df.set_index("Fall")
+    df,
+    x="Kennzahl",
+    y=["Fall 0", "Fall 2", "Fall 5"]
 )
 #--------------------------------------
 
