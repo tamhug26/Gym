@@ -11,8 +11,7 @@ USERS = {
     "Tamara": "1010",
     "Can": "1010",
     "Papa": "aramat",
-    "Mily": "Katisthebest",
-    "Nomi": "Milyisthebest"
+    "Nomi": "thebest"
 }
 
 DATA_DIR = Path("data")
@@ -372,31 +371,22 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-import matplotlib.pyplot as plt
-import numpy as np
 import streamlit as st
+import pandas as pd
 
-faelle = ["Fall 0", "Fall 2", "Fall 5"]
+# Daten
+df = pd.DataFrame({
+    "Fall": ["Fall 0", "Fall 2", "Fall 5"],
+    "PV-Produktion": [26457, 49297, 40336],
+    "Netzbezug": [27913, 21205, 23966],
+    "Netzeinspeisung": [3480, 18808, 13166],
+})
 
-pv = [26457, 49297, 40336]
-netz = [27913, 21205, 23966]
-einsp = [3480, 18808, 13166]
+st.subheader("Energiemengen")
 
-x = np.arange(len(faelle))
-breite = 0.25
-
-fig, ax = plt.subplots(figsize=(8,5))
-
-ax.bar(x-breite, pv, breite, label="PV-Produktion")
-ax.bar(x, netz, breite, label="Netzbezug")
-ax.bar(x+breite, einsp, breite, label="Netzeinspeisung")
-
-ax.set_xticks(x)
-ax.set_xticklabels(faelle)
-ax.set_ylabel("kWh/a")
-ax.legend()
-
-st.pyplot(fig)
+st.bar_chart(
+    df.set_index("Fall")
+)
 #--------------------------------------
 
 # Login
