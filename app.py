@@ -375,33 +375,33 @@ import streamlit as st
 import pandas as pd
 
 st.subheader(
-    "Einfluss der Batteriekapazität auf die CO₂-Emissionen "
-    "in Abhängigkeit vom Strommix"
+    "Einfluss von Batteriekapazität und Strommix auf die CO₂-Emissionen"
 )
 
 df = pd.DataFrame({
     "Batteriekapazität": [0, 1, 9, 15, 33],
-    "IWB-Strommix": [1893, 1913, 1963, 2017, 2207],
-    "Schweizer Strommix": [2757, 2742, 2609, 2581, 2708]
+    "Netzbezug": [10115, 9706, 7579, 6600, 5858],
+    "Total IWB": [1893, 1913, 1963, 2017, 2207],
+    "Total Schweiz": [2757, 2742, 2609, 2581, 2708]
 })
 
-# Veränderung gegenüber dem jeweiligen Fall ohne Batterie
-df["IWB-Strommix"] = df["IWB-Strommix"] - df.loc[0, "IWB-Strommix"]
-df["Schweizer Strommix"] = (
-    df["Schweizer Strommix"] - df.loc[0, "Schweizer Strommix"]
+df_long = df.melt(
+    id_vars=["Batteriekapazität", "Netzbezug"],
+    value_vars=["Total IWB", "Total Schweiz"],
+    var_name="Strommix",
+    value_name="CO2"
 )
 
-df_long = df.melt(
-    id_vars="Batteriekapazität",
-    var_name="Strommix",
-    value_name="CO2_Aenderung"
-)
+df_long["Strommix"] = df_long["Strommix"].replace({
+    "Total IWB": "IWB-Strommix",
+    "Total Schweiz": "Schweizer Strommix"
+})
 
 st.vega_lite_chart(
     df_long,
     {
-        "width": "container",
-        "height": 480,
+        "width": 650,
+        "height": 420,
         "layer": [
             {
                 "mark": {
@@ -420,12 +420,12 @@ st.vega_lite_chart(
                         }
                     },
                     "y": {
-                        "field": "CO2_Aenderung",
+                        "field": "CO2",
                         "type": "quantitative",
-                        "title": "Veränderung gegenüber 0 kWh "
-                                 "[kg CO₂-eq/a]",
+                        "title": "Gesamte CO₂-Emissionen [kg CO₂-eq/a]",
                         "scale": {
-                            "domain": [-200, 350]
+                            "domain": [0, 3000],
+                            "zero": True
                         }
                     },
                     "color": {
@@ -457,8 +457,12 @@ st.vega_lite_chart(
                         "type": "quantitative"
                     },
                     "y": {
-                        "field": "CO2_Aenderung",
-                        "type": "quantitative"
+                        "field": "CO2",
+                        "type": "quantitative",
+                        "scale": {
+                            "domain": [0, 3000],
+                            "zero": True
+                        }
                     },
                     "color": {
                         "field": "Strommix",
@@ -478,29 +482,23 @@ st.vega_lite_chart(
                             "format": ".0f"
                         },
                         {
-                            "field": "CO2_Aenderung",
+                            "field": "Netzbezug",
                             "type": "quantitative",
-                            "title": "CO₂-Veränderung [kg/a]",
-                            "format": "+.0f"
+                            "title": "Netzbezug [kWh/a]",
+                            "format": ",.0f"
+                        },
+                        {
+                            "field": "CO2",
+                            "type": "quantitative",
+                            "title": "CO₂ gesamt [kg/a]",
+                            "format": ",.0f"
                         }
                     ]
-                }
-            },
-            {
-                "mark": {
-                    "type": "rule",
-                    "strokeWidth": 2,
-                    "strokeDash": [6, 4]
-                },
-                "encoding": {
-                    "y": {
-                        "datum": 0
-                    }
                 }
             }
         ]
     },
-    use_container_width=True
+    use_container_width=False
 )
 #--------------------------------------
 
