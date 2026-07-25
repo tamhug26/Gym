@@ -374,88 +374,105 @@ def get_last_mode_and_calories(saved_df):
 # was anderes
 
 
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
+# ---------------------------------------------------------
+# Daten der Fälle 0, 2 und 5
+# ---------------------------------------------------------
 df = pd.DataFrame({
-    "Parameter": [
-        "PV-Produktion",
-        "Netzbezug",
-        "Strombedarf",
-        "Netzeinspeisung"
-    ],
-    "Abweichung": [
-        21.0,
-        -8.1,
-        4.3,
-        -2.6
-    ]
+    "Fall": ["Fall 0", "Fall 2", "Fall 5"],
+    "PV-Produktion": [26457, 49297, 40336],
+    "Netzbezug": [27913, 21205, 23966],
+    "Netzeinspeisung": [3480, 18808, 13166],
+    "Eigenverbrauchsquote": [86.8, 61.8, 67.4],
+    "Autarkiegrad": [45.0, 58.7, 52.9]
 })
 
-st.subheader("Abweichung zwischen Simulation und Messdaten")
 
-st.vega_lite_chart(
-    df,
-    {
-        "width": 250,
-        "height": 300,
-        "layer": [
-            {
-                "mark": {
-                    "type": "bar",
-                    "cornerRadiusTopLeft": 2,
-                    "cornerRadiusTopRight": 2,
-                    "color": "#4C78A8"
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Parameter",
-                        "type": "nominal",
-                        "sort": None,
-                        "axis": {
-                            "title": None,
-                            "labelAngle": -25,
-                            "labelOverlap": False
-                        }
-                    },
-                    "y": {
-                        "field": "Abweichung",
-                        "type": "quantitative",
-                        "axis": {
-                            "title": "Abweichung [%]"
-                        },
-                        "scale": {
-                            "domain": [-10, 25]
-                        }
-                    },
-                    "tooltip": [
-                        {
-                            "field": "Parameter",
-                            "type": "nominal",
-                            "title": "Parameter"
-                        },
-                        {
-                            "field": "Abweichung",
-                            "type": "quantitative",
-                            "title": "Abweichung [%]",
-                            "format": "+.1f"
-                        }
-                    ]
-                }
-            },
-            {
-                "mark": {
-                    "type": "rule",
-                    "color": "black",
-                    "strokeWidth": 0.5
-                },
-                "encoding": {
-                    "y": {
-                        "datum": 0
-                    }
-                }
-            }
-        ]
-    },
-    use_container_width=False
+# ---------------------------------------------------------
+# Abbildung mit zwei getrennten Wertebereichen
+# ---------------------------------------------------------
+fig = make_subplots(
+    rows=2,
+    cols=1,
+    shared_xaxes=True,
+    vertical_spacing=0.14,
+    subplot_titles=(
+        "Jährliche Energiemengen",
+        "Eigenverbrauchsquote und Autarkiegrad"
+    )
 )
+
+# Energiemengen
+for kennzahl in ["PV-Produktion", "Netzbezug", "Netzeinspeisung"]:
+    fig.add_trace(
+        go.Bar(
+            x=df["Fall"],
+            y=df[kennzahl],
+            name=kennzahl,
+            text=df[kennzahl].map(lambda x: f"{x:,.0f}".replace(",", "’")),
+            textposition="outside",
+            cliponaxis=False
+        ),
+        row=1,
+        col=1
+    )
+
+# Prozentwerte
+for kennzahl in ["Eigenverbrauchsquote", "Autarkiegrad"]:
+    fig.add_trace(
+        go.Bar(
+            x=df["Fall"],
+            y=df[kennzahl],
+            name=kennzahl,
+            text=df[kennzahl].map(lambda x: f"{x:.1f} %"),
+            textposition="outside",
+            cliponaxis=False
+        ),
+        row=2,
+        col=1
+    )
+
+
+# ---------------------------------------------------------
+# Gestaltung
+# ---------------------------------------------------------
+fig.update_layout(
+    title="Vergleich der PV-Ausbauvarianten Fall 0, Fall 2 und Fall 5",
+    barmode="group",
+    height=750,
+    legend_title_text="Kennzahl",
+    margin=dict(t=100, b=50, l=80, r=30),
+    hovermode="x unified"
+)
+
+fig.update_yaxes(
+    title_text="Energie in kWh/a",
+    rangemode="tozero",
+    tickformat=",.0f",
+    row=1,
+    col=1
+)
+
+fig.update_yaxes(
+    title_text="Anteil in %",
+    range=[0, 100],
+    ticksuffix=" %",
+    row=2,
+    col=1
+)
+
+fig.update_xaxes(
+    title_text="Untersuchter Fall",
+    row=2,
+    col=1
+)
+
+st.plotly_chart(fig, use_container_width=True)
 #--------------------------------------
 
 # Login
