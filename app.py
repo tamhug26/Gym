@@ -371,26 +371,86 @@ def get_last_mode_and_calories(saved_df):
     return last_mode, last_calories
 
 # was anderes
-import streamlit as st
-import pandas as pd
+# ---------------------------------------------------------
 
-df = pd.DataFrame({
+# Prozentwerte
+
+# ---------------------------------------------------------
+
+df_prozent = pd.DataFrame({
+
     "Kennzahl": [
-        "Netzbezug",
+
         "Eigenverbrauch",
-        "Netzeinspeisung",
-        "Autarkie",
-        "PV-Produktion"
+
+        "Autarkie"
+
     ],
-    "Fall 0": [27913, 86.8, 3480, 45.0, 26457],
-    "Fall 2": [21205, 61.8, 18808, 58.7, 49297],
-    "Fall 5": [23966, 67.4, 13166, 52.9, 40336]
+
+    "Fall 0": [86.8, 45.0],
+
+    "Fall 2": [61.8, 58.7],
+
+    "Fall 5": [67.4, 52.9]
+
 })
 
+st.subheader("Eigenverbrauch und Autarkie")
+
 st.bar_chart(
-    df,
+
+    df_prozent,
+
     x="Kennzahl",
-    y=["Fall 0", "Fall 2", "Fall 5"]
+
+    y=["Fall 0", "Fall 2", "Fall 5"],
+
+    stack=False,
+
+    y_label="Anteil in %"
+
+)
+
+# ---------------------------------------------------------
+
+# Energiemengen
+
+# ---------------------------------------------------------
+
+df_kwh = pd.DataFrame({
+
+    "Kennzahl": [
+
+        "Netzbezug",
+
+        "Netzeinspeisung",
+
+        "PV-Produktion"
+
+    ],
+
+    "Fall 0": [27913, 3480, 26457],
+
+    "Fall 2": [21205, 18808, 49297],
+
+    "Fall 5": [23966, 13166, 40336]
+
+})
+
+st.subheader("Jährliche Energiemengen")
+
+st.bar_chart(
+
+    df_kwh,
+
+    x="Kennzahl",
+
+    y=["Fall 0", "Fall 2", "Fall 5"],
+
+    stack=False,
+
+    y_label="Energie in kWh/a"
+
 )
 #--------------------------------------
 
