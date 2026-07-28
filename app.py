@@ -424,7 +424,7 @@ fehlende_werte = [
     ("Strombedarf", "HTW", 10, 12),
     ("Netzbezug", "HTW", 9, 12),
     ("Netzeinspeisung", "HTW", 9, 12),
-    ("PV-Produktion", "HTW", 15, 12)
+    ("PV-Produktion", "HTW", 9, 12)
 ]
 
 for kennzahl, tool, x_verschiebung, y_verschiebung in fehlende_werte:
@@ -448,7 +448,7 @@ fig.add_annotation(
     y=0,
     text="0 %",
     showarrow=False,
-    xshift=45,
+    xshift=40,
     yshift=12,
     font=dict(
         size=11,
