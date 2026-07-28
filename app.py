@@ -419,23 +419,22 @@ fig.add_trace(go.Bar(
 ))
 
 
-# Fehlende Werte als „n. v.“ markieren
 fehlende_werte = [
-    ("Strombedarf", -15),       # Energieschweiz
-    ("Strombedarf", 15),        # HTW
-    ("Netzbezug", 15),          # HTW
-    ("Netzeinspeisung", 15),    # HTW
-    ("PV-Produktion", 15)       # HTW
+    ("Strombedarf", "Energieschweiz", -15, 12),
+    ("Strombedarf", "HTW", 15, 12),
+    ("Netzbezug", "HTW", 15, 12),
+    ("Netzeinspeisung", "HTW", 15, 12),
+    ("PV-Produktion", "HTW", 15, 12)
 ]
 
-for kennzahl, xshift in fehlende_werte:
+for kennzahl, tool, x_verschiebung, y_verschiebung in fehlende_werte:
     fig.add_annotation(
         x=kennzahl,
         y=0,
-        text="k.A.",
+        text="k. A.",
         showarrow=False,
-        xshift=xshift,
-        yshift=12,
+        xshift=x_verschiebung,
+        yshift=y_verschiebung,
         font=dict(
             size=11,
             color="gray"
