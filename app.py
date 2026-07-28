@@ -543,14 +543,16 @@ st.plotly_chart(
         "displayModeBar": False
     }
 )
+# Fehlende Werte kennzeichnen
 fehlende = [
+    ("Strombedarf", "Energieschweiz"),
     ("Strombedarf", "HTW"),
     ("Netzbezug", "HTW"),
     ("Netzeinspeisung", "HTW"),
-    ("PV-Produktion", "HTW"),
-    ("Strombedarf", "Energieschweiz")
+    ("PV-Produktion", "HTW")
 ]
 
+# Position der vier Tools innerhalb jeder Kennzahlgruppe
 x_position = {
     "BA-Tool": -0.30,
     "Energieschweiz": -0.10,
@@ -558,23 +560,40 @@ x_position = {
     "Minergie": 0.30
 }
 
-kennzahlen = [
-    "Strombedarf",
-    "Eigenverbrauchsquote",
-    "Autarkiegrad",
-    "Netzbezug",
-    "Netzeinspeisung",
-    "PV-Produktion"
-]
-
 for kennzahl, tool in fehlende:
     fig.add_annotation(
         x=kennzahlen.index(kennzahl) + x_position[tool],
         y=0,
-        text="–",
+        text="n. v.",
         showarrow=False,
-        font=dict(size=24, color="gray")
+        yshift=12,
+        font=dict(
+            size=12,
+            color="gray"
+        )
     )
+
+# Tatsächlich vorhandenen Nullwert ausdrücklich anzeigen
+fig.add_annotation(
+    x=kennzahlen.index("PV-Produktion") + x_position["Minergie"],
+    y=0,
+    text="0 %",
+    showarrow=False,
+    yshift=12,
+    font=dict(
+        size=12,
+        color="#FF9D9D"
+    )
+)
+
+# WICHTIG: Diagramm erst nach den Annotationen anzeigen
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    config={
+        "displayModeBar": False
+    }
+)
 #--------------------------------------
 
 # Login
