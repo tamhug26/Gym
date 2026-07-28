@@ -379,7 +379,7 @@ import plotly.express as px
 
 # Abweichungen gegenüber den gemessenen Werten in %
 daten = pd.DataFrame({
-    "Kennzahl": [
+    "Kennzahl_reihenfolge": [
         "Strombedarf",
         "Eigenverbrauchsquote",
         "Autarkiegrad",
@@ -428,7 +428,7 @@ daten = pd.DataFrame({
 
 # Für Plotly in langes Format umwandeln
 daten_lang = daten.melt(
-    id_vars="Kennzahl",
+    id_vars="Kennzahl_reihenfolge",
     var_name="Tool",
     value_name="Abweichung"
 )
