@@ -420,8 +420,8 @@ fig.add_trace(go.Bar(
 
 
 fehlende_werte = [
-    ("Strombedarf", "Energieschweiz", -10, 12),
-    ("Strombedarf", "HTW", 15, 12),
+    ("Strombedarf", "Energieschweiz", -8, 12),
+    ("Strombedarf", "HTW", 10, 12),
     ("Netzbezug", "HTW", 15, 12),
     ("Netzeinspeisung", "HTW", 15, 12),
     ("PV-Produktion", "HTW", 15, 12)
