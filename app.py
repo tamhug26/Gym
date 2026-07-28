@@ -456,7 +456,7 @@ kennzahl_reihenfolge = [
 
 
 # Balkendiagramm erstellen
-fig = px.bar(
+fig = go.bar(
     daten_lang,
     x="Kennzahl",
     y="Abweichung",
