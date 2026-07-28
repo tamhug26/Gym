@@ -448,7 +448,7 @@ fig.add_annotation(
     y=0,
     text="0 %",
     showarrow=False,
-    xshift=40,
+    xshift=35,
     yshift=12,
     font=dict(
         size=11,
