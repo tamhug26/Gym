@@ -374,7 +374,7 @@ def get_last_mode_and_calories(saved_df):
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
+import plotly.express as px
 
 
 # Abweichungen gegenüber den gemessenen Werten in %
@@ -456,7 +456,7 @@ kennzahl_reihenfolge = [
 
 
 # Balkendiagramm erstellen
-fig = go.bar(
+fig = px.bar(
     daten_lang,
     x="Kennzahl",
     y="Abweichung",
