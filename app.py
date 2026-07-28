@@ -372,80 +372,10 @@ def get_last_mode_and_calories(saved_df):
 
 # was anderes
 import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
+import plotly.graph_objects as go
 
 
-# Abweichungen gegenüber den gemessenen Werten in %
-daten = pd.DataFrame({
-    "Kennzahl_reihenfolge": [
-        "Strombedarf",
-        "Eigenverbrauchsquote",
-        "Autarkiegrad",
-        "Netzbezug",
-        "Netzeinspeisung",
-        "PV-Produktion"
-    ],
-
-    "BA-Tool": [
-        2,
-        -17,
-        -7,
-        10,
-        41,
-        15
-    ],
-
-    "Energieschweiz": [
-        np.nan,
-        -63,
-        -15,
-        17,
-        101,
-        32
-    ],
-
-    "HTW": [
-        np.nan,
-        -32,
-        14,
-        np.nan,
-        np.nan,
-        np.nan
-    ],
-
-    "Minergie": [
-        -2,
-        -23,
-        -23,
-        21,
-        34,
-        0
-    ]
-})
-
-
-# Für Plotly in langes Format umwandeln
-daten_lang = daten.melt(
-    id_vars="Kennzahl_reihenfolge",
-    var_name="Tool",
-    value_name="Abweichung"
-)
-
-# Fehlende Werte entfernen, damit dafür keine Balken entstehen
-daten_lang = daten_lang.dropna(subset=["Abweichung"])
-
-
-# Reihenfolge der Tools und Kennzahlen festlegen
-tool_reihenfolge = [
-    "BA-Tool",
-    "Energieschweiz",
-    "HTW",
-    "Minergie"
-]
-
-kennzahl_reihenfolge = [
+kennzahlen = [
     "Strombedarf",
     "Eigenverbrauchsquote",
     "Autarkiegrad",
@@ -454,34 +384,82 @@ kennzahl_reihenfolge = [
     "PV-Produktion"
 ]
 
+fig = go.Figure()
 
-# Balkendiagramm erstellen
-fig = px.bar(
-    daten_lang,
-    x="Kennzahl",
-    y="Abweichung",
-    color="Tool",
-    barmode="group",
-    category_orders={
-        "Tool": tool_reihenfolge,
-        "Kennzahl": kennzahl_reihenfolge
-    },
-    labels={
-        "Kennzahl": "",
-        "Abweichung": "Abweichung [%]",
-        "Tool": "Tool"
-    },
-    color_discrete_map={
-        "BA-Tool": "#0068C9",
-        "Energieschweiz": "#69B9F2",
-        "HTW": "#FF2B2B",
-        "Minergie": "#FF9D9D"
-    }
+fig.add_trace(go.Bar(
+    name="BA-Tool",
+    x=kennzahlen,
+    y=[2, -17, -7, 10, 41, 15],
+    marker_color="#0068C9",
+    hovertemplate="%{x}<br>BA-Tool: %{y:+.0f} %<extra></extra>"
+))
+
+fig.add_trace(go.Bar(
+    name="Energieschweiz",
+    x=kennzahlen,
+    y=[None, -63, -15, 17, 101, 32],
+    marker_color="#69B9F2",
+    hovertemplate="%{x}<br>Energieschweiz: %{y:+.0f} %<extra></extra>"
+))
+
+fig.add_trace(go.Bar(
+    name="HTW",
+    x=kennzahlen,
+    y=[None, -32, 14, None, None, None],
+    marker_color="#FF2B2B",
+    hovertemplate="%{x}<br>HTW: %{y:+.0f} %<extra></extra>"
+))
+
+fig.add_trace(go.Bar(
+    name="Minergie",
+    x=kennzahlen,
+    y=[-2, -23, -23, 21, 34, 0],
+    marker_color="#FF9D9D",
+    hovertemplate="%{x}<br>Minergie: %{y:+.0f} %<extra></extra>"
+))
+
+
+# Fehlende Werte als „n. v.“ markieren
+fehlende_werte = [
+    ("Strombedarf", -15),       # Energieschweiz
+    ("Strombedarf", 15),        # HTW
+    ("Netzbezug", 15),          # HTW
+    ("Netzeinspeisung", 15),    # HTW
+    ("PV-Produktion", 15)       # HTW
+]
+
+for kennzahl, xshift in fehlende_werte:
+    fig.add_annotation(
+        x=kennzahl,
+        y=0,
+        text="n. v.",
+        showarrow=False,
+        xshift=xshift,
+        yshift=12,
+        font=dict(
+            size=11,
+            color="gray"
+        )
+    )
+
+
+# Tatsächlich vorhandener Wert von 0 % bei Minergie
+fig.add_annotation(
+    x="PV-Produktion",
+    y=0,
+    text="0 %",
+    showarrow=False,
+    xshift=45,
+    yshift=12,
+    font=dict(
+        size=11,
+        color="#FF9D9D"
+    )
 )
 
 
-# Gestaltung wie in deiner bisherigen Grafik
 fig.update_layout(
+    barmode="group",
     height=500,
     plot_bgcolor="white",
     paper_bgcolor="white",
@@ -502,21 +480,18 @@ fig.update_layout(
         b=100
     ),
 
-    font=dict(
-        size=15
-    ),
+    font=dict(size=15),
 
     bargap=0.25,
     bargroupgap=0.08
 )
 
-
-# Achsen formatieren
 fig.update_xaxes(
+    title="",
     tickangle=-25,
     showgrid=False,
     categoryorder="array",
-    categoryarray=kennzahl_reihenfolge
+    categoryarray=kennzahlen
 )
 
 fig.update_yaxes(
@@ -530,8 +505,6 @@ fig.update_yaxes(
     zerolinewidth=1
 )
 
-
-# Abgerundete Balkenecken
 fig.update_traces(
     marker_line_width=0
 )
@@ -539,60 +512,7 @@ fig.update_traces(
 st.plotly_chart(
     fig,
     use_container_width=True,
-    config={
-        "displayModeBar": False
-    }
-)
-# Fehlende Werte kennzeichnen
-fehlende = [
-    ("Strombedarf", "Energieschweiz"),
-    ("Strombedarf", "HTW"),
-    ("Netzbezug", "HTW"),
-    ("Netzeinspeisung", "HTW"),
-    ("PV-Produktion", "HTW")
-]
-
-# Position der vier Tools innerhalb jeder Kennzahlgruppe
-x_position = {
-    "BA-Tool": -0.30,
-    "Energieschweiz": -0.10,
-    "HTW": 0.10,
-    "Minergie": 0.30
-}
-
-for kennzahl, tool in fehlende:
-    fig.add_annotation(
-        x=kennzahlen.index(kennzahl) + x_position[tool],
-        y=0,
-        text="n. v.",
-        showarrow=False,
-        yshift=12,
-        font=dict(
-            size=12,
-            color="gray"
-        )
-    )
-
-# Tatsächlich vorhandenen Nullwert ausdrücklich anzeigen
-fig.add_annotation(
-    x=kennzahlen.index("PV-Produktion") + x_position["Minergie"],
-    y=0,
-    text="0 %",
-    showarrow=False,
-    yshift=12,
-    font=dict(
-        size=12,
-        color="#FF9D9D"
-    )
-)
-
-# WICHTIG: Diagramm erst nach den Annotationen anzeigen
-st.plotly_chart(
-    fig,
-    use_container_width=True,
-    config={
-        "displayModeBar": False
-    }
+    config={"displayModeBar": False}
 )
 #--------------------------------------
 
