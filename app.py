@@ -432,7 +432,7 @@ for kennzahl, xshift in fehlende_werte:
     fig.add_annotation(
         x=kennzahl,
         y=0,
-        text="n. v.",
+        text="k.A.",
         showarrow=False,
         xshift=xshift,
         yshift=12,
@@ -508,6 +508,16 @@ fig.update_yaxes(
 fig.update_traces(
     marker_line_width=0
 )
+# Jede zweite Kennzahlgruppe leicht grau hinterlegen
+for index in range(len(kennzahlen)):
+    if index % 2 == 1:
+        fig.add_vrect(
+            x0=index - 0.5,
+            x1=index + 0.5,
+            fillcolor="rgba(120, 120, 120, 0.07)",
+            line_width=0,
+            layer="below"
+        )
 
 st.plotly_chart(
     fig,
