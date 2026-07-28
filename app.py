@@ -373,132 +373,175 @@ def get_last_mode_and_calories(saved_df):
 # was anderes
 import streamlit as st
 import pandas as pd
+import numpy as np
+import plotly.express as px
 
-st.subheader(
-    "Einfluss von Batteriekapazität und Strommix auf die CO₂-Emissionen"
-)
 
-df = pd.DataFrame({
-    "Batteriekapazität": [0, 1, 9, 15, 33],
-    "Netzbezug": [10115, 9706, 7579, 6600, 5858],
-    "Total IWB": [1893, 1913, 1963, 2017, 2207],
-    "Total Schweiz": [2757, 2742, 2609, 2581, 2708]
+# Abweichungen gegenüber den gemessenen Werten in %
+daten = pd.DataFrame({
+    "Kennzahl": [
+        "Strombedarf",
+        "Eigenverbrauchsquote",
+        "Autarkiegrad",
+        "Netzbezug",
+        "Netzeinspeisung",
+        "PV-Produktion"
+    ],
+
+    "BA-Tool": [
+        2,
+        -17,
+        -7,
+        10,
+        41,
+        15
+    ],
+
+    "Energieschweiz": [
+        np.nan,
+        -63,
+        -15,
+        17,
+        101,
+        32
+    ],
+
+    "HTW": [
+        np.nan,
+        -32,
+        14,
+        np.nan,
+        np.nan,
+        np.nan
+    ],
+
+    "Minergie": [
+        -2,
+        -23,
+        -23,
+        21,
+        34,
+        0
+    ]
 })
 
-df_long = df.melt(
-    id_vars=["Batteriekapazität", "Netzbezug"],
-    value_vars=["Total IWB", "Total Schweiz"],
-    var_name="Strommix",
-    value_name="CO2"
+
+# Für Plotly in langes Format umwandeln
+daten_lang = daten.melt(
+    id_vars="Kennzahl",
+    var_name="Tool",
+    value_name="Abweichung"
 )
 
-df_long["Strommix"] = df_long["Strommix"].replace({
-    "Total IWB": "IWB-Strommix",
-    "Total Schweiz": "Schweizer Strommix"
-})
+# Fehlende Werte entfernen, damit dafür keine Balken entstehen
+daten_lang = daten_lang.dropna(subset=["Abweichung"])
 
-st.vega_lite_chart(
-    df_long,
-    {
-        "width": 650,
-        "height": 420,
-        "layer": [
-            {
-                "mark": {
-                    "type": "line",
-                    "strokeWidth": 3,
-                    "interpolate": "linear"
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative",
-                        "title": "Batteriekapazität [kWh]",
-                        "scale": {
-                            "domain": [0, 35],
-                            "zero": True
-                        }
-                    },
-                    "y": {
-                        "field": "CO2",
-                        "type": "quantitative",
-                        "title": "Gesamte CO₂-Emissionen [kg CO₂-eq/a]",
-                        "scale": {
-                            "domain": [0, 3000],
-                            "zero": True
-                        }
-                    },
-                    "color": {
-                        "field": "Strommix",
-                        "type": "nominal",
-                        "title": "Strommix",
-                        "legend": {
-                            "orient": "top"
-                        }
-                    },
-                    "detail": {
-                        "field": "Strommix"
-                    },
-                    "order": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative"
-                    }
-                }
-            },
-            {
-                "mark": {
-                    "type": "point",
-                    "filled": True,
-                    "size": 100
-                },
-                "encoding": {
-                    "x": {
-                        "field": "Batteriekapazität",
-                        "type": "quantitative"
-                    },
-                    "y": {
-                        "field": "CO2",
-                        "type": "quantitative",
-                        "scale": {
-                            "domain": [0, 3000],
-                            "zero": True
-                        }
-                    },
-                    "color": {
-                        "field": "Strommix",
-                        "type": "nominal",
-                        "legend": None
-                    },
-                    "tooltip": [
-                        {
-                            "field": "Strommix",
-                            "type": "nominal",
-                            "title": "Strommix"
-                        },
-                        {
-                            "field": "Batteriekapazität",
-                            "type": "quantitative",
-                            "title": "Batteriekapazität [kWh]",
-                            "format": ".0f"
-                        },
-                        {
-                            "field": "Netzbezug",
-                            "type": "quantitative",
-                            "title": "Netzbezug [kWh/a]",
-                            "format": ",.0f"
-                        },
-                        {
-                            "field": "CO2",
-                            "type": "quantitative",
-                            "title": "CO₂ gesamt [kg/a]",
-                            "format": ",.0f"
-                        }
-                    ]
-                }
-            }
-        ]
+
+# Reihenfolge der Tools und Kennzahlen festlegen
+tool_reihenfolge = [
+    "BA-Tool",
+    "Energieschweiz",
+    "HTW",
+    "Minergie"
+]
+
+kennzahl_reihenfolge = [
+    "Strombedarf",
+    "Eigenverbrauchsquote",
+    "Autarkiegrad",
+    "Netzbezug",
+    "Netzeinspeisung",
+    "PV-Produktion"
+]
+
+
+# Balkendiagramm erstellen
+fig = px.bar(
+    daten_lang,
+    x="Kennzahl",
+    y="Abweichung",
+    color="Tool",
+    barmode="group",
+    category_orders={
+        "Tool": tool_reihenfolge,
+        "Kennzahl": kennzahl_reihenfolge
     },
-    use_container_width=False
+    labels={
+        "Kennzahl": "",
+        "Abweichung": "Abweichung [%]",
+        "Tool": "Tool"
+    },
+    color_discrete_map={
+        "BA-Tool": "#0068C9",
+        "Energieschweiz": "#69B9F2",
+        "HTW": "#FF2B2B",
+        "Minergie": "#FF9D9D"
+    }
+)
+
+
+# Gestaltung wie in deiner bisherigen Grafik
+fig.update_layout(
+    height=500,
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+
+    legend=dict(
+        title_text="Tool",
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="left",
+        x=0
+    ),
+
+    margin=dict(
+        l=60,
+        r=30,
+        t=90,
+        b=100
+    ),
+
+    font=dict(
+        size=15
+    ),
+
+    bargap=0.25,
+    bargroupgap=0.08
+)
+
+
+# Achsen formatieren
+fig.update_xaxes(
+    tickangle=-25,
+    showgrid=False,
+    categoryorder="array",
+    categoryarray=kennzahl_reihenfolge
+)
+
+fig.update_yaxes(
+    title="Abweichung [%]",
+    range=[-75, 115],
+    tickvals=[-50, 0, 50, 100],
+    showgrid=True,
+    gridcolor="#D9E2EC",
+    zeroline=True,
+    zerolinecolor="#B8C2CC",
+    zerolinewidth=1
+)
+
+
+# Abgerundete Balkenecken
+fig.update_traces(
+    marker_line_width=0
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    config={
+        "displayModeBar": False
+    }
 )
 #--------------------------------------
 
