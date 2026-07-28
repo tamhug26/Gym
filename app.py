@@ -374,7 +374,7 @@ def get_last_mode_and_calories(saved_df):
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
+import plotly.graph_objects as go
 
 
 # Abweichungen gegenüber den gemessenen Werten in %
@@ -543,6 +543,38 @@ st.plotly_chart(
         "displayModeBar": False
     }
 )
+fehlende = [
+    ("Strombedarf", "HTW"),
+    ("Netzbezug", "HTW"),
+    ("Netzeinspeisung", "HTW"),
+    ("PV-Produktion", "HTW"),
+    ("Strombedarf", "Energieschweiz")
+]
+
+x_position = {
+    "BA-Tool": -0.30,
+    "Energieschweiz": -0.10,
+    "HTW": 0.10,
+    "Minergie": 0.30
+}
+
+kennzahlen = [
+    "Strombedarf",
+    "Eigenverbrauchsquote",
+    "Autarkiegrad",
+    "Netzbezug",
+    "Netzeinspeisung",
+    "PV-Produktion"
+]
+
+for kennzahl, tool in fehlende:
+    fig.add_annotation(
+        x=kennzahlen.index(kennzahl) + x_position[tool],
+        y=0,
+        text="–",
+        showarrow=False,
+        font=dict(size=24, color="gray")
+    )
 #--------------------------------------
 
 # Login
