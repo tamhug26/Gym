@@ -432,26 +432,26 @@ kosten_pro_eingesparte_kwh = np.divide(
 kosten_pro_eingesparte_kwh_rp = kosten_pro_eingesparte_kwh * 100
 
 df_wirtschaftlichkeit = pd.DataFrame({
-    "Batteriekapazität [kWh]": batteriekapazitaet,
-    "Netzbezug [kWh/a]": netzbezug,
-    "Eingesparter Netzbezug [kWh/a]": eingesparter_netzbezug,
-    "Batteriekosten [CHF]": batteriekosten,
-    "Jahreskosten Batterie [CHF/a]": jahreskosten_batterie,
-    "Kosten je eingesparter kWh [Rp./kWh]":
+    "Batteriekapazität in kWh": batteriekapazitaet,
+    "Netzbezug in kWh/a": netzbezug,
+    "Eingesparter Netzbezug in kWh/a": eingesparter_netzbezug,
+    "Batteriekosten in CHF": batteriekosten,
+    "Jahreskosten Batterie in CHF/a": jahreskosten_batterie,
+    "Kosten je eingesparter kWh in Rp./kWh":
         kosten_pro_eingesparte_kwh_rp
 })
 
 # Null-kWh-Fall nicht als Punkt darstellen, da keine Division möglich ist
 df_plot = df_wirtschaftlichkeit[
-    df_wirtschaftlichkeit["Batteriekapazität [kWh]"] > 0
+    df_wirtschaftlichkeit["Batteriekapazität in kWh"] > 0
 ].copy()
 
 fig = go.Figure()
 
 fig.add_trace(
     go.Scatter(
-        x=df_plot["Batteriekapazität [kWh]"],
-        y=df_plot["Kosten je eingesparter kWh [Rp./kWh]"],
+        x=df_plot["Batteriekapazität in kWh"],
+        y=df_plot["Kosten je eingesparter kWh in Rp./kWh"],
         mode="lines+markers",
         name="Batteriekosten je eingesparter kWh",
         hovertemplate=(
@@ -506,12 +506,12 @@ st.plotly_chart(fig, use_container_width=True)
 with st.expander("Berechnungswerte anzeigen"):
     st.dataframe(
         df_wirtschaftlichkeit.style.format({
-            "Batteriekapazität [kWh]": "{:.0f}",
-            "Netzbezug [kWh/a]": "{:,.0f}",
-            "Eingesparter Netzbezug [kWh/a]": "{:,.0f}",
-            "Batteriekosten [CHF]": "{:,.0f}",
-            "Jahreskosten Batterie [CHF/a]": "{:,.0f}",
-            "Kosten je eingesparter kWh [Rp./kWh]": "{:.2f}"
+            "Batteriekapazität in kWh": "{:.0f}",
+            "Netzbezug in kWh/a": "{:,.0f}",
+            "Eingesparter Netzbezug in kWh/a": "{:,.0f}",
+            "Batteriekosten in CHF": "{:,.0f}",
+            "Jahreskosten Batterie in CHF/a": "{:,.0f}",
+            "Kosten je eingesparter kWh in Rp./kWh": "{:.2f}"
         }),
         use_container_width=True
     )
