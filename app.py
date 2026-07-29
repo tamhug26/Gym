@@ -372,156 +372,153 @@ def get_last_mode_and_calories(saved_df):
 
 # was anderes
 import streamlit as st
+import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 
+st.subheader("Wirtschaftlicher Vergleich der Batteriekapazitäten")
 
-kennzahlen = [
-    "Strombedarf",
-    "Eigenverbrauchsquote",
-    "Autarkiegrad",
-    "Netzbezug",
-    "Netzeinspeisung",
-    "PV-Produktion"
-]
+# Daten aus Tabelle 20
+batteriekapazitaet = np.array([
+    0, 1, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 50
+], dtype=float)
+
+netzbezug = np.array([
+    10115, 9705, 9092, 8296, 7579, 7019, 6600,
+    6300, 6124, 6006, 5932, 5893, 5858, 5750
+], dtype=float)
+
+# Annahmen aus dem Bericht
+lebensdauer_batterie = 30  # Jahre
+strompreis_tief = 9.64     # Rp./kWh
+strompreis_hoch = 32.69    # Rp./kWh
+
+
+def berechne_batteriekosten(kapazitaet_kwh: float) -> float:
+    """
+    Batteriekosten gemäss Bericht:
+    - bis 10 kWh: 900 CHF/kWh
+    - über 10 kWh:
+      erste 10 kWh zu 900 CHF/kWh,
+      zusätzliche Kapazität zu 600 CHF/kWh
+    """
+    if kapazitaet_kwh <= 10:
+        return kapazitaet_kwh * 900
+
+    return 10 * 900 + (kapazitaet_kwh - 10) * 600
+
+
+batteriekosten = np.array([
+    berechne_batteriekosten(kapazitaet)
+    for kapazitaet in batteriekapazitaet
+])
+
+# Vereinfachte jährliche Batteriekosten
+jahreskosten_batterie = batteriekosten / lebensdauer_batterie
+
+# Gegenüber dem Fall ohne Batterie vermiedener Netzbezug
+netzbezug_ohne_batterie = netzbezug[0]
+eingesparter_netzbezug = netzbezug_ohne_batterie - netzbezug
+
+# CHF pro eingesparter kWh
+kosten_pro_eingesparte_kwh = np.divide(
+    jahreskosten_batterie,
+    eingesparter_netzbezug,
+    out=np.full_like(jahreskosten_batterie, np.nan),
+    where=eingesparter_netzbezug > 0
+)
+
+# Umrechnung in Rp./kWh für einen direkten Vergleich
+kosten_pro_eingesparte_kwh_rp = kosten_pro_eingesparte_kwh * 100
+
+df_wirtschaftlichkeit = pd.DataFrame({
+    "Batteriekapazität [kWh]": batteriekapazitaet,
+    "Netzbezug [kWh/a]": netzbezug,
+    "Eingesparter Netzbezug [kWh/a]": eingesparter_netzbezug,
+    "Batteriekosten [CHF]": batteriekosten,
+    "Jahreskosten Batterie [CHF/a]": jahreskosten_batterie,
+    "Kosten je eingesparter kWh [Rp./kWh]":
+        kosten_pro_eingesparte_kwh_rp
+})
+
+# Null-kWh-Fall nicht als Punkt darstellen, da keine Division möglich ist
+df_plot = df_wirtschaftlichkeit[
+    df_wirtschaftlichkeit["Batteriekapazität [kWh]"] > 0
+].copy()
 
 fig = go.Figure()
 
-fig.add_trace(go.Bar(
-    name="BA-Tool",
-    x=kennzahlen,
-    y=[2, -17, -7, 10, 41, 15],
-    marker_color="#0068C9",
-    hovertemplate="%{x}<br>BA-Tool: %{y:+.0f} %<extra></extra>"
-))
-
-fig.add_trace(go.Bar(
-    name="Energieschweiz",
-    x=kennzahlen,
-    y=[None, -63, -15, 17, 101, 32],
-    marker_color="#69B9F2",
-    hovertemplate="%{x}<br>Energieschweiz: %{y:+.0f} %<extra></extra>"
-))
-
-fig.add_trace(go.Bar(
-    name="HTW",
-    x=kennzahlen,
-    y=[None, -32, 14, None, None, None],
-    marker_color="#FF2B2B",
-    hovertemplate="%{x}<br>HTW: %{y:+.0f} %<extra></extra>"
-))
-
-fig.add_trace(go.Bar(
-    name="Minergie",
-    x=kennzahlen,
-    y=[-2, -23, -23, 21, 34, 0],
-    marker_color="#FF9D9D",
-    hovertemplate="%{x}<br>Minergie: %{y:+.0f} %<extra></extra>"
-))
-
-
-fehlende_werte = [
-    ("Strombedarf", "Energieschweiz", -8, 12),
-    ("Strombedarf", "HTW", 10, 12),
-    ("Netzbezug", "HTW", 9, 12),
-    ("Netzeinspeisung", "HTW", 9, 12),
-    ("PV-Produktion", "HTW", 9, 12)
-]
-
-for kennzahl, tool, x_verschiebung, y_verschiebung in fehlende_werte:
-    fig.add_annotation(
-        x=kennzahl,
-        y=0,
-        text="k. A.",
-        showarrow=False,
-        xshift=x_verschiebung,
-        yshift=y_verschiebung,
-        font=dict(
-            size=11,
-            color="gray"
+fig.add_trace(
+    go.Scatter(
+        x=df_plot["Batteriekapazität [kWh]"],
+        y=df_plot["Kosten je eingesparter kWh [Rp./kWh]"],
+        mode="lines+markers",
+        name="Batteriekosten je eingesparter kWh",
+        hovertemplate=(
+            "Batterie: %{x:.0f} kWh<br>"
+            "Kosten: %{y:.2f} Rp./kWh"
+            "<extra></extra>"
         )
-    )
-
-
-# Tatsächlich vorhandener Wert von 0 % bei Minergie
-fig.add_annotation(
-    x="PV-Produktion",
-    y=0,
-    text="0 %",
-    showarrow=False,
-    xshift=31,
-    yshift=12,
-    font=dict(
-        size=11,
-        color="#FF9D9D"
     )
 )
 
+fig.add_hline(
+    y=strompreis_tief,
+    line_dash="dash",
+    annotation_text=f"Strompreis tief: {strompreis_tief:.2f} Rp./kWh",
+    annotation_position="bottom right"
+)
+
+fig.add_hline(
+    y=strompreis_hoch,
+    line_dash="dash",
+    annotation_text=f"Strompreis hoch: {strompreis_hoch:.2f} Rp./kWh",
+    annotation_position="top right"
+)
 
 fig.update_layout(
-    barmode="group",
-    height=500,
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-
+    title="Batteriekosten je jährlich eingesparter kWh Netzbezug",
+    xaxis_title="Batteriekapazität [kWh]",
+    yaxis_title="Kosten je eingesparter kWh [Rp./kWh]",
+    template="plotly_white",
+    height=520,
+    margin=dict(l=30, r=30, t=70, b=40),
     legend=dict(
-        title_text="Tool",
         orientation="h",
         yanchor="bottom",
         y=1.02,
         xanchor="left",
         x=0
-    ),
-
-    margin=dict(
-        l=60,
-        r=30,
-        t=90,
-        b=100
-    ),
-
-    font=dict(size=15),
-
-    bargap=0.25,
-    bargroupgap=0.08
+    )
 )
 
 fig.update_xaxes(
-    title="",
-    tickangle=-25,
-    showgrid=False,
-    categoryorder="array",
-    categoryarray=kennzahlen
+    tickmode="array",
+    tickvals=batteriekapazitaet[1:]
 )
 
 fig.update_yaxes(
-    title="Abweichung [%]",
-    range=[-75, 115],
-    tickvals=[-50, 0, 50, 100],
-    showgrid=True,
-    gridcolor="#D9E2EC",
-    zeroline=True,
-    zerolinecolor="#B8C2CC",
-    zerolinewidth=1
+    rangemode="tozero"
 )
 
-fig.update_traces(
-    marker_line_width=0
-)
-# Jede zweite Kennzahlgruppe leicht grau hinterlegen
-for index in range(len(kennzahlen)):
-    if index % 2 == 1:
-        fig.add_vrect(
-            x0=index - 0.5,
-            x1=index + 0.5,
-            fillcolor="rgba(120, 120, 120, 0.07)",
-            line_width=0,
-            layer="below"
-        )
+st.plotly_chart(fig, use_container_width=True)
 
-st.plotly_chart(
-    fig,
-    use_container_width=True,
-    config={"displayModeBar": False}
+with st.expander("Berechnungswerte anzeigen"):
+    st.dataframe(
+        df_wirtschaftlichkeit.style.format({
+            "Batteriekapazität [kWh]": "{:.0f}",
+            "Netzbezug [kWh/a]": "{:,.0f}",
+            "Eingesparter Netzbezug [kWh/a]": "{:,.0f}",
+            "Batteriekosten [CHF]": "{:,.0f}",
+            "Jahreskosten Batterie [CHF/a]": "{:,.0f}",
+            "Kosten je eingesparter kWh [Rp./kWh]": "{:.2f}"
+        }),
+        use_container_width=True
+    )
+
+st.caption(
+    "Vereinfachte Rechnung ohne Finanzierung, Ersatzinvestitionen, "
+    "Unterhalt und entgangene Einspeisevergütung."
 )
 #--------------------------------------
 
