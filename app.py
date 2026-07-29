@@ -378,9 +378,13 @@ import plotly.graph_objects as go
 
 st.subheader("Wirtschaftlicher Vergleich der Batteriekapazitäten")
 
-# Daten aus Tabelle 20
+# ---------------------------------------------------------
+# 1. Daten aus Tabelle 20
+# ---------------------------------------------------------
+
 batteriekapazitaet = np.array([
-    0, 1, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 50
+    0, 1, 3, 6, 9, 12, 15,
+    18, 21, 24, 27, 30, 33, 50
 ], dtype=float)
 
 netzbezug = np.array([
@@ -388,24 +392,42 @@ netzbezug = np.array([
     6300, 6124, 6006, 5932, 5893, 5858, 5750
 ], dtype=float)
 
-# Annahmen aus dem Bericht
-lebensdauer_batterie = 30  # Jahre
-strompreis_tief = 9.64     # Rp./kWh
-strompreis_hoch = 32.69    # Rp./kWh
+# ---------------------------------------------------------
+# 2. Annahmen
+# ---------------------------------------------------------
 
+lebensdauer_batterie = 30  # Jahre
+
+# Zwei Vergleichsszenarien
+strompreis_tief_rp = 9.64
+strompreis_hoch_rp = 32.69
+
+# Umrechnung von Rp./kWh in CHF/kWh
+strompreis_tief_chf = strompreis_tief_rp / 100
+strompreis_hoch_chf = strompreis_hoch_rp / 100
+
+
+# ---------------------------------------------------------
+# 3. Batteriekosten gemäss Bericht
+# ---------------------------------------------------------
 
 def berechne_batteriekosten(kapazitaet_kwh: float) -> float:
     """
-    Batteriekosten gemäss Bericht:
-    - bis 10 kWh: 900 CHF/kWh
-    - über 10 kWh:
-      erste 10 kWh zu 900 CHF/kWh,
-      zusätzliche Kapazität zu 600 CHF/kWh
+    Bis 10 kWh:
+        900 CHF pro kWh
+
+    Über 10 kWh:
+        erste 10 kWh zu 900 CHF/kWh
+        zusätzliche Kapazität zu 600 CHF/kWh
     """
+
     if kapazitaet_kwh <= 10:
         return kapazitaet_kwh * 900
 
-    return 10 * 900 + (kapazitaet_kwh - 10) * 600
+    return (
+        10 * 900
+        + (kapazitaet_kwh - 10) * 600
+    )
 
 
 batteriekosten = np.array([
@@ -413,113 +435,203 @@ batteriekosten = np.array([
     for kapazitaet in batteriekapazitaet
 ])
 
-# Vereinfachte jährliche Batteriekosten
-jahreskosten_batterie = batteriekosten / lebensdauer_batterie
-
-# Gegenüber dem Fall ohne Batterie vermiedener Netzbezug
-netzbezug_ohne_batterie = netzbezug[0]
-eingesparter_netzbezug = netzbezug_ohne_batterie - netzbezug
-
-# CHF pro eingesparter kWh
-kosten_pro_eingesparte_kwh = np.divide(
-    jahreskosten_batterie,
-    eingesparter_netzbezug,
-    out=np.full_like(jahreskosten_batterie, np.nan),
-    where=eingesparter_netzbezug > 0
+# Vereinfachte jährliche Kosten der Batterie
+jahreskosten_batterie = (
+    batteriekosten / lebensdauer_batterie
 )
 
-# Umrechnung in Rp./kWh für einen direkten Vergleich
-kosten_pro_eingesparte_kwh_rp = kosten_pro_eingesparte_kwh * 100
+# ---------------------------------------------------------
+# 4. Eingesparter Netzbezug
+# ---------------------------------------------------------
 
-df_wirtschaftlichkeit = pd.DataFrame({
-    "Batteriekapazität in kWh": batteriekapazitaet,
-    "Netzbezug in kWh/a": netzbezug,
-    "Eingesparter Netzbezug in kWh/a": eingesparter_netzbezug,
-    "Batteriekosten in CHF": batteriekosten,
-    "Jahreskosten Batterie in CHF/a": jahreskosten_batterie,
-    "Kosten je eingesparter kWh in Rp./kWh":
-        kosten_pro_eingesparte_kwh_rp
+netzbezug_ohne_batterie = netzbezug[0]
+
+eingesparter_netzbezug = (
+    netzbezug_ohne_batterie - netzbezug
+)
+
+# ---------------------------------------------------------
+# 5. Jährlich vermiedene Netzstromkosten
+# ---------------------------------------------------------
+
+vermiedene_stromkosten_tief = (
+    eingesparter_netzbezug * strompreis_tief_chf
+)
+
+vermiedene_stromkosten_hoch = (
+    eingesparter_netzbezug * strompreis_hoch_chf
+)
+
+# ---------------------------------------------------------
+# 6. Finanzieller Vorteil nach Batteriekosten
+# ---------------------------------------------------------
+
+finanzieller_vorteil_tief = (
+    vermiedene_stromkosten_tief
+    - jahreskosten_batterie
+)
+
+finanzieller_vorteil_hoch = (
+    vermiedene_stromkosten_hoch
+    - jahreskosten_batterie
+)
+
+# ---------------------------------------------------------
+# 7. DataFrame
+# ---------------------------------------------------------
+
+df = pd.DataFrame({
+    "Batteriekapazität [kWh]": batteriekapazitaet,
+    "Netzbezug [kWh/a]": netzbezug,
+    "Eingesparter Netzbezug [kWh/a]": eingesparter_netzbezug,
+    "Batteriekosten [CHF]": batteriekosten,
+    "Jährliche Batteriekosten [CHF/a]": jahreskosten_batterie,
+    f"Vermiedene Stromkosten bei {strompreis_tief_rp:.2f} Rp./kWh [CHF/a]":
+        vermiedene_stromkosten_tief,
+    f"Finanzieller Vorteil bei {strompreis_tief_rp:.2f} Rp./kWh [CHF/a]":
+        finanzieller_vorteil_tief,
+    f"Vermiedene Stromkosten bei {strompreis_hoch_rp:.2f} Rp./kWh [CHF/a]":
+        vermiedene_stromkosten_hoch,
+    f"Finanzieller Vorteil bei {strompreis_hoch_rp:.2f} Rp./kWh [CHF/a]":
+        finanzieller_vorteil_hoch
 })
 
-# Null-kWh-Fall nicht als Punkt darstellen, da keine Division möglich ist
-df_plot = df_wirtschaftlichkeit[
-    df_wirtschaftlichkeit["Batteriekapazität in kWh"] > 0
-].copy()
+# ---------------------------------------------------------
+# 8. Grafik
+# ---------------------------------------------------------
 
 fig = go.Figure()
 
 fig.add_trace(
     go.Scatter(
-        x=df_plot["Batteriekapazität in kWh"],
-        y=df_plot["Kosten je eingesparter kWh in Rp./kWh"],
+        x=batteriekapazitaet,
+        y=finanzieller_vorteil_tief,
         mode="lines+markers",
-        name="Batteriekosten je eingesparter kWh",
+        name=f"Strompreis {strompreis_tief_rp:.2f} Rp./kWh",
+        customdata=np.column_stack((
+            eingesparter_netzbezug,
+            vermiedene_stromkosten_tief,
+            jahreskosten_batterie
+        )),
         hovertemplate=(
-            "Batterie: %{x:.0f} kWh<br>"
-            "Kosten: %{y:.2f} Rp./kWh"
+            "<b>%{x:.0f} kWh Batterie</b><br>"
+            "Eingesparter Netzbezug: %{customdata[0]:,.0f} kWh/a<br>"
+            "Vermiedene Stromkosten: %{customdata[1]:,.0f} CHF/a<br>"
+            "Jährliche Batteriekosten: %{customdata[2]:,.0f} CHF/a<br>"
+            "<b>Finanzieller Vorteil: %{y:,.0f} CHF/a</b>"
             "<extra></extra>"
         )
     )
 )
 
-fig.add_hline(
-    y=strompreis_tief,
-    line_dash="dash",
-    annotation_text=f"Strompreis tief: {strompreis_tief:.2f} Rp./kWh",
-    annotation_position="bottom right"
+fig.add_trace(
+    go.Scatter(
+        x=batteriekapazitaet,
+        y=finanzieller_vorteil_hoch,
+        mode="lines+markers",
+        name=f"Strompreis {strompreis_hoch_rp:.2f} Rp./kWh",
+        customdata=np.column_stack((
+            eingesparter_netzbezug,
+            vermiedene_stromkosten_hoch,
+            jahreskosten_batterie
+        )),
+        hovertemplate=(
+            "<b>%{x:.0f} kWh Batterie</b><br>"
+            "Eingesparter Netzbezug: %{customdata[0]:,.0f} kWh/a<br>"
+            "Vermiedene Stromkosten: %{customdata[1]:,.0f} CHF/a<br>"
+            "Jährliche Batteriekosten: %{customdata[2]:,.0f} CHF/a<br>"
+            "<b>Finanzieller Vorteil: %{y:,.0f} CHF/a</b>"
+            "<extra></extra>"
+        )
+    )
 )
 
+# Horizontale Null-Linie
 fig.add_hline(
-    y=strompreis_hoch,
+    y=0,
     line_dash="dash",
-    annotation_text=f"Strompreis hoch: {strompreis_hoch:.2f} Rp./kWh",
-    annotation_position="top right"
+    annotation_text="Kostendeckungsgrenze",
+    annotation_position="top left"
 )
 
 fig.update_layout(
-    title="Batteriekosten je jährlich eingesparter kWh Netzbezug",
-    xaxis_title="Batteriekapazität in kWh",
-    yaxis_title="Kosten je eingesparter kWh in Rp./kWh",
+    title=(
+        "Jährlicher finanzieller Vorteil durch den Batteriespeicher"
+    ),
+    xaxis_title="Batteriekapazität [kWh]",
+    yaxis_title="Finanzieller Vorteil [CHF/a]",
     template="plotly_white",
-    height=520,
-    margin=dict(l=30, r=30, t=70, b=40),
+    height=560,
+    margin=dict(
+        l=40,
+        r=30,
+        t=80,
+        b=50
+    ),
     legend=dict(
         orientation="h",
         yanchor="bottom",
         y=1.02,
         xanchor="left",
         x=0
-    )
+    ),
+    hovermode="x unified"
 )
 
 fig.update_xaxes(
     tickmode="array",
-    tickvals=batteriekapazitaet[1:]
+    tickvals=batteriekapazitaet
 )
 
-fig.update_yaxes(
-    rangemode="tozero"
-
+st.plotly_chart(
+    fig,
+    use_container_width=True
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# ---------------------------------------------------------
+# 9. Verständliche Erklärung unter der Grafik
+# ---------------------------------------------------------
+
+st.markdown("""
+**So wird die Grafik gelesen:**
+
+- **Über der Null-Linie:** Die vermiedenen Netzstromkosten sind höher
+  als die jährlichen Batteriekosten.
+- **Unter der Null-Linie:** Die Batterie kostet pro Jahr mehr,
+  als durch den geringeren Netzbezug eingespart wird.
+- **0 kWh Batterie:** Weder Batteriekosten noch Einsparung,
+  deshalb liegt der Ausgangspunkt bei 0 CHF/a.
+""")
+
+# ---------------------------------------------------------
+# 10. Tabelle
+# ---------------------------------------------------------
 
 with st.expander("Berechnungswerte anzeigen"):
+
     st.dataframe(
-        df_wirtschaftlichkeit.style.format({
-            "Batteriekapazität in kWh": "{:.0f}",
-            "Netzbezug in kWh/a": "{:,.0f}",
-            "Eingesparter Netzbezug in kWh/a": "{:,.0f}",
-            "Batteriekosten in CHF": "{:,.0f}",
-            "Jahreskosten Batterie in CHF/a": "{:,.0f}",
-            "Kosten je eingesparter kWh in Rp./kWh": "{:.2f}"
+        df.style.format({
+            "Batteriekapazität [kWh]": "{:.0f}",
+            "Netzbezug [kWh/a]": "{:,.0f}",
+            "Eingesparter Netzbezug [kWh/a]": "{:,.0f}",
+            "Batteriekosten [CHF]": "{:,.0f}",
+            "Jährliche Batteriekosten [CHF/a]": "{:,.0f}",
+            f"Vermiedene Stromkosten bei {strompreis_tief_rp:.2f} Rp./kWh [CHF/a]":
+                "{:,.0f}",
+            f"Finanzieller Vorteil bei {strompreis_tief_rp:.2f} Rp./kWh [CHF/a]":
+                "{:,.0f}",
+            f"Vermiedene Stromkosten bei {strompreis_hoch_rp:.2f} Rp./kWh [CHF/a]":
+                "{:,.0f}",
+            f"Finanzieller Vorteil bei {strompreis_hoch_rp:.2f} Rp./kWh [CHF/a]":
+                "{:,.0f}"
         }),
         use_container_width=True
     )
 
 st.caption(
-    "Vereinfachte Rechnung ohne Finanzierung, Ersatzinvestitionen, "
-    "Unterhalt und entgangene Einspeisevergütung."
+    "Vereinfachte Rechnung: Batteriekosten werden linear auf 30 Jahre "
+    "verteilt. Finanzierung, Unterhalt, Ersatzinvestitionen und entgangene "
+    "Einspeisevergütung sind nicht berücksichtigt."
 )
 #--------------------------------------
 
