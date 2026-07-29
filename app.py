@@ -478,8 +478,8 @@ fig.add_hline(
 
 fig.update_layout(
     title="Batteriekosten je jährlich eingesparter kWh Netzbezug",
-    xaxis_title="Batteriekapazität [kWh]",
-    yaxis_title="Kosten je eingesparter kWh [Rp./kWh]",
+    xaxis_title="Batteriekapazität in kWh",
+    yaxis_title="Kosten je eingesparter kWh in Rp./kWh",
     template="plotly_white",
     height=520,
     margin=dict(l=30, r=30, t=70, b=40),
@@ -499,7 +499,7 @@ fig.update_xaxes(
 
 fig.update_yaxes(
     rangemode="tozero"
-    
+
 )
 
 st.plotly_chart(fig, use_container_width=True)
