@@ -370,293 +370,155 @@ def get_last_mode_and_calories(saved_df):
 
     return last_mode, last_calories
 
-# was anderes
-import streamlit as st
-import pandas as pd
+#------------
 import numpy as np
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
-st.subheader("Wirtschaftlicher Vergleich der Batteriekapazitäten")
+# -----------------------------
+# Daten
+# -----------------------------
+battery = np.array([0, 6, 12, 18, 24, 30, 33, 50])
 
-# ---------------------------------------------------------
-# 1. Daten aus Tabelle 20
-# ---------------------------------------------------------
+# CO2 durch Netzbezug [kg CO2-eq/a]
+iwb_grid = np.array([130.28, 106.85, 90.40, 81.14, 77.36, 75.90, 75.45, 74.06])
+repower_grid = np.array([313.56, 257.18, 217.59, 195.30, 186.19, 182.68, 181.60, 178.25])
+de_grid = np.array([3479.56, 2853.82, 2414.54, 2167.20, 2066.06, 2027.19, 2015.15, 1978.00])
 
-batteriekapazitaet = np.array([
-    0, 1, 3, 6, 9, 12, 15,
-    18, 21, 24, 27, 30, 33, 50
-], dtype=float)
+# anteilige Batterieherstellung bei 15 Jahren Lebensdauer
+battery_prod = np.array([0, 132.8, 265.6, 398.4, 531.2, 664.0, 730.4, 1106.67])
 
-netzbezug = np.array([
-    10115, 9705, 9092, 8296, 7579, 7019, 6600,
-    6300, 6124, 6006, 5932, 5893, 5858, 5750
-], dtype=float)
+# -----------------------------
+# Positionen
+# -----------------------------
+x = np.arange(len(battery))
+width = 0.24
 
-# ---------------------------------------------------------
-# 2. Annahmen
-# ---------------------------------------------------------
+fig, ax = plt.subplots(figsize=(12, 6))
 
-lebensdauer_batterie = 30  # Jahre
+# -----------------------------
+# Gestapelte Balken
+# -----------------------------
 
-# Vier Strompreis-Szenarien in Rp./kWh
-strompreise_rp = [
-    9.64,
-    20.96,
-    32.29,
-    43.61
-]
+# IWB
+ax.bar(
+    x - width,
+    iwb_grid,
+    width,
+    label="IWB – Netzbezug"
+)
 
-# ---------------------------------------------------------
-# 3. Batteriekosten gemäss Bericht
-# ---------------------------------------------------------
+ax.bar(
+    x - width,
+    battery_prod,
+    width,
+    bottom=iwb_grid,
+    alpha=0.45,
+    label="IWB – Batterieherstellung"
+)
 
-def berechne_batteriekosten(kapazitaet_kwh: float) -> float:
-    """
-    Batteriekosten gemäss Bericht:
+# Repower
+ax.bar(
+    x,
+    repower_grid,
+    width,
+    label="Repower – Netzbezug"
+)
 
-    Bis und mit 10 kWh:
-        900 CHF pro kWh Batteriekapazität
+ax.bar(
+    x,
+    battery_prod,
+    width,
+    bottom=repower_grid,
+    alpha=0.45,
+    label="Repower – Batterieherstellung"
+)
 
-    Über 10 kWh:
-        erste 10 kWh zu 900 CHF/kWh
-        zusätzliche Kapazität zu 600 CHF/kWh
-    """
+# Deutschland
+ax.bar(
+    x + width,
+    de_grid,
+    width,
+    label="Deutschland – Netzbezug"
+)
 
-    if kapazitaet_kwh <= 10:
-        return kapazitaet_kwh * 900
+ax.bar(
+    x + width,
+    battery_prod,
+    width,
+    bottom=de_grid,
+    alpha=0.45,
+    label="Deutschland – Batterieherstellung"
+)
 
-    return (
-        10 * 900
-        + (kapazitaet_kwh - 10) * 600
+# -----------------------------
+# Achsen und Beschriftung
+# -----------------------------
+ax.set_xlabel("Batteriekapazität [kWh]")
+ax.set_ylabel("CO$_2$-eq [kg/a]")
+
+ax.set_xticks(x)
+ax.set_xticklabels(battery)
+
+ax.set_title(
+    "CO$_2$-Bilanz in Abhängigkeit von Batteriekapazität und Strommix"
+)
+
+ax.grid(axis="y", alpha=0.25)
+
+# -----------------------------
+# Gesamtwerte oben anzeigen
+# -----------------------------
+totals_iwb = iwb_grid + battery_prod
+totals_repower = repower_grid + battery_prod
+totals_de = de_grid + battery_prod
+
+for i in range(len(battery)):
+    ax.text(
+        x[i] - width,
+        totals_iwb[i] + 30,
+        f"{totals_iwb[i]:.0f}",
+        ha="center",
+        va="bottom",
+        fontsize=8
     )
 
-
-batteriekosten = np.array([
-    berechne_batteriekosten(kapazitaet)
-    for kapazitaet in batteriekapazitaet
-])
-
-# Vereinfachte jährliche Batteriekosten
-jahreskosten_batterie = (
-    batteriekosten / lebensdauer_batterie
-)
-
-# ---------------------------------------------------------
-# 4. Eingesparter Netzbezug
-# ---------------------------------------------------------
-
-netzbezug_ohne_batterie = netzbezug[0]
-
-eingesparter_netzbezug = (
-    netzbezug_ohne_batterie - netzbezug
-)
-
-# ---------------------------------------------------------
-# 5. DataFrame mit Grunddaten
-# ---------------------------------------------------------
-
-df = pd.DataFrame({
-    "Batteriekapazität [kWh]": batteriekapazitaet,
-    "Netzbezug [kWh/a]": netzbezug,
-    "Eingesparter Netzbezug [kWh/a]": eingesparter_netzbezug,
-    "Batteriekosten [CHF]": batteriekosten,
-    "Jährliche Batteriekosten [CHF/a]": jahreskosten_batterie
-})
-
-# Für jeden Strompreis werden die vermiedenen Stromkosten
-# und der finanzielle Vorteil berechnet.
-for strompreis_rp in strompreise_rp:
-
-    strompreis_chf = strompreis_rp / 100
-
-    vermiedene_stromkosten = (
-        eingesparter_netzbezug * strompreis_chf
+    ax.text(
+        x[i],
+        totals_repower[i] + 30,
+        f"{totals_repower[i]:.0f}",
+        ha="center",
+        va="bottom",
+        fontsize=8
     )
 
-    finanzieller_vorteil = (
-        vermiedene_stromkosten
-        - jahreskosten_batterie
+    ax.text(
+        x[i] + width,
+        totals_de[i] + 30,
+        f"{totals_de[i]:.0f}",
+        ha="center",
+        va="bottom",
+        fontsize=8
     )
 
-    df[
-        f"Vermiedene Stromkosten bei "
-        f"{strompreis_rp:.2f} Rp./kWh [CHF/a]"
-    ] = vermiedene_stromkosten
-
-    df[
-        f"Finanzieller Vorteil bei "
-        f"{strompreis_rp:.2f} Rp./kWh [CHF/a]"
-    ] = finanzieller_vorteil
-
-# ---------------------------------------------------------
-# 6. Grafik
-# ---------------------------------------------------------
-
-fig = go.Figure()
-
-for strompreis_rp in strompreise_rp:
-
-    strompreis_chf = strompreis_rp / 100
-
-    vermiedene_stromkosten = (
-        eingesparter_netzbezug * strompreis_chf
-    )
-
-    finanzieller_vorteil = (
-        vermiedene_stromkosten
-        - jahreskosten_batterie
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=batteriekapazitaet,
-            y=finanzieller_vorteil,
-            mode="lines+markers",
-            name=f"{strompreis_rp:.2f} Rp./kWh",
-            customdata=np.column_stack((
-                netzbezug,
-                eingesparter_netzbezug,
-                batteriekosten,
-                jahreskosten_batterie,
-                vermiedene_stromkosten
-            )),
-            hovertemplate=(
-                "<b>%{x:.0f} kWh Batterie</b><br><br>"
-                "Netzbezug: "
-                "%{customdata[0]:,.0f} kWh/a<br>"
-                "Eingesparter Netzbezug: "
-                "%{customdata[1]:,.0f} kWh/a<br>"
-                "Batteriekosten: "
-                "%{customdata[2]:,.0f} CHF<br>"
-                "Jährliche Batteriekosten: "
-                "%{customdata[3]:,.0f} CHF/a<br>"
-                "Vermiedene Stromkosten: "
-                "%{customdata[4]:,.0f} CHF/a<br><br>"
-                "<b>Finanzieller Vorteil: "
-                "%{y:,.0f} CHF/a</b>"
-                "<extra></extra>"
-            )
-        )
-    )
-
-# Null-Linie:
-# Oberhalb = finanzieller Vorteil
-# Unterhalb = finanzieller Nachteil
-fig.add_hline(
-    y=0,
-    line_dash="dash",
-    line_width=2,
-    annotation_text="Kostendeckungsgrenze",
-    annotation_position="top left"
+# -----------------------------
+# Legende
+# -----------------------------
+ax.legend(
+    ncol=2,
+    fontsize=9,
+    frameon=False
 )
 
-fig.update_layout(
-    title=(
-        "Jährlicher finanzieller Vorteil "
-        "durch den Batteriespeicher"
-    ),
-    xaxis_title="Batteriekapazität [kWh]",
-    yaxis_title="Finanzieller Vorteil [CHF/a]",
-    template="plotly_white",
-    height=570,
-    margin=dict(
-        l=50,
-        r=30,
-        t=95,
-        b=55
-    ),
-    legend=dict(
-        title="Strompreis",
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="left",
-        x=0
-    ),
-    hovermode="x unified"
+plt.tight_layout()
+
+# Für Artikel speichern
+plt.savefig(
+    "CO2_Batterie_Strommix.png",
+    dpi=300,
+    bbox_inches="tight"
 )
 
-fig.update_xaxes(
-    tickmode="array",
-    tickvals=batteriekapazitaet,
-    showgrid=True,
-    zeroline=False
-)
-
-fig.update_yaxes(
-    showgrid=True,
-    zeroline=False
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ---------------------------------------------------------
-# 7. Kurze Erklärung
-# ---------------------------------------------------------
-
-st.markdown(
-    """
-    **Lesebeispiel**
-
-    - **Über der Null-Linie:**  
-      Die eingesparten Netzstromkosten sind höher als die
-      jährlichen Batteriekosten.
-
-    - **Unter der Null-Linie:**  
-      Die Batterie kostet pro Jahr mehr, als durch den
-      geringeren Netzbezug eingespart wird.
-
-    - **0 kWh Batterie:**  
-      Keine Batteriekosten und keine zusätzliche Einsparung,
-      deshalb beträgt der finanzielle Vorteil 0 CHF/a.
-    """
-)
-
-# ---------------------------------------------------------
-# 8. Berechnungstabelle
-# ---------------------------------------------------------
-
-with st.expander("Berechnungswerte anzeigen"):
-
-    formatierung = {
-        "Batteriekapazität [kWh]": "{:.0f}",
-        "Netzbezug [kWh/a]": "{:,.0f}",
-        "Eingesparter Netzbezug [kWh/a]": "{:,.0f}",
-        "Batteriekosten [CHF]": "{:,.0f}",
-        "Jährliche Batteriekosten [CHF/a]": "{:,.0f}"
-    }
-
-    for strompreis_rp in strompreise_rp:
-
-        formatierung[
-            f"Vermiedene Stromkosten bei "
-            f"{strompreis_rp:.2f} Rp./kWh [CHF/a]"
-        ] = "{:,.0f}"
-
-        formatierung[
-            f"Finanzieller Vorteil bei "
-            f"{strompreis_rp:.2f} Rp./kWh [CHF/a]"
-        ] = "{:,.0f}"
-
-    st.dataframe(
-        df.style.format(formatierung),
-        use_container_width=True
-    )
-
-# ---------------------------------------------------------
-# 9. Hinweis zu den Modellgrenzen
-# ---------------------------------------------------------
-
-st.caption(
-    "Vereinfachte Wirtschaftlichkeitsbetrachtung: "
-    "Die Investitionskosten der Batterie werden linear auf "
-    "30 Jahre verteilt. Finanzierung, Unterhalt, "
-    "Ersatzinvestitionen, Strompreisänderungen und "
-    "entgangene Einspeisevergütung werden nicht berücksichtigt."
-)
+plt.show()
 #--------------------------------------
 
 # Login
