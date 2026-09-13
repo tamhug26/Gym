@@ -378,12 +378,10 @@ import matplotlib.pyplot as plt
 # Daten
 # -----------------------------
 battery = np.array([0, 6, 12, 18, 24, 30, 33, 50])
-
 # CO2 durch Netzbezug [kg CO2-eq/a]
 iwb_grid = np.array([130.28, 106.85, 90.40, 81.14, 77.36, 75.90, 75.45, 74.06])
 repower_grid = np.array([313.56, 257.18, 217.59, 195.30, 186.19, 182.68, 181.60, 178.25])
 de_grid = np.array([3479.56, 2853.82, 2414.54, 2167.20, 2066.06, 2027.19, 2015.15, 1978.00])
-
 # anteilige Batterieherstellung bei 15 Jahren Lebensdauer
 battery_prod = np.array([0, 132.8, 265.6, 398.4, 531.2, 664.0, 730.4, 1106.67])
 
@@ -519,6 +517,9 @@ plt.savefig(
 )
 
 plt.show()
+
+
+
 #--------------------------------------
 
 # Login
