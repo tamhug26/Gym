@@ -525,14 +525,17 @@ ax.set_axisbelow(True)
 # -----------------------------
 # Saubere Legende
 # -----------------------------
+# -----------------------------
+# Saubere Legende
+# -----------------------------
 legend_elements = [
     Patch(facecolor=iwb_color, label="IWB"),
     Patch(facecolor=repower_color, label="Repower"),
     Patch(facecolor=de_color, label="Deutschland"),
     Patch(
-        facecolor="grey",
-        alpha=0.35,
-        label="Batterieherstellung"
+        facecolor="black",
+        alpha=0.15,
+        label="Heller Farbanteil = Batterieherstellung"
     )
 ]
 
