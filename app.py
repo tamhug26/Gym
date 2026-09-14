@@ -399,6 +399,7 @@ ax.bar(
     x - width,
     iwb_grid,
     width,
+    color="#007BFF",
     label="IWB – Netzbezug"
 )
 
@@ -406,6 +407,7 @@ ax.bar(
     x - width,
     battery_prod,
     width,
+    color="#FFFB00",
     bottom=iwb_grid,
     alpha=0.45,
     label="IWB – Batterieherstellung"
@@ -416,6 +418,7 @@ ax.bar(
     x,
     repower_grid,
     width,
+    color="#10FF48",
     label="Repower – Netzbezug"
 )
 
@@ -423,6 +426,7 @@ ax.bar(
     x,
     battery_prod,
     width,
+    color="#FFFB00",
     bottom=repower_grid,
     alpha=0.45,
     label="Repower – Batterieherstellung"
@@ -433,6 +437,7 @@ ax.bar(
     x + width,
     de_grid,
     width,
+    color="#C44E52",
     label="Deutschland – Netzbezug"
 )
 
@@ -440,6 +445,7 @@ ax.bar(
     x + width,
     battery_prod,
     width,
+    color="#FFFB00",
     bottom=de_grid,
     alpha=0.45,
     label="Deutschland – Batterieherstellung"
