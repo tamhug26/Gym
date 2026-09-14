@@ -437,7 +437,7 @@ ax.bar(
     x + width,
     de_grid,
     width,
-    color="#C44E52",
+    color="#BE0BFFC3",
     label="Deutschland – Netzbezug"
 )
 
