@@ -370,89 +370,144 @@ def get_last_mode_and_calories(saved_df):
 
     return last_mode, last_calories
 
-#------------
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 # -----------------------------
 # Daten
 # -----------------------------
 battery = np.array([0, 6, 12, 18, 24, 30, 33, 50])
+
 # CO2 durch Netzbezug [kg CO2-eq/a]
-iwb_grid = np.array([130.28, 106.85, 90.40, 81.14, 77.36, 75.90, 75.45, 74.06])
-repower_grid = np.array([313.56, 257.18, 217.59, 195.30, 186.19, 182.68, 181.60, 178.25])
-de_grid = np.array([3479.56, 2853.82, 2414.54, 2167.20, 2066.06, 2027.19, 2015.15, 1978.00])
-# anteilige Batterieherstellung bei 15 Jahren Lebensdauer
-battery_prod = np.array([0, 132.8, 265.6, 398.4, 531.2, 664.0, 730.4, 1106.67])
+iwb_grid = np.array([
+    130.28, 106.85, 90.40, 81.14,
+    77.36, 75.90, 75.45, 74.06
+])
+
+repower_grid = np.array([
+    313.56, 257.18, 217.59, 195.30,
+    186.19, 182.68, 181.60, 178.25
+])
+
+de_grid = np.array([
+    3479.56, 2853.82, 2414.54, 2167.20,
+    2066.06, 2027.19, 2015.15, 1978.00
+])
+
+# Batterieherstellung, auf 15 Jahre verteilt
+battery_prod = np.array([
+    0, 132.8, 265.6, 398.4,
+    531.2, 664.0, 730.4, 1106.67
+])
+
+# -----------------------------
+# Farben
+# -----------------------------
+iwb_color = "#0072B2"
+repower_color = "#009E73"
+de_color = "#CC79A7"
+
 # -----------------------------
 # Positionen
+# -----------------------------
 x = np.arange(len(battery))
-width = 0.24
+width = 0.23
+
 fig, ax = plt.subplots(figsize=(12, 6))
 
 # -----------------------------
-# Gestapelte Balken
-# -----------------------------
-
 # IWB
+# -----------------------------
 ax.bar(
     x - width,
     iwb_grid,
     width,
-    color="#007BFF",
-    label="IWB – Netzbezug"
+    color=iwb_color
 )
 
 ax.bar(
     x - width,
     battery_prod,
     width,
-    color="#FFFB00",
     bottom=iwb_grid,
-    alpha=0.45,
-    label="IWB – Batterieherstellung"
+    color=iwb_color,
+    alpha=0.35
 )
 
+# -----------------------------
 # Repower
+# -----------------------------
 ax.bar(
     x,
     repower_grid,
     width,
-    color="#10FF48",
-    label="Repower – Netzbezug"
+    color=repower_color
 )
 
 ax.bar(
     x,
     battery_prod,
     width,
-    color="#FFFB00",
     bottom=repower_grid,
-    alpha=0.45,
-    label="Repower – Batterieherstellung"
+    color=repower_color,
+    alpha=0.35
 )
 
+# -----------------------------
 # Deutschland
+# -----------------------------
 ax.bar(
     x + width,
     de_grid,
     width,
-    color="#BE0BFFC3",
-    label="Deutschland – Netzbezug"
+    color=de_color
 )
 
 ax.bar(
     x + width,
     battery_prod,
     width,
-    color="#FFFB00",
     bottom=de_grid,
-    alpha=0.45,
-    label="Deutschland – Batterieherstellung"
+    color=de_color,
+    alpha=0.35
 )
 
 # -----------------------------
-# Achsen und Beschriftung
+# Gesamtwerte
+# -----------------------------
+totals_iwb = iwb_grid + battery_prod
+totals_repower = repower_grid + battery_prod
+totals_de = de_grid + battery_prod
+
+for i in range(len(battery)):
+
+    ax.text(
+        x[i] - width,
+        totals_iwb[i] + 25,
+        f"{totals_iwb[i]:.0f}",
+        ha="center",
+        fontsize=8
+    )
+
+    ax.text(
+        x[i],
+        totals_repower[i] + 25,
+        f"{totals_repower[i]:.0f}",
+        ha="center",
+        fontsize=8
+    )
+
+    ax.text(
+        x[i] + width,
+        totals_de[i] + 25,
+        f"{totals_de[i]:.0f}",
+        ha="center",
+        fontsize=8
+    )
+
+# -----------------------------
+# Achsen
 # -----------------------------
 ax.set_xlabel("Batteriekapazität [kWh]")
 ax.set_ylabel("CO$_2$-eq [kg/a]")
@@ -464,62 +519,39 @@ ax.set_title(
     "CO$_2$-Bilanz in Abhängigkeit von Batteriekapazität und Strommix"
 )
 
-ax.grid(axis="y", alpha=0.25)
+ax.grid(axis="y", alpha=0.2)
+ax.set_axisbelow(True)
 
 # -----------------------------
-# Gesamtwerte oben anzeigen
+# Saubere Legende
 # -----------------------------
-totals_iwb = iwb_grid + battery_prod
-totals_repower = repower_grid + battery_prod
-totals_de = de_grid + battery_prod
-
-for i in range(len(battery)):
-    ax.text(
-        x[i] - width,
-        totals_iwb[i] + 30,
-        f"{totals_iwb[i]:.0f}",
-        ha="center",
-        va="bottom",
-        fontsize=8
+legend_elements = [
+    Patch(facecolor=iwb_color, label="IWB"),
+    Patch(facecolor=repower_color, label="Repower"),
+    Patch(facecolor=de_color, label="Deutschland"),
+    Patch(
+        facecolor="grey",
+        alpha=0.35,
+        label="Batterieherstellung"
     )
+]
 
-    ax.text(
-        x[i],
-        totals_repower[i] + 30,
-        f"{totals_repower[i]:.0f}",
-        ha="center",
-        va="bottom",
-        fontsize=8
-    )
-
-    ax.text(
-        x[i] + width,
-        totals_de[i] + 30,
-        f"{totals_de[i]:.0f}",
-        ha="center",
-        va="bottom",
-        fontsize=8
-    )
-
-# -----------------------------
-# Legende
-# -----------------------------
 ax.legend(
-    ncol=2,
-    fontsize=9,
-    frameon=False
+    handles=legend_elements,
+    ncol=4,
+    frameon=False,
+    loc="upper center"
 )
 
 plt.tight_layout()
 
-# Für Artikel speichern
+# Speichern
 fig.savefig(
     "CO2_Batterie_Strommix.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-# In Streamlit anzeigen
 st.pyplot(fig)
 
 #--------------------------------------
