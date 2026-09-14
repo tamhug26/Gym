@@ -509,8 +509,8 @@ for i in range(len(battery)):
 # -----------------------------
 # Achsen
 # -----------------------------
-ax.set_xlabel("Batteriekapazität [kWh]")
-ax.set_ylabel("CO$_2$-eq [kg/a]")
+ax.set_xlabel("Batteriekapazität in kWh")
+ax.set_ylabel("CO$_2$-eq in kg/a")
 
 ax.set_xticks(x)
 ax.set_xticklabels(battery)
