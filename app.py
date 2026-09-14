@@ -384,13 +384,10 @@ repower_grid = np.array([313.56, 257.18, 217.59, 195.30, 186.19, 182.68, 181.60,
 de_grid = np.array([3479.56, 2853.82, 2414.54, 2167.20, 2066.06, 2027.19, 2015.15, 1978.00])
 # anteilige Batterieherstellung bei 15 Jahren Lebensdauer
 battery_prod = np.array([0, 132.8, 265.6, 398.4, 531.2, 664.0, 730.4, 1106.67])
-
 # -----------------------------
 # Positionen
-# -----------------------------
 x = np.arange(len(battery))
 width = 0.24
-
 fig, ax = plt.subplots(figsize=(12, 6))
 
 # -----------------------------
@@ -510,15 +507,14 @@ ax.legend(
 plt.tight_layout()
 
 # Für Artikel speichern
-plt.savefig(
+fig.savefig(
     "CO2_Batterie_Strommix.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-plt.show()
-
-
+# In Streamlit anzeigen
+st.pyplot(fig)
 
 #--------------------------------------
 
