@@ -386,7 +386,7 @@ MEAL_PLANS = {
                 }
             }
         }
-    }
+    
 
 
 # Benutzer, die den Mealplan-Tab sehen dürfen
