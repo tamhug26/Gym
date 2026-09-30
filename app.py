@@ -1400,10 +1400,11 @@ if st.session_state.edit_date:
 
 else:
 
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "➕ Neues Training",
         "📖 Gespeicherte Trainings",
-        "📊 Statistik"
+        "📊 Statistik",
+        "🍽️ Mealplan"
     ])
 
 
@@ -1893,3 +1894,137 @@ else:
                         0
                     )
                 )
+    with tab4:
+        st.subheader("🍽️ Mealplan")
+
+        mealplans = {
+            "Tofu Mozzarella": {
+                "Frühstück": [
+                    ("Frühstücksporridge", "")
+                ],
+                "9i": [
+                    ("Proteinpulver", "30 g"),
+                    ("Mandelmilch", "200 ml")
+                ],
+                "Mittag": [
+                    ("Tofu", "200 g"),
+                    ("Reis roh", "100 g"),
+                    ("Avocado", "20 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "4i": [
+                    ("Mozzarella", "125 g"),
+                    ("Avocado", "30 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "Abend": [
+                    ("Proteinpulver", "10 g"),
+                    ("Erdnussbutter", "20 g"),
+                    ("Magerquark", "250 g")
+                ]
+            },
+
+            "Tofu Eiweiss": {
+                "Frühstück": [
+                    ("Frühstücksporridge", "")
+                ],
+                "9i": [
+                    ("Proteinpulver", "30 g"),
+                    ("Mandelmilch", "200 ml")
+                ],
+                "Mittag": [
+                    ("Tofu", "200 g"),
+                    ("Reis roh", "100 g"),
+                    ("Avocado", "20 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "4i": [
+                    ("Eiweiss", "250 g"),
+                    ("Avocado", "50 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "Abend": [
+                    ("Proteinpulver", "10 g"),
+                    ("Erdnussbutter", "20 g"),
+                    ("Magerquark", "250 g")
+                ]
+            },
+
+            "Garnelen Mozzarella": {
+                "Frühstück": [
+                    ("Frühstücksporridge", "")
+                ],
+                "9i": [
+                    ("Proteinpulver", "30 g"),
+                    ("Mandelmilch", "200 ml")
+                ],
+                "Mittag": [
+                    ("Garnelen", "200 g"),
+                    ("Reis roh", "100 g"),
+                    ("Avocado", "20 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "4i": [
+                    ("Mozzarella", "125 g"),
+                    ("Avocado", "50 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "Abend": [
+                    ("Proteinpulver", "10 g"),
+                    ("Erdnussbutter", "20 g"),
+                    ("Magerquark", "250 g")
+                ]
+            },
+
+            "Garnelen Eiweiss": {
+                "Frühstück": [
+                    ("Frühstücksporridge", "")
+                ],
+                "9i": [
+                    ("Proteinpulver", "30 g"),
+                    ("Mandelmilch", "200 ml")
+                ],
+                "Mittag": [
+                    ("Garnelen", "200 g"),
+                    ("Reis roh", "100 g"),
+                    ("Avocado", "20 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "4i": [
+                    ("Eiweiss", "250 g"),
+                    ("Avocado", "80 g"),
+                    ("Kartoffeln", "150 g")
+                ],
+                "Abend": [
+                    ("Proteinpulver", "10 g"),
+                    ("Erdnussbutter", "20 g"),
+                    ("Magerquark", "250 g")
+                ]
+            }
+        }
+
+        # Mealplan auswählen
+        selected_plan = st.selectbox(
+            "Mealplan Day",
+            list(mealplans.keys())
+        )
+
+        # Tageszeit auswählen
+        selected_meal = st.segmented_control(
+            "Tageszeit",
+            ["Frühstück", "9i", "Mittag", "4i", "Abend"],
+            default="9i"
+        )
+
+        if selected_meal:
+            st.markdown(
+                f"## {selected_plan} – {selected_meal}"
+            )
+
+            foods = mealplans[selected_plan][selected_meal]
+
+            for food, amount in foods:
+                if amount:
+                    st.markdown(f"### • {amount} {food}")
+                else:
+                    st.markdown(f"### • {food}")
