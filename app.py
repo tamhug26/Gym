@@ -149,14 +149,146 @@ exercises_by_group = {
 MEAL_PLANS = {
 
     "Tamara": {
+
         "2400 kcal": {
-            # Deine vier Mealplan-Tage kommen im nächsten Schritt hier rein
+
+            "Tofu + Mozzarella": {
+
+                "Frühstück": [
+                    (1, "Frühstücksporridge")
+                ],
+
+                "9i": [
+                    (30, "Proteinpulver"),
+                    (200, "Mandelmilch")
+                ],
+
+                "Mittag": [
+                    (200, "Tofu"),
+                    (100, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
+
+                "4i": [
+                    (125, "Mozzarella"),
+                    (150, "Kartoffeln"),
+                    (220, "Starbucks Chilled Coffee Caffè Latte")
+                ],
+
+                "Abend": [
+                    (10, "Proteinpulver"),
+                    (20, "Erdnussbutter"),
+                    (250, "Magerquark")
+                ]
+            },
+
+
+            "Tofu + Eiweiss": {
+
+                "Frühstück": [
+                    (1, "Frühstücksporridge")
+                ],
+
+                "9i": [
+                    (30, "Proteinpulver"),
+                    (200, "Mandelmilch")
+                ],
+
+                "Mittag": [
+                    (200, "Tofu"),
+                    (100, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
+
+                "4i": [
+                    (250, "Eiweiss"),
+                    (50, "Avocado"),
+                    (220, "Starbucks Chilled Coffee Caffè Latte"),
+                    (150, "Kartoffeln")
+                ],
+
+                "Abend": [
+                    (10, "Proteinpulver"),
+                    (20, "Erdnussbutter"),
+                    (250, "Magerquark")
+                ]
+            },
+
+
+            "Garnelen + Mozzarella": {
+
+                "Frühstück": [
+                    (1, "Frühstücksporridge")
+                ],
+
+                "9i": [
+                    (30, "Proteinpulver"),
+                    (200, "Mandelmilch")
+                ],
+
+                "Mittag": [
+                    (200, "Garnelen"),
+                    (100, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
+
+                "4i": [
+                    (125, "Mozzarella"),
+                    (50, "Avocado"),
+                    (220, "Starbucks Chilled Coffee Caffè Latte"),
+                    (150, "Kartoffeln")
+                ],
+
+                "Abend": [
+                    (20, "Proteinpulver"),
+                    (5, "Erdnussbutter"),
+                    (200, "Skyr")
+                ]
+            },
+
+
+            "Garnelen + Eiweiss": {
+
+                "Frühstück": [
+                    (1, "Frühstücksporridge")
+                ],
+
+                "9i": [
+                    (30, "Proteinpulver"),
+                    (200, "Mandelmilch")
+                ],
+
+                "Mittag": [
+                    (200, "Garnelen"),
+                    (100, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
+
+                "4i": [
+                    (250, "Eiweiss"),
+                    (50, "Avocado"),
+                    (220, "Starbucks Chilled Coffee Caffè Latte"),
+                    (150, "Kartoffeln")
+                ],
+
+                "Abend": [
+                    (20, "Proteinpulver"),
+                    (5, "Erdnussbutter"),
+                    (200, "Skyr")
+                ]
+            }
         }
     },
 
+
     "Can": {
+
         "3000 kcal": {
-            # Cans Wochenplan kommt im nächsten Schritt hier rein
+            # Kommt als nächstes
         }
     }
 }
@@ -2084,6 +2216,10 @@ else:
 
             st.subheader("🍽️ Mealplan")
 
+            # ------------------------------------------------
+            # KALORIENPLAN
+            # ------------------------------------------------
+
             user_mealplans = MEAL_PLANS[username]
 
             calorie_plan = st.selectbox(
@@ -2092,12 +2228,95 @@ else:
                 key="mealplan_calories"
             )
 
-            st.info(
-                f"Aktuell ausgewählt: {calorie_plan}"
-            )
+            selected_plan = user_mealplans[calorie_plan]
 
-            if username == "Tamara":
-                st.caption("Tamara Mealplan")
+            # ------------------------------------------------
+            # FALLS NOCH KEINE DATEN VORHANDEN SIND
+            # ------------------------------------------------
 
-            elif username == "Can":
-                st.caption("Can / Emre Mealplan")
+            if not selected_plan:
+
+                st.info(
+                    "Für diesen Mealplan sind noch keine Mahlzeiten hinterlegt."
+                )
+
+            else:
+
+                # --------------------------------------------
+                # MEALPLAN-TAG
+                # --------------------------------------------
+
+                meal_day = st.selectbox(
+                    "Mealplan-Tag",
+                    list(selected_plan.keys()),
+                    key="mealplan_day"
+                )
+
+                selected_day = selected_plan[meal_day]
+
+                # --------------------------------------------
+                # TAGESZEIT
+                # --------------------------------------------
+
+                meal_time = st.selectbox(
+                    "Mahlzeit",
+                    list(selected_day.keys()),
+                    key="mealplan_time"
+                )
+
+                selected_meal = selected_day[meal_time]
+
+                st.divider()
+
+                # --------------------------------------------
+                # ÜBERSCHRIFT
+                # --------------------------------------------
+
+                st.markdown(
+                    f"## {meal_time}"
+                )
+
+                st.caption(
+                    f"{meal_day} · {calorie_plan}"
+                )
+
+                # --------------------------------------------
+                # LEBENSMITTEL
+                # --------------------------------------------
+
+                for amount, food in selected_meal:
+
+                    # Kartoffeln:
+                    # Rohgewicht -> gekochtes Gewicht
+                    if food.lower() == "kartoffeln":
+
+                        cooked_amount = amount * 0.8
+
+                        st.markdown(
+                            f"### • {cooked_amount:g} g {food} 🥔"
+                        )
+
+                        st.caption(
+                            f"entspricht {amount:g} g vor dem Kochen"
+                        )
+
+                    # Getränke
+                    elif food.lower() == "mandelmilch":
+
+                        st.markdown(
+                            f"### • {amount:g} ml {food}"
+                        )
+
+                    # Dinge, die als Portion hinterlegt sind
+                    elif food.lower() == "frühstücksporridge":
+
+                        st.markdown(
+                            f"### • {food}"
+                        )
+
+                    # Alles andere
+                    else:
+
+                        st.markdown(
+                            f"### • {amount:g} g {food}"
+                        )
