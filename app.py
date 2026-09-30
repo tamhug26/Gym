@@ -1430,9 +1430,9 @@ else:
     # ========================================================
 
     with tab1:
-
         training_form(
             username,
+            user_file,
             saved_df
         )
 
