@@ -285,418 +285,104 @@ MEAL_PLANS = {
     },
 
 
-        "Can": {
-
-            "3000 kcal": {
-
-                # ====================================================
-                # 1: SEELACHS + POULET + EIWEISS
-                # ====================================================
-
-                "SE – PO – EI": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Seelachs"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Karotten")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (150, "Poulet"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (100, "Eiweiss"),
-                        (100, "Kartoffeln"),
-                        (100, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (10, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
-                },
-
-
-                # ====================================================
-                # 2: SEELACHS + POULET + MOZZARELLA
-                # ====================================================
-
-                "SE – PO – MO": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (100, "Seelachs"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Karotten")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (150, "Poulet"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (125, "Mozzarella"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (10, "Proteinpulver"),
-                        (10, "Erdnussbutter"),
-                        (250, "Magerquark")
-                    ]
-                },
-
-
-                # ====================================================
-                # 3: SEELACHS + TOFU + EIWEISS
-                # ====================================================
-
-                "SE – TO – EI": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Seelachs"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Karotten")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (200, "Tofu"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (150, "Eiweiss"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (5, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
-                },
-
-
-                # ====================================================
-                # 4: SEELACHS + TOFU + MOZZARELLA
-                # ====================================================
-
-                "SE – TO – MO": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Seelachs"),
-                        (100, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (200, "Tofu"),
-                        (100, "Kartoffeln"),
-                        (50, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (125, "Mozzarella"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (10, "Proteinpulver"),
-                        (10, "Erdnussbutter"),
-                        (250, "Magerquark")
-                    ]
-                },
-
-
-                # ====================================================
-                # 5: TOFU + POULET + EIWEISS
-                # ====================================================
-
-                "TO – PO – EI": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Tofu"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (150, "Poulet"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (150, "Eiweiss"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (5, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
-                },
-
-
-                # ====================================================
-                # 6: TOFU + POULET + MOZZARELLA
-                # ====================================================
-
-                "TO – PO – MO": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Tofu"),
-                        (50, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (100, "Poulet"),
-                        (50, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (125, "Mozzarella"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (10, "Proteinpulver"),
-                        (10, "Erdnussbutter"),
-                        (250, "Magerquark")
-                    ]
-                },
-
-
-                # ====================================================
-                # 7: TOFU + MOZZARELLA + SEELACHS
-                # ====================================================
-
-                "TO – MO – SE": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Tofu"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (125, "Mozzarella"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (100, "Seelachs"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (5, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
-                },
-
-
-                # ====================================================
-                # 8: SCHLEMMERFILET + POULET + EIWEISS
-                # ====================================================
-
-                "SCH – PO – EI": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (100, "Schlemmerfilet"),
-                        (30, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (150, "Poulet"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (150, "Eiweiss"),
-                        (100, "Kartoffeln"),
-                        (100, "Tomaten")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (5, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
-                },
-
-
-                # ====================================================
-                # 9: TILAPIA + POULET + MOZZARELLA
-                # ====================================================
-
-                "TI – PO – MO": {
-
-                    "07:00": [
-                        (1, "Morningshake Can")
-                    ],
-
-                    "09:00": [
-                        (2, "Belegtes Brot")
-                    ],
-
-                    "12:00": [
-                        (200, "Tilapia"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Gemüsemix")
-                    ],
-
-                    "15:00": [
-                        (1, "Apfel-Zimt-Protein-Muffins")
-                    ],
-
-                    "17:30": [
-                        (100, "Poulet"),
-                        (100, "Kartoffeln"),
-                        (50, "Reis roh"),
-                        (100, "Tomaten")
-                    ],
-
-                    "19:00": [
-                        (125, "Mozzarella"),
-                        (100, "Kartoffeln"),
-                        (50, "Avocado")
-                    ],
-
-                    "Nacht": [
-                        (20, "Proteinpulver"),
-                        (5, "Erdnussbutter"),
-                        (200, "Skyr")
-                    ]
+            "Can": {
+
+                "3000 kcal": {
+
+                    # ==================================================
+                    # FIXE MAHLZEITEN
+                    # ==================================================
+
+                    "Fix": {
+
+                        "07:00": [
+                            (1, "Morningshake Can")
+                        ],
+
+                        "09:00": [
+                            (2, "Belegtes Brot")
+                        ],
+
+                        "15:00": [
+                            (1, "Apfel-Zimt-Protein-Muffins")
+                        ],
+
+                        "Nacht": [
+                            (10, "Proteinpulver"),
+                            (10, "Erdnussbutter"),
+                            (250, "Magerquark")
+                        ]
+                    },
+
+
+                    # ==================================================
+                    # 12:00 / 17:30
+                    # frei austauschbare Hauptmahlzeiten
+                    # ==================================================
+
+                    "Hauptmahlzeiten": {
+
+                        # SE = Seelachs
+                        "SE – Seelachs": [
+                            (200, "Seelachs"),
+                            (100, "Kartoffeln"),
+                            (50, "Reis roh"),
+                            (100, "Karotten")
+                        ],
+
+                        # PO = Poulet
+                        "PO – Poulet": [
+                            (150, "Poulet"),
+                            (100, "Kartoffeln"),
+                            (50, "Reis roh"),
+                            (100, "Tomaten")
+                        ],
+
+                        # TU = Tofu
+                        "TU – Tofu": [
+                            (200, "Tofu"),
+                            (50, "Reis roh"),
+                            (100, "Gemüsemix")
+                        ],
+
+                        # TI = Tilapia
+                        "TI – Tilapia": [
+                            (200, "Tilapia"),
+                            (70, "Kartoffeln"),
+                            (50, "Reis roh"),
+                            (100, "Gemüsemix")
+                        ],
+
+                        # GA = Garnelen
+                        "GA – Garnelen": [
+                            (150, "Garnelen"),
+                            (120, "Kartoffeln"),
+                            (50, "Reis roh"),
+                            (100, "Gemüsemix")
+                        ]
+                    },
+
+
+                    # ==================================================
+                    # 19:00
+                    # ==================================================
+
+                    "19:00": {
+
+                        # EI = Eiweiss
+                        "EI – Eiweiss": [
+                            (100, "Eiweiss"),
+                            (100, "Kartoffeln"),
+                            (100, "Avocado")
+                        ],
+
+                        # MO = Mozzarella
+                        "MO – Mozzarella": [
+                            (125, "Mozzarella"),
+                            (100, "Kartoffeln"),
+                            (50, "Avocado")
+                        ]
+                    }
                 }
             }
         }
