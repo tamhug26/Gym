@@ -581,7 +581,7 @@ MEAL_PLANS = {
         }
     }
 }
-
+}
 
 # Benutzer, die den Mealplan-Tab sehen dürfen
 MEALPLAN_USERS = ["Tamara", "Can"]
@@ -2535,11 +2535,18 @@ else:
                 # MEALPLAN-TAG
                 # --------------------------------------------
 
-                meal_day = st.selectbox(
+                meal_days = list(selected_plan.keys())
+
+                meal_day = st.segmented_control(
                     "Mealplan-Tag",
-                    list(selected_plan.keys()),
+                    options=meal_days,
+                    default=meal_days[0],
+                    selection_mode="single",
                     key="mealplan_day"
                 )
+
+                if meal_day is None:
+                    meal_day = meal_days[0]
 
                 selected_day = selected_plan[meal_day]
 
@@ -2547,11 +2554,19 @@ else:
                 # TAGESZEIT
                 # --------------------------------------------
 
-                meal_time = st.selectbox(
+                meal_times = list(selected_day.keys())
+
+                meal_time = st.segmented_control(
                     "Mahlzeit",
-                    list(selected_day.keys()),
+                    options=meal_times,
+                    default=meal_times[0],
+                    selection_mode="single",
                     key="mealplan_time"
                 )
+
+                # Falls noch nichts ausgewählt wurde
+                if meal_time is None:
+                    meal_time = meal_times[0]
 
                 selected_meal = selected_day[meal_time]
 
@@ -2575,48 +2590,72 @@ else:
 
                 for amount, food in selected_meal:
 
-                    # Kartoffeln:
-                    # Rohgewicht -> gekochtes Gewicht
-                    if food.lower() == "kartoffeln":
+                    food_lower = food.lower()
+
+                    # --------------------------------------------
+                    # KARTOFFELN
+                    # --------------------------------------------
+
+                    if food_lower == "kartoffeln":
 
                         cooked_amount = amount * 0.8
 
-                        st.markdown(
-                            f"### • {cooked_amount:g} g {food} 🥔"
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🥔 {food}
+                            **{cooked_amount:g} g gekocht**
+
+                            :gray[{amount:g} g ungekocht]
+                            """
                         )
 
-                        st.caption(
-                            f"entspricht {amount:g} g vor dem Kochen"
+                    # --------------------------------------------
+                    # MANDELMILCH
+                    # --------------------------------------------
+
+                    elif food_lower == "mandelmilch":
+
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🥛 {food}
+                            **{amount:g} ml**
+                            """
                         )
 
-                    # Getränke
-                    elif food.lower() == "mandelmilch":
+                    # --------------------------------------------
+                    # PORTIONS-LEBENSMITTEL
+                    # --------------------------------------------
 
-                        st.markdown(
-                            f"### • {amount:g} ml {food}"
-                        )
-
-                    # Dinge, die als Portion hinterlegt sind
-                    elif food.lower() in [
+                    elif food_lower in [
                         "frühstücksporridge",
                         "morningshake can",
-                        "belegtes brot",
                         "apfel-zimt-protein-muffins"
                     ]:
 
-                        if food.lower() == "belegtes brot":
-                            st.markdown(
-                                f"### • {amount:g}× {food}"
-                            )
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🍽️ {food}
+                            """
+                        )
 
-                        else:
-                            st.markdown(
-                                f"### • {food}"
-                            )
+                    elif food_lower == "belegtes brot":
 
-                    # Alles andere
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🥪 {food}
+                            **{amount:g} Stück**
+                            """
+                        )
+
+                    # --------------------------------------------
+                    # NORMALE LEBENSMITTEL
+                    # --------------------------------------------
+
                     else:
 
-                        st.markdown(
-                            f"### • {amount:g} g {food}"
+                        st.container(border=True).markdown(
+                            f"""
+                            ### {food}
+                            **{amount:g} g**
+                            """
                         )
