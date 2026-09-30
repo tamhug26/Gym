@@ -142,6 +142,45 @@ exercises_by_group = {
     ]
 }
 
+# ============================================================
+# MEALPLANS
+# ============================================================
+
+MEAL_PLANS = {
+
+    "Tamara": {
+        "2400 kcal": {
+            # Deine vier Mealplan-Tage kommen im nächsten Schritt hier rein
+        }
+    },
+
+    "Can": {
+        "3000 kcal": {
+            # Cans Wochenplan kommt im nächsten Schritt hier rein
+        }
+    }
+}
+
+
+# Benutzer, die den Mealplan-Tab sehen dürfen
+MEALPLAN_USERS = ["Tamara", "Can"]
+
+
+def format_meal_amount(amount, food):
+    """
+    Bereitet Mengen für die Anzeige vor.
+
+    Kartoffeln:
+    Im Mealplan ist das Rohgewicht gespeichert.
+    Für die Anzeige wird automatisch mit 0.8 multipliziert,
+    damit das gekochte Gewicht angezeigt wird.
+    """
+
+    if food.lower() == "kartoffeln":
+        amount = amount * 0.8
+        return f"{amount:g} g {food} (gekocht)"
+
+    return f"{amount:g} g {food}"
 
 # ============================================================
 # GOOGLE SHEETS FUNKTIONEN
@@ -1400,12 +1439,19 @@ if st.session_state.edit_date:
 
 else:
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "➕ Neues Training",
-        "📖 Gespeicherte Trainings",
-        "📊 Statistik",
-        "🍽️ Mealplan"
-    ])
+    if username in MEALPLAN_USERS:
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "➕ Neues Training",
+            "📖 Gespeicherte Trainings",
+            "📊 Statistik",
+            "🍽️ Mealplan"
+        ])
+    else:
+        tab1, tab2, tab3 = st.tabs([
+            "➕ Neues Training",
+            "📖 Gespeicherte Trainings",
+            "📊 Statistik"
+        ])
 
 
     # ========================================================
@@ -2028,3 +2074,30 @@ else:
                     st.markdown(f"### • {amount} {food}")
                 else:
                     st.markdown(f"### • {food}")
+    # ========================================================
+    # MEALPLAN
+    # ========================================================
+
+    if username in MEALPLAN_USERS:
+
+        with tab4:
+
+            st.subheader("🍽️ Mealplan")
+
+            user_mealplans = MEAL_PLANS[username]
+
+            calorie_plan = st.selectbox(
+                "Kalorienplan",
+                list(user_mealplans.keys()),
+                key="mealplan_calories"
+            )
+
+            st.info(
+                f"Aktuell ausgewählt: {calorie_plan}"
+            )
+
+            if username == "Tamara":
+                st.caption("Tamara Mealplan")
+
+            elif username == "Can":
+                st.caption("Can / Emre Mealplan")
