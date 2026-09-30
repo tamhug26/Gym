@@ -4,6 +4,25 @@ from datetime import date
 from pathlib import Path
 from datetime import datetime, timedelta
 import time
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Google Sheets Verbindung testen
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+credentials = Credentials.from_service_account_info(
+    dict(st.secrets["gcp_service_account"]),
+    scopes=scopes
+)
+
+gc = gspread.authorize(credentials)
+
+sheet = gc.open(st.secrets["google_sheet"]["name"])
+
+st.success(f"✅ Google Sheet verbunden: {sheet.title}")
 
 #st.set_page_config(layout="wide")
 
