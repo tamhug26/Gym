@@ -371,7 +371,7 @@ def get_last_mode_and_calories(saved_df):
 # TRAININGSFORMULAR
 # ============================================================
 
-def training_form(username, user_file, saved_df, edit_date=None):
+def training_form(username, saved_df, edit_date=None):
     edit_df = pd.DataFrame()
 
     # ============================================================
@@ -1432,8 +1432,8 @@ else:
     with tab1:
         training_form(
             username,
-            user_file,
-            saved_df
+            saved_df,
+            edit_date=st.session_state.edit_date
         )
 
 
