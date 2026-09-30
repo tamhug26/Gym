@@ -1217,51 +1217,33 @@ def training_form(username, saved_df, edit_date=None):
     else:
         button_text = "Training speichern"
 
-    if st.button(
-        button_text,
-        type="primary",
-        use_container_width=True
-    ):
-
+    if st.button(button_text):
         new_df = pd.DataFrame(entries)
 
-        old_df = load_data(user_file)
+        # Bereits vorhandene Daten dieses Users
+        old_df = saved_df.copy()
 
+        # Beim Bearbeiten: altes Training dieses Datums entfernen
         if edit_date and not old_df.empty:
-
             old_df = old_df[
-                old_df["Datum"].astype(str)
-                != str(edit_date)
+                old_df["Datum"].astype(str) != str(edit_date)
             ]
 
+        # Neues / bearbeitetes Training hinzufügen
         full_df = pd.concat(
             [old_df, new_df],
             ignore_index=True
         )
 
-        save_data(
-            user_file,
-            full_df
-        )
+        # In Google Sheets speichern
+        save_data(username, full_df)
 
-        if edit_date:
+        st.success("Training gespeichert! 💪")
+        time.sleep(1)
 
-            st.success(
-                "Änderungen gespeichert. "
-                "Zurück zur Hauptseite..."
-            )
+        st.session_state.edit_date = None
+        st.rerun()
 
-            time.sleep(1)
-
-            st.session_state.edit_date = None
-
-            st.rerun()
-
-        else:
-
-            st.success(
-                "Training gespeichert! 💪"
-            )
 
 # ============================================================
 # LOGIN
