@@ -371,126 +371,93 @@ def get_last_mode_and_calories(saved_df):
 # TRAININGSFORMULAR
 # ============================================================
 
-def training_form(
-    username,
-    saved_df,
-    edit_date=None
-):
-
+def training_form(username, user_file, saved_df, edit_date=None):
     edit_df = pd.DataFrame()
 
-    # --------------------------------------------------------
-    # DATUM
-    # --------------------------------------------------------
+    # ============================================================
+    # DATUM / BEARBEITUNG
+    # ============================================================
 
     if edit_date and not saved_df.empty:
-
         edit_df = saved_df[
-            saved_df["Datum"].astype(str)
-            == str(edit_date)
+            saved_df["Datum"].astype(str) == str(edit_date)
         ].copy()
 
         training_date = st.date_input(
             "Datum",
-            value=pd.to_datetime(
-                edit_date
-            ).date()
+            value=pd.to_datetime(edit_date).date()
         )
-
     else:
-
         training_date = st.date_input(
             "Datum",
             value=date.today()
         )
 
-
-    # ========================================================
+    # ============================================================
     # ALLGEMEINE ANGABEN
-    # ========================================================
+    # ============================================================
 
     st.subheader("Allgemeine Angaben")
 
-    last_mode, last_calories = \
-        get_last_mode_and_calories(saved_df)
+    last_mode, last_calories = get_last_mode_and_calories(saved_df)
 
-    mode_options = [
-        "Maintaining",
-        "Bulk",
-        "Cut"
-    ]
+    mode_options = ["Maintaining", "Bulk", "Cut"]
 
-    # Beim Bearbeiten alte Werte verwenden
+    if last_mode not in mode_options:
+        last_mode = "Maintaining"
+
+    # Beim Bearbeiten alte Werte laden
     if edit_date and not edit_df.empty:
+        first_old_row = edit_df.iloc[0]
 
-        old_general = edit_df.iloc[0]
+        old_mode = first_old_row.get("Modus", last_mode)
+        if old_mode in mode_options:
+            last_mode = old_mode
 
-        edit_mode = safe_string(
-            old_general.get(
-                "Modus",
-                last_mode
-            )
-        )
+        old_calories = first_old_row.get("Kalorienziel", last_calories)
 
-        if edit_mode in mode_options:
-            last_mode = edit_mode
-
-        last_calories = safe_int(
-            old_general.get(
-                "Kalorienziel",
-                last_calories
-            ),
-            last_calories
-        )
-
+        if pd.notna(old_calories):
+            last_calories = int(old_calories)
 
     col1, col2 = st.columns(2)
 
     with col1:
-
         mode = st.selectbox(
             "Modus",
             mode_options,
-            index=mode_options.index(
-                last_mode
-            )
+            index=mode_options.index(last_mode),
+            key="training_mode"
         )
 
     with col2:
-
         calories = st.number_input(
             "Kalorienziel",
             min_value=0,
             max_value=10000,
-            value=last_calories,
-            step=50
+            value=int(last_calories),
+            step=50,
+            key="training_calories"
         )
 
-
-    # --------------------------------------------------------
+    # ============================================================
     # PERIOD MODE
-    # --------------------------------------------------------
+    # ============================================================
 
-    old_period_mode = False
+    default_period_mode = False
 
     if edit_date and not edit_df.empty:
+        old_period = edit_df.iloc[0].get("Period Mode", False)
 
-        old_value = str(
-            edit_df.iloc[0].get(
-                "Period Mode",
-                ""
-            )
-        ).lower()
-
-        old_period_mode = old_value in [
-            "true",
-            "1",
-            "yes"
-        ]
+        if pd.notna(old_period):
+            if isinstance(old_period, str):
+                default_period_mode = old_period.lower() == "true"
+            else:
+                default_period_mode = bool(old_period)
 
     period_mode = st.checkbox(
         "Period Mode",
-        value=old_period_mode
+        value=default_period_mode,
+        key="period_mode"
     )
 
     period_start = ""
@@ -498,85 +465,57 @@ def training_form(
 
     if period_mode:
 
-        default_start = training_date
-        default_end = training_date
+        old_period_start = training_date
+        old_period_end = training_date
 
         if edit_date and not edit_df.empty:
 
-            old_start = edit_df.iloc[0].get(
-                "Periode Start",
-                ""
-            )
+            value = edit_df.iloc[0].get("Periode Start", "")
 
-            old_end = edit_df.iloc[0].get(
-                "Periode Ende",
-                ""
-            )
+            if pd.notna(value) and str(value) not in ["", "nan"]:
+                old_period_start = pd.to_datetime(value).date()
 
-            if old_start:
-                try:
-                    default_start = \
-                        pd.to_datetime(
-                            old_start
-                        ).date()
-                except:
-                    pass
+            value = edit_df.iloc[0].get("Periode Ende", "")
 
-            if old_end:
-                try:
-                    default_end = \
-                        pd.to_datetime(
-                            old_end
-                        ).date()
-                except:
-                    pass
+            if pd.notna(value) and str(value) not in ["", "nan"]:
+                old_period_end = pd.to_datetime(value).date()
 
         p1, p2 = st.columns(2)
 
         with p1:
-
             period_start = st.date_input(
                 "Periode Start",
-                value=default_start
+                value=old_period_start,
+                key="period_start"
             )
 
         with p2:
-
             period_end = st.date_input(
                 "Periode Ende",
-                value=default_end
+                value=old_period_end,
+                key="period_end"
             )
 
-
-    # --------------------------------------------------------
+    # ============================================================
     # STIMMUNG
-    # --------------------------------------------------------
+    # ============================================================
 
     default_mood = 3
 
     if edit_date and not edit_df.empty:
+        old_mood = edit_df.iloc[0].get("Stimmung", 3)
 
-        default_mood = safe_int(
-            edit_df.iloc[0].get(
-                "Stimmung",
-                3
-            ),
-            3
-        )
-
-        default_mood = max(
-            1,
-            min(5, default_mood)
-        )
+        if pd.notna(old_mood):
+            default_mood = int(old_mood)
 
     mood = st.slider(
         "Stimmung / Gefühl",
         min_value=1,
         max_value=5,
         value=default_mood,
-        help="1 = super toll, 3 = normal, 5 = dreckig"
+        help="1 = super toll, 3 = normal, 5 = dreckig",
+        key="training_mood"
     )
-
 
     pain = ""
 
@@ -585,23 +524,20 @@ def training_form(
         old_pain = ""
 
         if edit_date and not edit_df.empty:
+            value = edit_df.iloc[0].get("Schmerzen", "")
 
-            old_pain = safe_string(
-                edit_df.iloc[0].get(
-                    "Schmerzen",
-                    ""
-                )
-            )
+            if pd.notna(value):
+                old_pain = str(value)
 
         pain = st.text_input(
             "Gab es Schmerzen? Wenn ja, wo?",
-            value=old_pain
+            value=old_pain,
+            key="training_pain"
         )
 
-
-    # ========================================================
+    # ============================================================
     # CARDIO
-    # ========================================================
+    # ============================================================
 
     st.subheader("Cardio")
 
@@ -617,95 +553,69 @@ def training_form(
         "Anderes"
     ]
 
-    old_cardio = "Kein Cardio"
+    old_cardio_type = "Kein Cardio"
 
     if edit_date and not edit_df.empty:
+        value = edit_df.iloc[0].get("Cardio Form", "Kein Cardio")
 
-        old_cardio = safe_string(
-            edit_df.iloc[0].get(
-                "Cardio Form",
-                "Kein Cardio"
-            )
-        )
-
-    if old_cardio not in cardio_options:
-        old_cardio = "Kein Cardio"
+        if pd.notna(value) and value in cardio_options:
+            old_cardio_type = value
 
     cardio_type = st.selectbox(
         "Cardio-Form",
         cardio_options,
-        index=cardio_options.index(
-            old_cardio
-        )
+        index=cardio_options.index(old_cardio_type),
+        key="cardio_type"
     )
-
 
     cardio_time = 0.0
     cardio_distance = 0.0
     cardio_calories = 0.0
 
-
     if cardio_type != "Kein Cardio":
 
         if edit_date and not edit_df.empty:
 
-            cardio_time = safe_float(
-                edit_df.iloc[0].get(
-                    "Cardio Zeit min",
-                    0
-                )
-            )
+            old_time = edit_df.iloc[0].get("Cardio Zeit min", 0)
+            old_distance = edit_df.iloc[0].get("Cardio Distanz km", 0)
+            old_cardio_calories = edit_df.iloc[0].get("Cardio Kalorien", 0)
 
-            cardio_distance = safe_float(
-                edit_df.iloc[0].get(
-                    "Cardio Distanz km",
-                    0
-                )
-            )
-
-            cardio_calories = safe_float(
-                edit_df.iloc[0].get(
-                    "Cardio Kalorien",
-                    0
-                )
-            )
+            cardio_time = float(old_time) if pd.notna(old_time) else 0.0
+            cardio_distance = float(old_distance) if pd.notna(old_distance) else 0.0
+            cardio_calories = float(old_cardio_calories) if pd.notna(old_cardio_calories) else 0.0
 
         c1, c2, c3 = st.columns(3)
 
         with c1:
-
             cardio_time = st.number_input(
                 "Cardio Zeit in Minuten",
                 min_value=0.0,
-                max_value=500.0,
-                value=float(cardio_time),
-                step=1.0
+                value=cardio_time,
+                step=1.0,
+                key="cardio_time"
             )
 
         with c2:
-
             cardio_distance = st.number_input(
                 "Distanz in km",
                 min_value=0.0,
-                max_value=200.0,
-                value=float(cardio_distance),
-                step=0.1
+                value=cardio_distance,
+                step=0.1,
+                key="cardio_distance"
             )
 
         with c3:
-
             cardio_calories = st.number_input(
                 "Cardio Kalorien",
                 min_value=0.0,
-                max_value=3000.0,
-                value=float(cardio_calories),
-                step=10.0
+                value=cardio_calories,
+                step=10.0,
+                key="cardio_calories"
             )
 
-
-    # ========================================================
+    # ============================================================
     # KRAFTTRAINING
-    # ========================================================
+    # ============================================================
 
     st.subheader("Krafttraining")
 
@@ -722,26 +632,22 @@ def training_form(
         "TRX"
     ]
 
-
     if edit_date and not edit_df.empty:
 
         old_exercises = sorted(
-            edit_df[
-                "Übung"
-            ].dropna().unique()
+            edit_df["Übung"].dropna().unique()
         )
 
         muscle_groups = st.multiselect(
             "Welche Muskelgruppen hast du trainiert?",
             all_groups,
-            default=all_groups
+            default=all_groups,
+            key="muscle_groups"
         )
 
         available_exercises = sorted(
             set(
-                get_available_exercises(
-                    muscle_groups
-                )
+                get_available_exercises(muscle_groups)
                 + old_exercises
             )
         )
@@ -750,23 +656,21 @@ def training_form(
 
         muscle_groups = st.multiselect(
             "Welche Muskelgruppen hast du trainiert?",
-            all_groups
+            all_groups,
+            key="muscle_groups"
         )
 
-        available_exercises = \
-            get_available_exercises(
-                muscle_groups
-            )
-
+        available_exercises = get_available_exercises(
+            muscle_groups
+        )
 
     if not available_exercises:
-
-        st.info(
-            "Wähle mindestens eine Muskelgruppe aus."
-        )
-
+        st.info("Wähle mindestens eine Muskelgruppe aus.")
         return
 
+    # ============================================================
+    # ANZAHL ÜBUNGEN
+    # ============================================================
 
     default_rows = (
         len(edit_df)
@@ -774,23 +678,23 @@ def training_form(
         else 3
     )
 
-
     rows = st.number_input(
         "Wie viele Übungen möchtest du eintragen?",
         min_value=1,
-        max_value=20,
-        value=int(default_rows)
+        value=int(default_rows),
+        step=1,
+        key="exercise_count"
     )
 
+    rows = int(rows)
 
     entries = []
 
+    # ============================================================
+    # ÜBUNGEN
+    # ============================================================
 
-    # ========================================================
-    # EINZELNE ÜBUNGEN
-    # ========================================================
-
-    for i in range(int(rows)):
+    for i in range(rows):
 
         old_row = None
 
@@ -801,40 +705,27 @@ def training_form(
         ):
             old_row = edit_df.iloc[i]
 
+        st.markdown("---")
+        st.markdown(f"### Übung {i + 1}")
 
-        st.markdown(
-            f"### Übung {i + 1}"
-        )
-
-
-        # ----------------------------------------------------
+        # --------------------------------------------------------
         # ÜBUNG
-        # ----------------------------------------------------
+        # --------------------------------------------------------
 
         if old_row is not None:
-
-            old_exercise = safe_string(
-                old_row.get(
-                    "Übung",
-                    available_exercises[0]
-                )
-            )
-
-        else:
-
-            old_exercise = \
+            old_exercise = old_row.get(
+                "Übung",
                 available_exercises[0]
+            )
+        else:
+            old_exercise = available_exercises[0]
 
-
-        exercise_index = (
-            available_exercises.index(
+        if old_exercise in available_exercises:
+            exercise_index = available_exercises.index(
                 old_exercise
             )
-            if old_exercise
-            in available_exercises
-            else 0
-        )
-
+        else:
+            exercise_index = 0
 
         exercise = st.selectbox(
             "Übung",
@@ -843,22 +734,77 @@ def training_form(
             key=f"exercise_{i}"
         )
 
+        # ========================================================
+        # VARIABLE ANZAHL SETS
+        # ========================================================
 
-        # ----------------------------------------------------
+        default_sets = 4
+
+        if old_row is not None:
+
+            # Neue Trainings haben die Spalte Anzahl Sets
+            if (
+                "Anzahl Sets" in old_row.index
+                and pd.notna(old_row["Anzahl Sets"])
+            ):
+
+                default_sets = int(
+                    old_row["Anzahl Sets"]
+                )
+
+            # Alte Trainings hatten diese Spalte noch nicht.
+            # Dann schauen wir, wie viele Set-Spalten Daten enthalten.
+            else:
+
+                detected_sets = 0
+
+                for old_s in range(1, 50):
+
+                    weight_col = f"Set {old_s} Gewicht"
+                    reps_col = f"Set {old_s} Wdh"
+                    duration_col = f"Set {old_s} Dauer Sekunden"
+
+                    found_data = False
+
+                    if weight_col in old_row.index:
+                        if pd.notna(old_row[weight_col]):
+                            found_data = True
+
+                    if reps_col in old_row.index:
+                        if pd.notna(old_row[reps_col]):
+                            found_data = True
+
+                    if duration_col in old_row.index:
+                        if pd.notna(old_row[duration_col]):
+                            found_data = True
+
+                    if found_data:
+                        detected_sets = old_s
+
+                if detected_sets > 0:
+                    default_sets = detected_sets
+
+        number_of_sets = st.number_input(
+            "Anzahl Sets",
+            min_value=1,
+            value=int(default_sets),
+            step=1,
+            key=f"number_sets_{i}"
+        )
+
+        number_of_sets = int(number_of_sets)
+
+        # --------------------------------------------------------
         # MACHINE
-        # ----------------------------------------------------
+        # --------------------------------------------------------
 
         if (
-            exercise
-            in exercises_by_group["Calisthenics"]
-            or exercise
-            in exercises_by_group["TRX"]
+            exercise in exercises_by_group["Calisthenics"]
+            or exercise in exercises_by_group["TRX"]
             or exercise == "Hanging"
         ):
 
-            machine_options = [
-                "Bodyweight"
-            ]
+            machine_options = ["Bodyweight"]
 
         else:
 
@@ -868,31 +814,20 @@ def training_form(
                 "Maschine"
             ]
 
-
         if old_row is not None:
-
-            old_machine = safe_string(
-                old_row.get(
-                    "Machine",
-                    machine_options[0]
-                )
-            )
-
-        else:
-
-            old_machine = \
+            old_machine = old_row.get(
+                "Machine",
                 machine_options[0]
+            )
+        else:
+            old_machine = machine_options[0]
 
-
-        machine_index = (
-            machine_options.index(
+        if old_machine in machine_options:
+            machine_index = machine_options.index(
                 old_machine
             )
-            if old_machine
-            in machine_options
-            else 0
-        )
-
+        else:
+            machine_index = 0
 
         machine = st.selectbox(
             "Machine",
@@ -901,65 +836,38 @@ def training_form(
             key=f"machine_{i}"
         )
 
-
-        # ----------------------------------------------------
-        # EXTRA INFO
-        # ----------------------------------------------------
+        # --------------------------------------------------------
+        # TRX / HANGING EXTRA
+        # --------------------------------------------------------
 
         extra_info = ""
 
-        old_extra = ""
-
-        if old_row is not None:
-
-            old_extra = safe_string(
-                old_row.get(
-                    "Extra Info",
-                    ""
-                )
-            )
-
-
         if exercise in exercises_by_group["TRX"]:
-
-            trx_options = [
-                "Sehr aufrecht / leicht",
-                "Mittel",
-                "Sehr schräg / schwer"
-            ]
-
-            trx_index = (
-                trx_options.index(old_extra)
-                if old_extra in trx_options
-                else 1
-            )
 
             extra_info = st.selectbox(
                 "Schräge / Schwierigkeit",
-                trx_options,
-                index=trx_index,
+                [
+                    "Sehr aufrecht / leicht",
+                    "Mittel",
+                    "Sehr schräg / schwer"
+                ],
                 key=f"extra_{i}"
             )
-
 
         elif exercise == "Hanging":
 
             extra_info = st.text_input(
                 "Hanging-Variante / Notiz",
-                value=old_extra,
                 key=f"extra_{i}"
             )
 
-
-        # ----------------------------------------------------
+        # --------------------------------------------------------
         # GRIFF
-        # ----------------------------------------------------
+        # --------------------------------------------------------
 
         if (
-            exercise
-            in exercises_by_group["Beine"]
-            or exercise
-            in exercises_by_group["Glutes"]
+            exercise in exercises_by_group["Beine"]
+            or exercise in exercises_by_group["Glutes"]
         ):
 
             griff = "Nicht relevant"
@@ -975,28 +883,19 @@ def training_form(
             ]
 
             if old_row is not None:
-
-                old_griff = safe_string(
-                    old_row.get(
-                        "Griff",
-                        "Neutral"
-                    )
+                old_griff = old_row.get(
+                    "Griff",
+                    "Neutral"
                 )
-
             else:
-
                 old_griff = "Neutral"
 
-
-            grip_index = (
-                grip_options.index(
+            if old_griff in grip_options:
+                grip_index = grip_options.index(
                     old_griff
                 )
-                if old_griff
-                in grip_options
-                else 0
-            )
-
+            else:
+                grip_index = 0
 
             griff = st.selectbox(
                 "Griff",
@@ -1005,22 +904,20 @@ def training_form(
                 key=f"grip_{i}"
             )
 
-
-        # ----------------------------------------------------
-        # NOTIZ
-        # ----------------------------------------------------
+        # --------------------------------------------------------
+        # ÜBUNGSNOTIZ
+        # --------------------------------------------------------
 
         old_note = ""
 
         if old_row is not None:
-
-            old_note = safe_string(
-                old_row.get(
-                    "Notiz Übung",
-                    ""
-                )
+            value = old_row.get(
+                "Notiz Übung",
+                ""
             )
 
+            if pd.notna(value):
+                old_note = str(value)
 
         note = st.text_input(
             "Notiz zur Übung",
@@ -1028,27 +925,21 @@ def training_form(
             key=f"note_{i}"
         )
 
-
-        # ----------------------------------------------------
-        # ERINNERUNG
-        # ----------------------------------------------------
+        # --------------------------------------------------------
+        # SCHULTER WARNUNG
+        # --------------------------------------------------------
 
         if any(
             group in muscle_groups
-            for group in [
-                "Rücken",
-                "Schultern"
-            ]
+            for group in ["Rücken", "Schultern"]
         ):
-
             st.warning(
                 "⚠️ Schulterblätter nach hinten und runter drücken."
             )
 
-
-        # ----------------------------------------------------
+        # --------------------------------------------------------
         # LETZTES GEWICHT
-        # ----------------------------------------------------
+        # --------------------------------------------------------
 
         last_weight = get_last_set2_weight(
             saved_df,
@@ -1057,12 +948,11 @@ def training_form(
             griff
         )
 
-
         if last_weight is not None:
 
             st.info(
                 f"Letztes Mal bei genau dieser Übung: "
-                f"Set 2 = {last_weight:g} kg"
+                f"Set 2 = {last_weight} kg"
             )
 
         else:
@@ -1071,61 +961,56 @@ def training_form(
                 "Noch kein früherer Eintrag für diese genaue Übung gefunden."
             )
 
-
-        # ====================================================
+        # ========================================================
         # SETS
-        # ====================================================
+        # ========================================================
 
         sets = []
 
-
         is_core = (
-            exercise
-            in exercises_by_group["core"]
+            exercise in exercises_by_group["core"]
         )
-
 
         is_time_exercise = exercise in [
             "Side plank right",
             "Side plank left",
             "Plank",
-            "Hanging",
-            "Handstand",
-            "TRX Plank"
+            "Hanging"
         ]
-
 
         uses_weight = True
 
-
         if is_core and not is_time_exercise:
 
-            old_uses_weight = False
+            default_uses_weight = False
 
             if old_row is not None:
 
-                old_uses_weight = any(
-                    safe_float(
-                        old_row.get(
-                            f"Set {x} Gewicht",
-                            0
-                        )
-                    ) > 0
-                    for x in range(1, 5)
-                )
+                # Falls Gewicht > 0 gespeichert war,
+                # gehen wir davon aus, dass Gewicht benutzt wurde.
+                for old_s in range(1, number_of_sets + 1):
+
+                    col = f"Set {old_s} Gewicht"
+
+                    if (
+                        col in old_row.index
+                        and pd.notna(old_row[col])
+                        and float(old_row[col]) > 0
+                    ):
+                        default_uses_weight = True
+                        break
 
             uses_weight = st.checkbox(
                 "Mit Gewicht gearbeitet?",
-                value=old_uses_weight,
+                value=default_uses_weight,
                 key=f"uses_weight_{i}"
             )
 
+        # ========================================================
+        # VARIABLE SETS
+        # ========================================================
 
-        # ----------------------------------------------------
-        # 4 SETS
-        # ----------------------------------------------------
-
-        for s in range(4):
+        for s in range(number_of_sets):
 
             set_number = s + 1
 
@@ -1134,26 +1019,33 @@ def training_form(
                 expanded=True
             ):
 
+                # -----------------------------------------------
+                # ZEITÜBUNGEN
+                # -----------------------------------------------
 
-                # ZEITÜBUNG
                 if is_time_exercise:
 
                     old_duration = 0.0
 
                     if old_row is not None:
 
-                        old_duration = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Dauer Sekunden",
-                                0
-                            )
+                        duration_col = (
+                            f"Set {set_number} Dauer Sekunden"
                         )
+
+                        if (
+                            duration_col in old_row.index
+                            and pd.notna(old_row[duration_col])
+                        ):
+                            old_duration = float(
+                                old_row[duration_col]
+                            )
 
                     duration = st.number_input(
                         "Zeit in Sekunden",
                         min_value=0.0,
-                        max_value=600.0,
-                        value=float(old_duration),
+                        max_value=3600.0,
+                        value=old_duration,
                         step=5.0,
                         key=f"duration_{i}_{s}"
                     )
@@ -1161,28 +1053,34 @@ def training_form(
                     weight = 0.0
                     reps = 0.0
 
+                # -----------------------------------------------
+                # NORMALE ÜBUNGEN
+                # -----------------------------------------------
 
-                # NORMALE ÜBUNG
                 else:
 
+                    old_weight = 0.0
+
+                    weight_col = (
+                        f"Set {set_number} Gewicht"
+                    )
+
+                    if (
+                        old_row is not None
+                        and weight_col in old_row.index
+                        and pd.notna(old_row[weight_col])
+                    ):
+                        old_weight = float(
+                            old_row[weight_col]
+                        )
+
                     if uses_weight:
-
-                        old_weight = 0.0
-
-                        if old_row is not None:
-
-                            old_weight = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Gewicht",
-                                    0
-                                )
-                            )
 
                         weight = st.number_input(
                             "Gewicht",
                             min_value=0.0,
                             max_value=400.0,
-                            value=float(old_weight),
+                            value=old_weight,
                             step=0.5,
                             key=f"weight_{i}_{s}"
                         )
@@ -1191,51 +1089,57 @@ def training_form(
 
                         weight = 0.0
 
-
+                    # Wiederholungen
                     old_reps = 8.0
 
-                    if old_row is not None:
+                    reps_col = (
+                        f"Set {set_number} Wdh"
+                    )
 
-                        old_reps = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Wdh",
-                                8
-                            ),
-                            8
+                    if (
+                        old_row is not None
+                        and reps_col in old_row.index
+                        and pd.notna(old_row[reps_col])
+                    ):
+                        old_reps = float(
+                            old_row[reps_col]
                         )
-
 
                     reps = st.number_input(
                         "Wdh",
                         min_value=0.0,
-                        max_value=100.0,
-                        value=float(old_reps),
+                        max_value=1000.0,
+                        value=old_reps,
                         step=0.5,
                         key=f"reps_{i}_{s}"
                     )
 
                     duration = 0.0
 
-
+                # -----------------------------------------------
                 # SET NOTIZ
+                # -----------------------------------------------
+
                 old_set_note = ""
 
-                if old_row is not None:
+                note_col = (
+                    f"Set {set_number} Notiz"
+                )
 
-                    old_set_note = safe_string(
-                        old_row.get(
-                            f"Set {set_number} Notiz",
-                            ""
-                        )
+                if (
+                    old_row is not None
+                    and note_col in old_row.index
+                    and pd.notna(old_row[note_col])
+                ):
+                    old_set_note = str(
+                        old_row[note_col]
                     )
-
 
                 note_set = st.text_input(
                     "Set-Notiz",
                     value=old_set_note,
                     key=f"note_set_{i}_{s}"
                 )
-
 
                 sets.append(
                     (
@@ -1246,135 +1150,118 @@ def training_form(
                     )
                 )
 
+        # ========================================================
+        # EINTRAG ERSTELLEN
+        # ========================================================
 
-        # ====================================================
-        # DATENSATZ DER ÜBUNG
-        # ====================================================
-
-        entries.append({
-
+        entry = {
             "Benutzer": username,
-
             "Datum": training_date,
 
             "Modus": mode,
-
             "Kalorienziel": calories,
 
             "Period Mode": period_mode,
-
             "Periode Start": period_start,
-
             "Periode Ende": period_end,
 
             "Stimmung": mood,
-
             "Schmerzen": pain,
 
             "Cardio Form": cardio_type,
-
             "Cardio Zeit min": cardio_time,
-
             "Cardio Distanz km": cardio_distance,
-
             "Cardio Kalorien": cardio_calories,
 
             "Übung": exercise,
-
             "Machine": machine,
-
             "Griff": griff,
-
             "Extra Info": extra_info,
-
             "Notiz Übung": note,
 
-            "Set 1 Gewicht": sets[0][0],
-            "Set 1 Wdh": sets[0][1],
-            "Set 1 Dauer Sekunden": sets[0][2],
-            "Set 1 Notiz": sets[0][3],
+            "Anzahl Sets": number_of_sets
+        }
 
-            "Set 2 Gewicht": sets[1][0],
-            "Set 2 Wdh": sets[1][1],
-            "Set 2 Dauer Sekunden": sets[1][2],
-            "Set 2 Notiz": sets[1][3],
+        # ========================================================
+        # SETS DYNAMISCH SPEICHERN
+        # ========================================================
 
-            "Set 3 Gewicht": sets[2][0],
-            "Set 3 Wdh": sets[2][1],
-            "Set 3 Dauer Sekunden": sets[2][2],
-            "Set 3 Notiz": sets[2][3],
+        for s in range(number_of_sets):
 
-            "Set 4 Gewicht": sets[3][0],
-            "Set 4 Wdh": sets[3][1],
-            "Set 4 Dauer Sekunden": sets[3][2],
-            "Set 4 Notiz": sets[3][3]
-        })
+            set_number = s + 1
 
+            entry[
+                f"Set {set_number} Gewicht"
+            ] = sets[s][0]
 
-    # ========================================================
+            entry[
+                f"Set {set_number} Wdh"
+            ] = sets[s][1]
+
+            entry[
+                f"Set {set_number} Dauer Sekunden"
+            ] = sets[s][2]
+
+            entry[
+                f"Set {set_number} Notiz"
+            ] = sets[s][3]
+
+        entries.append(entry)
+
+    # ============================================================
     # SPEICHERN
-    # ========================================================
+    # ============================================================
 
-    button_text = (
-        "Änderungen speichern"
-        if edit_date
-        else "Training speichern"
-    )
-
+    if edit_date:
+        button_text = "Änderungen speichern"
+    else:
+        button_text = "Training speichern"
 
     if st.button(
         button_text,
-        type="primary"
+        type="primary",
+        use_container_width=True
     ):
 
-        new_df = pd.DataFrame(
-            entries
-        )
+        new_df = pd.DataFrame(entries)
 
-        old_df = load_data(
-            username
-        )
+        old_df = load_data(user_file)
 
-
-        # Wenn Training bearbeitet wird:
-        # alte Version dieses Tages entfernen
-        if (
-            edit_date
-            and not old_df.empty
-            and "Datum" in old_df.columns
-        ):
+        if edit_date and not old_df.empty:
 
             old_df = old_df[
                 old_df["Datum"].astype(str)
                 != str(edit_date)
             ]
 
-
         full_df = pd.concat(
-            [
-                old_df,
-                new_df
-            ],
+            [old_df, new_df],
             ignore_index=True
         )
 
-
         save_data(
-            username,
+            user_file,
             full_df
         )
 
+        if edit_date:
 
-        st.success(
-            "Training gespeichert! Zurück zur Hauptseite..."
-        )
+            st.success(
+                "Änderungen gespeichert. "
+                "Zurück zur Hauptseite..."
+            )
 
-        time.sleep(1)
+            time.sleep(1)
 
-        st.session_state.edit_date = None
+            st.session_state.edit_date = None
 
-        st.rerun()
+            st.rerun()
 
+        else:
+
+            st.success(
+                "Training gespeichert! 💪"
+            )
 
 # ============================================================
 # LOGIN
