@@ -385,7 +385,7 @@ MEAL_PLANS = {
                 # 3: SEELACHS + TOFU + EIWEISS
                 # ====================================================
 
-                "SE – TU – EI": {
+                "SE – TO – EI": {
 
                     "07:00": [
                         (1, "Morningshake Can")
@@ -431,7 +431,7 @@ MEAL_PLANS = {
                 # 4: SEELACHS + TOFU + MOZZARELLA
                 # ====================================================
 
-                "SE – TU – MO": {
+                "SE – TO – MO": {
 
                     "07:00": [
                         (1, "Morningshake Can")
@@ -475,7 +475,7 @@ MEAL_PLANS = {
                 # 5: TOFU + POULET + EIWEISS
                 # ====================================================
 
-                "TU – PO – EI": {
+                "TO – PO – EI": {
 
                     "07:00": [
                         (1, "Morningshake Can")
@@ -521,7 +521,7 @@ MEAL_PLANS = {
                 # 6: TOFU + POULET + MOZZARELLA
                 # ====================================================
 
-                "TU – PO – MO": {
+                "TO – PO – MO": {
 
                     "07:00": [
                         (1, "Morningshake Can")
@@ -567,7 +567,7 @@ MEAL_PLANS = {
                 # 7: TOFU + MOZZARELLA + SEELACHS
                 # ====================================================
 
-                "TU – MO – SE": {
+                "TO – MO – SE": {
 
                     "07:00": [
                         (1, "Morningshake Can")
