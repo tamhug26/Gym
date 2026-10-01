@@ -38,7 +38,7 @@ USERS = {
     "Can": "1010",
     "Papa": "aramat",
     "Nomi": "thebest",
-    "Nemo": "pompei"
+    "Nemo": "Popeye"
 }
 
 
