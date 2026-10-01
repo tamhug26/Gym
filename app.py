@@ -383,10 +383,104 @@ MEAL_PLANS = {
                             (50, "Avocado")
                         ]
                     }
+                },
+
+            "3500 kcal": {
+
+                # ==================================================
+                # FIXE MAHLZEITEN
+                # ==================================================
+
+                "Fix": {
+
+                    "07:00": [
+                        (1, "Morningshake Can")
+                    ],
+
+                    "09:00": [
+                        (2, "Belegtes Brot")
+                    ],
+
+                    "15:00": [
+                        (1, "Apfel-Zimt-Protein-Muffins")
+                    ],
+
+                    "Nacht": [
+                        (10, "Proteinpulver"),
+                        (10, "Erdnussbutter"),
+                        (250, "Magerquark")
+                    ]
+                },
+
+
+                # ==================================================
+                # 12:00 / 17:30
+                # austauschbare Hauptmahlzeiten ~580 kcal
+                # ==================================================
+
+                "Hauptmahlzeiten": {
+
+                    "SE – Seelachs": [
+                        (200, "Seelachs"),
+                        (100, "Kartoffeln"),
+                        (90, "Reis roh"),
+                        (100, "Karotten")
+                    ],
+
+                    "PO – Poulet": [
+                        (150, "Poulet"),
+                        (100, "Kartoffeln"),
+                        (90, "Reis roh"),
+                        (100, "Tomaten")
+                    ],
+
+                    "TU – Tofu": [
+                        (200, "Tofu"),
+                        (100, "Kartoffeln"),
+                        (60, "Reis roh"),
+                        (100, "Tomaten")
+                    ],
+
+                    "GA – Garnelen": [
+                        (150, "Garnelen"),
+                        (120, "Kartoffeln"),
+                        (90, "Reis roh"),
+                        (100, "Gemüsemix")
+                    ],
+
+                    "TI – Tilapia": [
+                        (200, "Tilapia"),
+                        (110, "Kartoffeln"),
+                        (80, "Reis roh"),
+                        (100, "Gemüsemix")
+                    ]
+                },
+
+
+                # ==================================================
+                # 19:00
+                # ==================================================
+
+                "19:00": {
+
+                    "EI – Eiweiss": [
+                        (100, "Eiweiss"),
+                        (100, "Kartoffeln"),
+                        (50, "Reis roh"),
+                        (100, "Avocado")
+                    ],
+
+                    "MO – Mozzarella": [
+                        (125, "Mozzarella"),
+                        (100, "Kartoffeln"),
+                        (30, "Reis roh"),
+                        (50, "Avocado")
+                    ]
                 }
             }
         }
-    
+    }
+
 
 
 # Benutzer, die den Mealplan-Tab sehen dürfen
@@ -2184,9 +2278,19 @@ else:
 
             user_mealplans = MEAL_PLANS[username]
 
+            calorie_options = list(user_mealplans.keys())
+
+            if username == "Can" and "3500 kcal" in calorie_options:
+                default_calorie_index = calorie_options.index("3500 kcal")
+            elif username == "Tamara" and "2400 kcal" in calorie_options:
+                default_calorie_index = calorie_options.index("2400 kcal")
+            else:
+                default_calorie_index = 0
+
             calorie_plan = st.selectbox(
                 "Kalorienplan",
-                list(user_mealplans.keys()),
+                calorie_options,
+                index=default_calorie_index,
                 key="mealplan_calories"
             )
 
