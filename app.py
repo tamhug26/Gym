@@ -37,7 +37,8 @@ USERS = {
     "Tamara": "1010",
     "Can": "1010",
     "Papa": "aramat",
-    "Nomi": "thebest"
+    "Nomi": "thebest",
+    "Nemo": "pompei"
 }
 
 
@@ -496,7 +497,7 @@ MEAL_PLANS = {
 
 
 # Benutzer, die den Mealplan-Tab sehen dürfen
-MEALPLAN_USERS = ["Tamara", "Can"]
+MEALPLAN_USERS = ["Tamara", "Can", "Nemo"]
 
 
 def format_meal_amount(amount, food):
@@ -2288,14 +2289,22 @@ else:
             # KALORIENPLAN
             # ------------------------------------------------
 
-            user_mealplans = MEAL_PLANS[username]
+            if username == "Nemo":
+                user_mealplans = MEAL_PLANS["Can"]
+            else:
+                user_mealplans = MEAL_PLANS[username]
 
             calorie_options = list(user_mealplans.keys())
 
             if username == "Can" and "3500 kcal" in calorie_options:
                 default_calorie_index = calorie_options.index("3500 kcal")
+
+            elif username == "Nemo" and "3000 kcal" in calorie_options:
+                default_calorie_index = calorie_options.index("3000 kcal")
+
             elif username == "Tamara" and "2400 kcal" in calorie_options:
                 default_calorie_index = calorie_options.index("2400 kcal")
+
             else:
                 default_calorie_index = 0
 
