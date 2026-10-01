@@ -160,7 +160,10 @@ MEAL_PLANS = {
 
                 "9i": [
                     (30, "Proteinpulver"),
-                    (200, "Mandelmilch")
+                    (200, "Mandelmilch"),
+                    (280, "Milchreis"),
+                    (20, "Erdnussbutter"),
+                    (30, "Mixed Berries")
                 ],
 
                 "Mittag": [
@@ -192,7 +195,10 @@ MEAL_PLANS = {
 
                 "9i": [
                     (30, "Proteinpulver"),
-                    (200, "Mandelmilch")
+                    (200, "Mandelmilch"),
+                    (280, "Milchreis"),
+                    (20, "Erdnussbutter"),
+                    (30, "Mixed Berries")
                 ],
 
                 "Mittag": [
@@ -225,7 +231,10 @@ MEAL_PLANS = {
 
                 "9i": [
                     (30, "Proteinpulver"),
-                    (200, "Mandelmilch")
+                    (200, "Mandelmilch"),
+                    (280, "Milchreis"),
+                    (20, "Erdnussbutter"),
+                    (30, "Mixed Berries")
                 ],
 
                 "Mittag": [
@@ -258,7 +267,10 @@ MEAL_PLANS = {
 
                 "9i": [
                     (30, "Proteinpulver"),
-                    (200, "Mandelmilch")
+                    (200, "Mandelmilch"),
+                    (280, "Milchreis"),
+                    (20, "Erdnussbutter"),
+                    (30, "Mixed Berries")
                 ],
 
                 "Mittag": [
@@ -2420,15 +2432,77 @@ else:
                     # PORTIONS-LEBENSMITTEL
                     # --------------------------------------------
 
-                    elif food_lower in [
-                        "frühstücksporridge",
-                        "morningshake can",
-                        "apfel-zimt-protein-muffins"
-                    ]:
+                    # --------------------------------------------
+                    # MORNING-SHAKE CAN
+                    # --------------------------------------------
+
+                    elif food_lower == "morningshake can":
 
                         st.container(border=True).markdown(
                             f"""
-                            ### 🍽️ {food}
+                            ### 🥤 Morningshake Can
+
+                            **Inhalt:**
+                            - 200 ml Mandelmilch
+                            - 1 Banane
+                            - 30 g Proteinpulver
+                            - 10 g Erdnussbutter
+                            - 50 g Haferflocken
+                            """
+                        )
+
+
+                    # --------------------------------------------
+                    # MILCHREIS
+                    # --------------------------------------------
+
+                    elif food_lower == "milchreis":
+
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🍚 Milchreis
+                            **{amount:g} g**
+
+                            **Milchreis-Grundrezept:**
+                            - 2.5 l Mandelmilch
+                            - 500 g Reis roh
+                            - 180 g Proteinpulver
+
+                            :gray[Ergibt ca. 2800 g Milchreis]
+                            """
+                        )
+
+
+                    # --------------------------------------------
+                    # FRÜHSTÜCKSPORRIDGE TAMARA
+                    # --------------------------------------------
+
+                    elif food_lower == "frühstücksporridge":
+
+                        st.container(border=True).markdown(
+                            """
+                            ### 🥣 Frühstücksporridge
+
+                            **Inhalt:**
+                            - 120 ml Mandelmilch
+                            - 40 g Haferflocken
+                            - 30 g Proteinpulver
+                            - 30 g Mixed Berries
+                            - 10 g Chiasamen
+                            - 5 g Erdnussbutter
+                            """
+                        )
+
+
+                    # --------------------------------------------
+                    # ANDERE PORTIONS-LEBENSMITTEL
+                    # --------------------------------------------
+
+                    elif food_lower == "apfel-zimt-protein-muffins":
+
+                        st.container(border=True).markdown(
+                            f"""
+                            ### 🧁 {food}
                             """
                         )
 
