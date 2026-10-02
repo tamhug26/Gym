@@ -277,8 +277,8 @@ MEAL_PLANS = {
                             (100, "Tomaten")
                         ],
 
-                        # TU = Tofu
-                        "TU – Tofu": [
+                        # TO = Tofu
+                        "TO – Tofu": [
                             (200, "Tofu"),
                             (50, "Reis roh"),
                             (100, "Gemüsemix")
@@ -385,7 +385,7 @@ MEAL_PLANS = {
                         (100, "Tomaten")
                     ],
 
-                    "TU – Tofu": [
+                    "TO – Tofu": [
                         (200, "Tofu"),
                         (100, "Kartoffeln"),
                         (60, "Reis roh"),
