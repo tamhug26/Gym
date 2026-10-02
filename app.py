@@ -151,150 +151,76 @@ MEAL_PLANS = {
 
     "Tamara": {
 
+        # Tamara – 2400 kcal
+
         "2400 kcal": {
 
-            "Tofu + Mozzarella": {
-
+                # FIX
                 "Frühstück": [
                     (1, "Frühstücksporridge")
                 ],
 
+                # FIX
                 "9i": [
                     (30, "Proteinpulver"),
                     (200, "Mandelmilch"),
-                    (280, "Milchreis"),
-                    (20, "Erdnussbutter"),
-                    (30, "Mixed Berries")
+                    (1, "Milchreis PT")
                 ],
 
-                "Mittag": [
-                    (200, "Tofu"),
-                    (100, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
-                ],
+                # AUSWAHL – für Mittag UND 4i
+                "Hauptmahlzeiten": {
 
-                "4i": [
-                    (125, "Mozzarella"),
-                    (150, "Kartoffeln"),
-                    (220, "Starbucks Chilled Coffee Caffè Latte")
-                ],
+                    "RH": [
+                        (150, "Rindhack"),
+                        (150, "Kartoffeln"),
+                        (30, "Reis roh"),
+                        (50, "Gemüsemix")
+                    ],
 
+                    "TU": [
+                        (200, "Tofu"),
+                        (50, "Reis roh"),
+                        (10, "Avocado"),
+                        (100, "Kartoffeln")
+                    ],
+
+                    "EI": [
+                        (250, "Eiweiss"),
+                        (50, "Avocado"),
+                        (50, "Reis roh"),
+                        (200, "Kartoffeln")
+                    ],
+
+                    "GA": [
+                        (200, "Garnelen"),
+                        (50, "Reis roh"),
+                        (20, "Avocado"),
+                        (150, "Kartoffeln")
+                    ],
+
+                    "MO": [
+                        (125, "Mozzarella"),
+                        (150, "Kartoffeln"),
+                        (60, "Reis roh"),
+                        (50, "Tomaten")
+                    ],
+
+                    "PO": [
+                        (200, "Poulet"),
+                        (50, "Reis roh"),
+                        (20, "Avocado"),
+                        (120, "Kartoffeln")
+                    ]
+                },
+
+                # FIX – nur noch Magerquark, kein Skyr
                 "Abend": [
                     (10, "Proteinpulver"),
                     (20, "Erdnussbutter"),
                     (250, "Magerquark")
-                ]
-            },
-
-
-            "Tofu + Eiweiss": {
-
-                "Frühstück": [
-                    (1, "Frühstücksporridge")
-                ],
-
-                "9i": [
-                    (30, "Proteinpulver"),
-                    (200, "Mandelmilch"),
-                    (280, "Milchreis"),
-                    (20, "Erdnussbutter"),
-                    (30, "Mixed Berries")
-                ],
-
-                "Mittag": [
-                    (200, "Tofu"),
-                    (100, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
-                ],
-
-                "4i": [
-                    (250, "Eiweiss"),
-                    (50, "Avocado"),
-                    (220, "Starbucks Chilled Coffee Caffè Latte"),
-                    (150, "Kartoffeln")
-                ],
-
-                "Abend": [
-                    (10, "Proteinpulver"),
-                    (20, "Erdnussbutter"),
-                    (250, "Magerquark")
-                ]
-            },
-
-
-            "Garnelen + Mozzarella": {
-
-                "Frühstück": [
-                    (1, "Frühstücksporridge")
-                ],
-
-                "9i": [
-                    (30, "Proteinpulver"),
-                    (200, "Mandelmilch"),
-                    (280, "Milchreis"),
-                    (20, "Erdnussbutter"),
-                    (30, "Mixed Berries")
-                ],
-
-                "Mittag": [
-                    (200, "Garnelen"),
-                    (100, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
-                ],
-
-                "4i": [
-                    (125, "Mozzarella"),
-                    (50, "Avocado"),
-                    (220, "Starbucks Chilled Coffee Caffè Latte"),
-                    (150, "Kartoffeln")
-                ],
-
-                "Abend": [
-                    (20, "Proteinpulver"),
-                    (5, "Erdnussbutter"),
-                    (200, "Skyr")
-                ]
-            },
-
-
-            "Garnelen + Eiweiss": {
-
-                "Frühstück": [
-                    (1, "Frühstücksporridge")
-                ],
-
-                "9i": [
-                    (30, "Proteinpulver"),
-                    (200, "Mandelmilch"),
-                    (280, "Milchreis"),
-                    (20, "Erdnussbutter"),
-                    (30, "Mixed Berries")
-                ],
-
-                "Mittag": [
-                    (200, "Garnelen"),
-                    (100, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
-                ],
-
-                "4i": [
-                    (250, "Eiweiss"),
-                    (50, "Avocado"),
-                    (220, "Starbucks Chilled Coffee Caffè Latte"),
-                    (150, "Kartoffeln")
-                ],
-
-                "Abend": [
-                    (20, "Proteinpulver"),
-                    (5, "Erdnussbutter"),
-                    (200, "Skyr")
                 ]
             }
-        }
+        
     },
 
 
@@ -387,7 +313,6 @@ MEAL_PLANS = {
                             (100, "Gemüsemix")
                         ]
                     },
-
 
                     # ==================================================
                     # 19:00
