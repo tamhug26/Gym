@@ -372,6 +372,19 @@ MEAL_PLANS = {
                             (120, "Kartoffeln"),
                             (50, "Reis roh"),
                             (100, "Gemüsemix")
+                        ],
+                        "RH - Rindhack": [
+                            (150, "Rindhack"),
+                            (50, "Kartoffeln"),
+                            (30, "Reis roh"),
+                            (100, "Gemüsemix")
+                        ],
+
+                        "RS - Rindersteak": [
+                            (150, "Rindersteak"),
+                            (100, "Kartoffeln"),
+                            (50, "Reis roh"),
+                            (100, "Gemüsemix")
                         ]
                     },
 
