@@ -2267,70 +2267,162 @@ else:
 
             else:
 
-                # --------------------------------------------
-                # MEALPLAN-TAG
-                # --------------------------------------------
+                # ====================================================
+                # MAHLZEIT AUSWÄHLEN
+                # ====================================================
 
-                meal_days = list(selected_plan.keys())
+                meal_sections = list(selected_plan.keys())
 
-                meal_day = st.segmented_control(
-                    "Mealplan-Tag",
-                    options=meal_days,
-                    default=meal_days[0],
-                    selection_mode="single",
-                    key="mealplan_day"
-                )
+                # Schöner anzeigen:
+                # "Hauptmahlzeiten" wird für Tamara als Mittag / 4i
+                # separat behandelt.
+                if username == "Tamara" and "Hauptmahlzeiten" in meal_sections:
 
-                if meal_day is None:
-                    meal_day = meal_days[0]
+                    meal_time = st.segmented_control(
+                        "Mahlzeit",
+                        options=[
+                            "Frühstück",
+                            "9i",
+                            "Mittag",
+                            "4i",
+                            "Abend"
+                        ],
+                        default="Frühstück",
+                        selection_mode="single",
+                        key="mealplan_time"
+                    )
 
-                selected_day = selected_plan[meal_day]
+                    if meal_time is None:
+                        meal_time = "Frühstück"
 
-                # --------------------------------------------
-                # TAGESZEIT
-                # --------------------------------------------
+                    # ------------------------------------------------
+                    # MITTAG / 4i
+                    # ------------------------------------------------
 
-                meal_times = list(selected_day.keys())
+                    if meal_time in ["Mittag", "4i"]:
 
-                meal_time = st.segmented_control(
-                    "Mahlzeit",
-                    options=meal_times,
-                    default=meal_times[0],
-                    selection_mode="single",
-                    key="mealplan_time"
-                )
+                        meal_options = selected_plan["Hauptmahlzeiten"]
 
-                # Falls noch nichts ausgewählt wurde
-                if meal_time is None:
-                    meal_time = meal_times[0]
+                        option_names = list(meal_options.keys())
 
-                selected_meal = selected_day[meal_time]
+                        selected_option = st.segmented_control(
+                            "Proteinquelle",
+                            options=option_names,
+                            default=option_names[0],
+                            selection_mode="single",
+                            key=f"tamara_{meal_time}_protein"
+                        )
+
+                        if selected_option is None:
+                            selected_option = option_names[0]
+
+                        selected_meal = meal_options[selected_option]
+
+                        meal_title = f"{meal_time} – {selected_option}"
+
+                    # ------------------------------------------------
+                    # FIXE MAHLZEITEN
+                    # ------------------------------------------------
+
+                    else:
+
+                        selected_meal = selected_plan[meal_time]
+
+                        meal_title = meal_time
+
+
+                # ====================================================
+                # CAN / NEMO
+                # ====================================================
+
+                else:
+
+                    meal_day = st.segmented_control(
+                        "Mealplan-Tag",
+                        options=meal_sections,
+                        default=meal_sections[0],
+                        selection_mode="single",
+                        key="mealplan_day"
+                    )
+
+                    if meal_day is None:
+                        meal_day = meal_sections[0]
+
+                    selected_day = selected_plan[meal_day]
+
+                    # ------------------------------------------------
+                    # FALL 1:
+                    # selected_day ist direkt eine Mahlzeit
+                    # ------------------------------------------------
+
+                    if isinstance(selected_day, list):
+
+                        selected_meal = selected_day
+                        meal_title = meal_day
+
+                    # ------------------------------------------------
+                    # FALL 2:
+                    # selected_day enthält weitere Auswahlmöglichkeiten
+                    # ------------------------------------------------
+
+                    elif isinstance(selected_day, dict):
+
+                        meal_times = list(selected_day.keys())
+
+                        meal_time = st.segmented_control(
+                            "Mahlzeit",
+                            options=meal_times,
+                            default=meal_times[0],
+                            selection_mode="single",
+                            key="mealplan_time"
+                        )
+
+                        if meal_time is None:
+                            meal_time = meal_times[0]
+
+                        selected_meal = selected_day[meal_time]
+
+                        meal_title = meal_time
+
+                    else:
+
+                        st.error(
+                            "Die Struktur dieses Mealplans konnte nicht gelesen werden."
+                        )
+
+                        selected_meal = []
+                        meal_title = ""
+
+
+                # ====================================================
+                # AUSGABE
+                # ====================================================
 
                 st.divider()
 
-                # --------------------------------------------
-                # ÜBERSCHRIFT
-                # --------------------------------------------
+                if meal_title:
 
-                st.markdown(
-                    f"## {meal_time}"
-                )
+                    st.markdown(
+                        f"## {meal_title}"
+                    )
 
-                st.caption(
-                    f"{meal_day} · {calorie_plan}"
-                )
+                    st.caption(
+                        f"{calorie_plan}"
+                    )
 
-                # --------------------------------------------
+
+                # ====================================================
                 # LEBENSMITTEL
-                # --------------------------------------------
+                # ====================================================
 
                 for amount, food in selected_meal:
 
                     food_lower = food.lower()
 
-                    # --------------------------------------------
+
+                    # ------------------------------------------------
                     # KARTOFFELN
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     if food_lower == "kartoffeln":
 
@@ -2338,16 +2430,17 @@ else:
 
                         st.container(border=True).markdown(
                             f"""
-                            ### 🥔 {food}
+                            ### 🥔 Kartoffeln
                             **{cooked_amount:g} g gekocht**
 
                             :gray[{amount:g} g ungekocht]
                             """
                         )
 
-                    # --------------------------------------------
+
+                    # ------------------------------------------------
                     # REIS
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     elif food_lower == "reis roh":
 
@@ -2362,31 +2455,29 @@ else:
                             """
                         )
 
-                    # --------------------------------------------
+
+                    # ------------------------------------------------
                     # MANDELMILCH
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     elif food_lower == "mandelmilch":
 
                         st.container(border=True).markdown(
                             f"""
-                            ### 🥛 {food}
+                            ### 🥛 Mandelmilch
                             **{amount:g} ml**
                             """
                         )
 
-                    # --------------------------------------------
-                    # PORTIONS-LEBENSMITTEL
-                    # --------------------------------------------
 
-                    # --------------------------------------------
+                    # ------------------------------------------------
                     # MORNING-SHAKE CAN
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     elif food_lower == "morningshake can":
 
                         st.container(border=True).markdown(
-                            f"""
+                            """
                             ### 🥤 Morningshake Can
 
                             **Inhalt:**
@@ -2399,30 +2490,35 @@ else:
                         )
 
 
-                    # --------------------------------------------
-                    # MILCHREIS
-                    # --------------------------------------------
+                    # ------------------------------------------------
+                    # MILCHREIS / MILCHREIS PT
+                    # ------------------------------------------------
 
-                    elif food_lower == "milchreis":
+                    elif food_lower in ["milchreis", "milchreis pt"]:
 
                         st.container(border=True).markdown(
-                            f"""
+                            """
                             ### 🍚 Milchreis
-                            **{amount:g} g**
 
-                            **Milchreis-Grundrezept:**
+                            **Portion: 280 g Milchreis**
+
+                            **Grundrezept:**
                             - 2.5 l Mandelmilch
                             - 500 g Reis roh
                             - 180 g Proteinpulver
 
-                            :gray[Ergibt ca. 2800 g Milchreis]
+                            **Dazu:**
+                            - 20 g Erdnussbutter
+                            - 30 g Mixed Berries
+
+                            :gray[Grundrezept ergibt ca. 2800 g Milchreis]
                             """
                         )
 
 
-                    # --------------------------------------------
+                    # ------------------------------------------------
                     # FRÜHSTÜCKSPORRIDGE TAMARA
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     elif food_lower == "frühstücksporridge":
 
@@ -2441,30 +2537,36 @@ else:
                         )
 
 
-                    # --------------------------------------------
-                    # ANDERE PORTIONS-LEBENSMITTEL
-                    # --------------------------------------------
+                    # ------------------------------------------------
+                    # APFEL-ZIMT-PROTEIN-MUFFINS
+                    # ------------------------------------------------
 
                     elif food_lower == "apfel-zimt-protein-muffins":
 
                         st.container(border=True).markdown(
-                            f"""
-                            ### 🧁 {food}
+                            """
+                            ### 🧁 Apfel-Zimt-Protein-Muffins
                             """
                         )
+
+
+                    # ------------------------------------------------
+                    # BELEGTES BROT
+                    # ------------------------------------------------
 
                     elif food_lower == "belegtes brot":
 
                         st.container(border=True).markdown(
                             f"""
-                            ### 🥪 {food}
+                            ### 🥪 Belegtes Brot
                             **{amount:g} Stück**
                             """
                         )
 
-                    # --------------------------------------------
+
+                    # ------------------------------------------------
                     # NORMALE LEBENSMITTEL
-                    # --------------------------------------------
+                    # ------------------------------------------------
 
                     else:
 
