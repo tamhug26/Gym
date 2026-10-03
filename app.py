@@ -1731,13 +1731,8 @@ AVATAR_CONFIG = {
 
 def show_avatar(username, level):
 
-    title_col, avatar_col = st.columns(
-        [4, 1],
-        vertical_alignment="top"
-    )
-
-    with title_col:
-        st.title("🏋️ Gym Notes")
+    # Titel ganz normal
+    st.title("🏋️ Gym Notes")
 
     if username not in AVATAR_CONFIG:
         return
@@ -1747,11 +1742,47 @@ def show_avatar(username, level):
     if not avatar_path or not os.path.exists(avatar_path):
         return
 
-    with avatar_col:
-        st.image(
-            avatar_path,
-            width=220
-        )
+    # Marker, damit wir genau DIESES Bild mit CSS ansprechen können
+    st.markdown(
+        '<div id="gym-avatar-marker"></div>',
+        unsafe_allow_html=True
+    )
+
+    # Avatar
+    st.image(
+        avatar_path,
+        width=260
+    )
+
+    # Avatar aus dem normalen Layout herausnehmen
+    st.markdown(
+        """
+        <style>
+
+        /* Container mit dem Avatar finden */
+        div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
+        + div[data-testid="stElementContainer"] {
+
+            position: absolute;
+            top: 20px;
+            right: 20px;
+
+            width: 260px !important;
+
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Der Marker selbst braucht keinen Platz */
+        div[data-testid="stElementContainer"]:has(#gym-avatar-marker) {
+            display: none;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 def get_avatar_level(saved_df):
 
     if saved_df.empty or "Datum" not in saved_df.columns:
