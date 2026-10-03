@@ -2114,36 +2114,81 @@ else:
                             )
 
 
+                    # ============================================
+                    # ALLE VORHANDENEN SETS AUTOMATISCH ERKENNEN
+                    # ============================================
+
                     weight_columns = [
                         col
-                        for col in [
-                            "Set 1 Gewicht",
-                            "Set 2 Gewicht",
-                            "Set 3 Gewicht",
-                            "Set 4 Gewicht"
-                        ]
-                        if col
-                        in progress_df.columns
+                        for col in progress_df.columns
+                        if col.startswith("Set ")
+                        and col.endswith(" Gewicht")
                     ]
 
 
+                    # Set-Spalten richtig sortieren:
+                    # Set 1, Set 2, Set 3 ... Set 10 usw.
+                    def get_set_number(column_name):
+                        try:
+                            return int(column_name.split(" ")[1])
+                        except:
+                            return 999
+
+
+                    weight_columns = sorted(
+                        weight_columns,
+                        key=get_set_number
+                    )
+
+
+                    # ============================================
+                    # GEWICHTE NUMERISCH MACHEN
+                    # ============================================
+
+                    for col in weight_columns:
+
+                        progress_df[col] = pd.to_numeric(
+                            progress_df[col],
+                            errors="coerce"
+                        )
+
+
+                    # ============================================
+                    # NUR TATSÄCHLICH BENUTZTE SETS ANZEIGEN
+                    # ============================================
+
+                    weight_columns = [
+                        col
+                        for col in weight_columns
+                        if progress_df[col].notna().any()
+                        and (progress_df[col] > 0).any()
+                    ]
+
+
+                    # ============================================
+                    # CHART
+                    # ============================================
+
                     if (
                         weight_columns
-                        and "Datum"
-                        in progress_df.columns
+                        and "Datum" in progress_df.columns
                     ):
 
-                        chart_df = \
-                            progress_df[
-                                ["Datum"]
-                                + weight_columns
-                            ].set_index(
-                                "Datum"
-                            )
+                        chart_df = progress_df[
+                            ["Datum"] + weight_columns
+                        ].copy()
 
+                        chart_df = chart_df.set_index("Datum")
 
-                        st.line_chart(
-                            chart_df
+                        # 0 kg nicht als echte Messung darstellen
+                        chart_df = chart_df.replace(0, np.nan)
+
+                        st.line_chart(chart_df)
+
+                    else:
+
+                        st.info(
+                            "Für diese Übung sind noch keine Gewichtsdaten vorhanden."
                         )
 
 
