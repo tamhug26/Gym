@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from io import BytesIO
 import os
+import streamlit.components.v1 as components
 
 
 # ============================================================
@@ -1744,41 +1745,33 @@ def show_avatar(username, level):
     with open(avatar_path, "rb") as f:
         avatar_base64 = base64.b64encode(f.read()).decode()
 
-    st.markdown(
+    components.html(
         f"""
         <style>
-        .avatar-floating {{
-            position: absolute;
-            top: 75px;
-            right: 60px;
-            width: 190px;
-            z-index: 0;
-            pointer-events: none;
-        }}
-
-        /* Tabs sollen vor dem unteren Teil des Avatars liegen */
-        .stTabs {{
-            position: relative;
-            z-index: 2;
-        }}
-
-        @media (max-width: 768px) {{
-            .avatar-floating {{
-                top: 70px;
-                right: 15px;
-                width: 130px;
+            html, body {{
+                margin: 0;
+                padding: 0;
+                overflow: visible;
+                background: transparent;
             }}
-        }}
+
+            .avatar {{
+                position: fixed;
+                top: 5px;
+                right: 30px;
+                width: 200px;
+                z-index: 1;
+                pointer-events: none;
+            }}
         </style>
 
         <img
-            class="avatar-floating"
+            class="avatar"
             src="data:image/png;base64,{avatar_base64}"
-        >
+        />
         """,
-        unsafe_allow_html=True
+        height=1
     )
-
 def get_avatar_level(saved_df):
 
     if saved_df.empty or "Datum" not in saved_df.columns:
