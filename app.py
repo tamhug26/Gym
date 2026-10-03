@@ -712,15 +712,28 @@ def training_form(username, saved_df, edit_date=None):
             saved_df["Datum"].astype(str) == str(edit_date)
         ].copy()
 
-        training_date = st.date_input(
-            "Datum",
-            value=pd.to_datetime(edit_date).date()
-        )
-    else:
-        training_date = st.date_input(
-            "Datum",
-            value=date.today()
-        )
+
+    # ============================================================
+    # DATUM – NUR LINKE SPALTE
+    # ============================================================
+
+    date_col, empty_col = st.columns(2)
+
+    with date_col:
+
+        if edit_date and not saved_df.empty:
+
+            training_date = st.date_input(
+                "Datum",
+                value=pd.to_datetime(edit_date).date()
+            )
+
+        else:
+
+            training_date = st.date_input(
+                "Datum",
+                value=date.today()
+            )
 
     # ============================================================
     # ALLGEMEINE ANGABEN
