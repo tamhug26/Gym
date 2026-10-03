@@ -34,12 +34,35 @@ sheet = gc.open(st.secrets["google_sheet"]["name"])
 # ============================================================
 
 USERS = {
-    "Tamara": "1010",
-    "Can": "1010",
-    "Papa": "aramat",
-    "Nomi": "thebest",
-    "Nemo": "Popeye",
-    "Onur": "Popeye"
+    "Tamara": {
+        "password": "1010",
+        "gender": "female"
+    },
+
+    "Can": {
+        "password": "1010",
+        "gender": "male"
+    },
+
+    "Papa": {
+        "password": "aramat",
+        "gender": "male"
+    },
+
+    "Nomi": {
+        "password": "thebest",
+        "gender": "female"
+    },
+
+    "Nemo": {
+        "password": "Popeye",
+        "gender": "male"
+    },
+
+    "Onur": {
+        "password": "Popeye",
+        "gender": "male"
+    }
 }
 
 
@@ -751,62 +774,67 @@ def training_form(username, saved_df, edit_date=None):
             key="training_calories"
         )
 
+   # ============================================================
+    # PERIOD MODE – NUR FÜR FRAUEN
     # ============================================================
-    # PERIOD MODE
-    # ============================================================
 
-    default_period_mode = False
-
-    if edit_date and not edit_df.empty:
-        old_period = edit_df.iloc[0].get("Period Mode", False)
-
-        if pd.notna(old_period):
-            if isinstance(old_period, str):
-                default_period_mode = old_period.lower() == "true"
-            else:
-                default_period_mode = bool(old_period)
-
-    period_mode = st.checkbox(
-        "Period Mode",
-        value=default_period_mode,
-        key="period_mode"
-    )
-
+    period_mode = False
     period_start = ""
     period_end = ""
 
-    if period_mode:
+    # Period Mode nur anzeigen, wenn der Benutzer als female
+    # hinterlegt wurde
+    if USERS[username]["gender"] == "female":
 
-        old_period_start = training_date
-        old_period_end = training_date
+        default_period_mode = False
 
         if edit_date and not edit_df.empty:
+            old_period = edit_df.iloc[0].get("Period Mode", False)
 
-            value = edit_df.iloc[0].get("Periode Start", "")
+            if pd.notna(old_period):
+                if isinstance(old_period, str):
+                    default_period_mode = old_period.lower() == "true"
+                else:
+                    default_period_mode = bool(old_period)
 
-            if pd.notna(value) and str(value) not in ["", "nan"]:
-                old_period_start = pd.to_datetime(value).date()
+        period_mode = st.checkbox(
+            "Period Mode",
+            value=default_period_mode,
+            key="period_mode"
+        )
 
-            value = edit_df.iloc[0].get("Periode Ende", "")
+        if period_mode:
 
-            if pd.notna(value) and str(value) not in ["", "nan"]:
-                old_period_end = pd.to_datetime(value).date()
+            old_period_start = training_date
+            old_period_end = training_date
 
-        p1, p2 = st.columns(2)
+            if edit_date and not edit_df.empty:
 
-        with p1:
-            period_start = st.date_input(
-                "Periode Start",
-                value=old_period_start,
-                key="period_start"
-            )
+                value = edit_df.iloc[0].get("Periode Start", "")
 
-        with p2:
-            period_end = st.date_input(
-                "Periode Ende",
-                value=old_period_end,
-                key="period_end"
-            )
+                if pd.notna(value) and str(value) not in ["", "nan"]:
+                    old_period_start = pd.to_datetime(value).date()
+
+                value = edit_df.iloc[0].get("Periode Ende", "")
+
+                if pd.notna(value) and str(value) not in ["", "nan"]:
+                    old_period_end = pd.to_datetime(value).date()
+
+            p1, p2 = st.columns(2)
+
+            with p1:
+                period_start = st.date_input(
+                    "Periode Start",
+                    value=old_period_start,
+                    key="period_start"
+                )
+
+            with p2:
+                period_end = st.date_input(
+                    "Periode Ende",
+                    value=old_period_end,
+                    key="period_end"
+                )
 
     # ============================================================
     # STIMMUNG
@@ -1587,7 +1615,7 @@ if not st.session_state.logged_in:
 
         if (
             username_input in USERS
-            and USERS[username_input]
+            and USERS[username_input]["password"]
             == password
         ):
 
