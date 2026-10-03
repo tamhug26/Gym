@@ -1731,21 +1731,53 @@ AVATAR_CONFIG = {
 
 
 def show_avatar(username, level):
-    # User hat keine Avatare → einfach nichts machen
     if username not in AVATAR_CONFIG:
         return
 
     avatar_path = AVATAR_CONFIG[username].get(level)
 
-    if avatar_path and os.path.exists(avatar_path):
+    if not avatar_path or not os.path.exists(avatar_path):
+        return
 
-        left, right = st.columns([5, 1])
+    import base64
 
-        with right:
-            st.image(
-                avatar_path,
-                width=100
-            )
+    with open(avatar_path, "rb") as f:
+        avatar_base64 = base64.b64encode(f.read()).decode()
+
+    st.markdown(
+        f"""
+        <style>
+        .avatar-floating {{
+            position: absolute;
+            top: 75px;
+            right: 60px;
+            width: 190px;
+            z-index: 0;
+            pointer-events: none;
+        }}
+
+        /* Tabs sollen vor dem unteren Teil des Avatars liegen */
+        .stTabs {{
+            position: relative;
+            z-index: 2;
+        }}
+
+        @media (max-width: 768px) {{
+            .avatar-floating {{
+                top: 70px;
+                right: 15px;
+                width: 130px;
+            }}
+        }}
+        </style>
+
+        <img
+            class="avatar-floating"
+            src="data:image/png;base64,{avatar_base64}"
+        >
+        """,
+        unsafe_allow_html=True
+    )
 
 def get_avatar_level(saved_df):
 
