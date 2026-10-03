@@ -1767,12 +1767,15 @@ def show_avatar(username, level):
         width=260
     )
 
-    # Avatar aus dem normalen Layout herausnehmen
     st.markdown(
         """
         <style>
 
-        /* Container mit dem Avatar finden */
+        /* =====================================================
+           DESKTOP / LAPTOP
+           Genau wie bisher
+           ===================================================== */
+
         div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
         + div[data-testid="stElementContainer"] {
 
@@ -1786,15 +1789,43 @@ def show_avatar(username, level):
             pointer-events: none;
         }
 
-        /* Der Marker selbst braucht keinen Platz */
+        /* Marker selbst nimmt keinen Platz ein */
         div[data-testid="stElementContainer"]:has(#gym-avatar-marker) {
             display: none;
+        }
+
+
+        /* =====================================================
+           HANDY
+           ===================================================== */
+
+        @media (max-width: 768px) {
+
+            div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
+            + div[data-testid="stElementContainer"] {
+
+                top: 20px;
+                right: 10px;
+
+                width: 115px !important;
+
+                z-index: 0;
+            }
+
+            div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
+            + div[data-testid="stElementContainer"] img {
+
+                width: 115px !important;
+                max-width: 115px !important;
+                height: auto !important;
+            }
         }
 
         </style>
         """,
         unsafe_allow_html=True
     )
+
 
 def get_avatar_level(saved_df):
 
