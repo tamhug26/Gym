@@ -1804,10 +1804,10 @@ def show_avatar(username, level):
             div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
             + div[data-testid="stElementContainer"] {
 
-                top: 20px;
+                top: 50px;
                 right: 10px;
 
-                width: 115px !important;
+                width: 200px !important;
 
                 z-index: 0;
             }
@@ -1815,8 +1815,8 @@ def show_avatar(username, level):
             div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
             + div[data-testid="stElementContainer"] img {
 
-                width: 115px !important;
-                max-width: 115px !important;
+                width: 200px !important;
+                max-width: 200px !important;
                 height: auto !important;
             }
         }
