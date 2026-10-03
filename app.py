@@ -1738,10 +1738,14 @@ def show_avatar(username, level):
     avatar_path = AVATAR_CONFIG[username].get(level)
 
     if avatar_path and os.path.exists(avatar_path):
-        st.image(
-            avatar_path,
-            width=250
-        )
+
+        left, right = st.columns([5, 1])
+
+        with right:
+            st.image(
+                avatar_path,
+                width=100
+            )
 
 def get_avatar_level(saved_df):
 
