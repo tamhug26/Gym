@@ -1765,7 +1765,7 @@ def show_avatar(username, level):
 
             position: absolute;
             top: 60px;
-            right: 20px;
+            right: 50px;
 
             width: 320px !important;
 
