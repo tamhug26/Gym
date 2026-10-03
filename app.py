@@ -1804,34 +1804,27 @@ def show_avatar(username, level):
                 /* Avatar */
                 div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
                 + div[data-testid="stElementContainer"] {
-
                     top: 110px;
                     right: -10px;
-
                     width: 200px !important;
-
                     z-index: 0;
                 }
 
                 div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
                 + div[data-testid="stElementContainer"] img {
-
                     width: 200px !important;
                     max-width: 200px !important;
                     height: auto !important;
                 }
 
-
-                /* =============================================
-                INPUT-FELDER AUF HANDY LEICHT TRANSPARENT
-                ============================================= */
-
-                div[data-baseweb="input"] {
-                    background-color: rgba(38, 40, 50, 0.72) !important;
-                }
-
+                /* Inputs transparent – passt sich Light/Dark Mode an */
+                div[data-baseweb="input"],
                 div[data-baseweb="select"] > div {
-                    background-color: rgba(38, 40, 50, 0.72) !important;
+                    background-color: color-mix(
+                        in srgb,
+                        var(--secondary-background-color) 72%,
+                        transparent
+                    ) !important;
                 }
 
             }
