@@ -1805,7 +1805,7 @@ def show_avatar(username, level):
             + div[data-testid="stElementContainer"] {
 
                 top: 100px;
-                right: 10px;
+                right: 5px;
 
                 width: 200px !important;
 
