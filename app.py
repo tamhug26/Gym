@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from io import BytesIO
 import os
-import streamlit.components.v1 as components
 
 
 # ============================================================
@@ -1697,7 +1696,6 @@ if st.sidebar.button(
 # APP
 # ============================================================
 
-st.title("🏋️ Gym Notes")
 
 AVATAR_CONFIG = {
     "Tamara": {
@@ -1732,6 +1730,15 @@ AVATAR_CONFIG = {
 
 
 def show_avatar(username, level):
+
+    title_col, avatar_col = st.columns(
+        [4, 1],
+        vertical_alignment="top"
+    )
+
+    with title_col:
+        st.title("🏋️ Gym Notes")
+
     if username not in AVATAR_CONFIG:
         return
 
@@ -1740,38 +1747,11 @@ def show_avatar(username, level):
     if not avatar_path or not os.path.exists(avatar_path):
         return
 
-    import base64
-
-    with open(avatar_path, "rb") as f:
-        avatar_base64 = base64.b64encode(f.read()).decode()
-
-    components.html(
-        f"""
-        <style>
-            html, body {{
-                margin: 0;
-                padding: 0;
-                overflow: visible;
-                background: transparent;
-            }}
-
-            .avatar {{
-                position: fixed;
-                top: 5px;
-                right: 30px;
-                width: 200px;
-                z-index: 1;
-                pointer-events: none;
-            }}
-        </style>
-
-        <img
-            class="avatar"
-            src="data:image/png;base64,{avatar_base64}"
-        />
-        """,
-        height=1
-    )
+    with avatar_col:
+        st.image(
+            avatar_path,
+            width=220
+        )
 def get_avatar_level(saved_df):
 
     if saved_df.empty or "Datum" not in saved_df.columns:
