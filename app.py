@@ -1804,7 +1804,7 @@ def show_avatar(username, level):
             div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
             + div[data-testid="stElementContainer"] {
 
-                top: 50px;
+                top: 100px;
                 right: 10px;
 
                 width: 200px !important;
