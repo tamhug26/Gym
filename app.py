@@ -1738,7 +1738,7 @@ def show_avatar(username, level):
             width=250
         )
 
-show_avatar(username, 1)
+show_avatar(username, 2)
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
