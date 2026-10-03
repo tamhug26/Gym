@@ -1722,6 +1722,13 @@ AVATAR_CONFIG = {
         4: "avatars/Can/A4C.png",
         5: "avatars/Can/A5C.png",
     },
+    "Onur": {
+            1: "avatars/Onur/A1O.png",
+            2: "avatars/Onur/A2O.png",
+            3: "avatars/Onur/A3O.png",
+            4: "avatars/Onur/A4O.png",
+            5: "avatars/Onur/A5O.png",
+        }
 }
 
 
