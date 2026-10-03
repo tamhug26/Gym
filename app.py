@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from io import BytesIO
+import os
 
 
 # ============================================================
@@ -64,6 +65,8 @@ USERS = {
         "gender": "male"
     }
 }
+
+
 
 
 # ============================================================
@@ -500,7 +503,6 @@ def get_user_worksheet(username):
 
     return worksheet
 
-
 def load_data(username):
 
     worksheet = get_user_worksheet(username)
@@ -533,7 +535,6 @@ def load_data(username):
 
     return df
 
-
 def save_data(username, df):
 
     worksheet = get_user_worksheet(username)
@@ -564,7 +565,6 @@ def save_data(username, df):
         values=data
     )
 
-
 # ============================================================
 # HILFSFUNKTIONEN
 # ============================================================
@@ -578,7 +578,6 @@ def get_available_exercises(muscle_groups):
 
     return sorted(set(available))
 
-
 def safe_float(value, default=0.0):
 
     try:
@@ -589,7 +588,6 @@ def safe_float(value, default=0.0):
 
     except (ValueError, TypeError):
         return default
-
 
 def safe_int(value, default=0):
 
@@ -602,14 +600,12 @@ def safe_int(value, default=0):
     except (ValueError, TypeError):
         return default
 
-
 def safe_string(value, default=""):
 
     if pd.isna(value):
         return default
 
     return str(value)
-
 
 def get_last_set2_weight(saved_df, exercise, machine, griff):
 
@@ -652,7 +648,6 @@ def get_last_set2_weight(saved_df, exercise, machine, griff):
     )
 
     return weight
-
 
 def get_last_mode_and_calories(saved_df):
 
@@ -700,7 +695,6 @@ def get_last_mode_and_calories(saved_df):
     )
 
     return last_mode, last_calories
-
 
 # ============================================================
 # TRAININGSFORMULAR
@@ -1584,7 +1578,6 @@ def training_form(username, saved_df, edit_date=None):
         st.session_state.edit_date = None
         st.rerun()
 
-
 # ============================================================
 # LOGIN
 # ============================================================
@@ -1705,7 +1698,47 @@ if st.sidebar.button(
 
 st.title("🏋️ Gym Notes")
 
+import os
 
+AVATAR_CONFIG = {
+    "Tamara": {
+        1: "avatars/Tamara/A1T.png",
+        2: "avatars/Tamara/A2T.png",
+        3: "avatars/Tamara/A3T.png",
+        4: "avatars/Tamara/A4T.png",
+        5: "avatars/Tamara/A5T.png",
+    },
+    "Nemo": {
+        1: "avatars/Nemo/A1N.png",
+        2: "avatars/Nemo/A2N.png",
+        3: "avatars/Nemo/A3N.png",
+        4: "avatars/Nemo/A4N.png",
+        5: "avatars/Nemo/A5N.png",
+    },
+    "Can": {
+        1: "avatars/Can/A1C.png",
+        2: "avatars/Can/A2C.png",
+        3: "avatars/Can/A3C.png",
+        4: "avatars/Can/A4C.png",
+        5: "avatars/Can/A5C.png",
+    },
+}
+
+
+def show_avatar(username, level):
+    # User hat keine Avatare → einfach nichts machen
+    if username not in AVATAR_CONFIG:
+        return
+
+    avatar_path = AVATAR_CONFIG[username].get(level)
+
+    if avatar_path and os.path.exists(avatar_path):
+        st.image(
+            avatar_path,
+            width=250
+        )
+
+show_avatar(username, 1)
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
