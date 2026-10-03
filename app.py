@@ -38,7 +38,8 @@ USERS = {
     "Can": "1010",
     "Papa": "aramat",
     "Nomi": "thebest",
-    "Nemo": "Popeye"
+    "Nemo": "Popeye",
+    "Onur": "Popeye"
 }
 
 
@@ -435,7 +436,7 @@ MEAL_PLANS = {
 
 
 # Benutzer, die den Mealplan-Tab sehen dürfen
-MEALPLAN_USERS = ["Tamara", "Can", "Nemo"]
+MEALPLAN_USERS = ["Tamara", "Can", "Nemo", "Onur"]
 
 
 def format_meal_amount(amount, food):
@@ -2228,6 +2229,8 @@ else:
             # ------------------------------------------------
 
             if username == "Nemo":
+                user_mealplans = MEAL_PLANS["Can"]
+            elif username == "Onur":
                 user_mealplans = MEAL_PLANS["Can"]
             else:
                 user_mealplans = MEAL_PLANS[username]
