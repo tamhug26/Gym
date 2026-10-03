@@ -1698,8 +1698,6 @@ if st.sidebar.button(
 
 st.title("🏋️ Gym Notes")
 
-import os
-
 AVATAR_CONFIG = {
     "Tamara": {
         1: "avatars/Tamara/A1T.png",
@@ -1745,7 +1743,176 @@ def show_avatar(username, level):
             width=250
         )
 
-show_avatar(username, 4)
+def get_avatar_level(saved_df):
+
+    if saved_df.empty or "Datum" not in saved_df.columns:
+        return 1
+
+    df = saved_df.copy()
+
+    df["Datum"] = pd.to_datetime(
+        df["Datum"],
+        errors="coerce"
+    )
+
+    df = df.dropna(subset=["Datum"])
+
+    if df.empty:
+        return 1
+
+    # =========================================================
+    # EIN TRAININGSTAG ZÄHLT NUR EINMAL
+    # =========================================================
+
+    training_dates = (
+        df["Datum"]
+        .dt.normalize()
+        .drop_duplicates()
+    )
+
+    # =========================================================
+    # TRAININGS PRO KALENDERWOCHE
+    # =========================================================
+
+    training_df = pd.DataFrame({
+        "Datum": training_dates
+    })
+
+    iso = training_df["Datum"].dt.isocalendar()
+
+    training_df["Jahr"] = iso.year.astype(int)
+    training_df["Woche"] = iso.week.astype(int)
+
+    weekly_counts = (
+        training_df
+        .groupby(["Jahr", "Woche"])
+        .size()
+        .to_dict()
+    )
+
+    # =========================================================
+    # AVATAR-TABELLE
+    #
+    # Zeile = mindestens X Trainings pro Woche
+    # Spalte = X Wochen am Stück
+    # =========================================================
+
+    avatar_table = {
+        1: {1: 1, 2: 1, 3: 2, 4: 3, 5: 3},
+        2: {1: 1, 2: 2, 3: 3, 4: 3, 5: 4},
+        3: {1: 1, 2: 2, 3: 3, 4: 3, 5: 4},
+        4: {1: 2, 2: 3, 3: 4, 4: 4, 5: 5},
+        5: {1: 2, 2: 3, 3: 4, 4: 5, 5: 5},
+    }
+
+    # =========================================================
+    # AKTUELLE KALENDERWOCHE
+    # =========================================================
+
+    today = pd.Timestamp.today().normalize()
+
+    current_iso = today.isocalendar()
+
+    current_year = int(current_iso.year)
+    current_week = int(current_iso.week)
+
+    # =========================================================
+    # DIE LETZTEN 5 KALENDERWOCHEN ERZEUGEN
+    #
+    # Dadurch zählen auch Wochen mit 0 Trainings.
+    # =========================================================
+
+    current_monday = (
+        today - pd.Timedelta(days=today.weekday())
+    )
+
+    weeks = []
+
+    for i in range(5):
+
+        monday = current_monday - pd.Timedelta(
+            weeks=i
+        )
+
+        iso_week = monday.isocalendar()
+
+        year = int(iso_week.year)
+        week = int(iso_week.week)
+
+        count = weekly_counts.get(
+            (year, week),
+            0
+        )
+
+        weeks.append({
+            "year": year,
+            "week": week,
+            "count": count,
+            "current": i == 0
+        })
+
+    # =========================================================
+    # BESTES AVATAR-LEVEL BESTIMMEN
+    # =========================================================
+
+    best_level = 1
+
+    for min_trainings in range(1, 6):
+
+        streak = 0
+
+        for week_data in weeks:
+
+            count = week_data["count"]
+            is_current_week = week_data["current"]
+
+            # -------------------------------------------------
+            # AKTUELLE WOCHE
+            #
+            # Wenn das Ziel bereits erreicht wurde:
+            # → aktuelle Woche zählt zur Streak.
+            #
+            # Wenn noch nicht:
+            # → sie zerstört die vorherige Streak NICHT.
+            # -------------------------------------------------
+
+            if is_current_week:
+
+                if count >= min_trainings:
+                    streak += 1
+
+                # Noch nicht genug Trainings:
+                # einfach zur letzten abgeschlossenen Woche gehen
+                continue
+
+            # -------------------------------------------------
+            # ABGESCHLOSSENE WOCHEN
+            # -------------------------------------------------
+
+            if count >= min_trainings:
+                streak += 1
+
+            else:
+                break
+
+        # Tabelle geht maximal bis 5 Wochen
+        streak = min(streak, 5)
+
+        if streak >= 1:
+
+            level = avatar_table[
+                min_trainings
+            ][streak]
+
+            best_level = max(
+                best_level,
+                level
+            )
+
+    return best_level
+avatar_level = get_avatar_level(saved_df)
+
+show_avatar(username, avatar_level)
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
