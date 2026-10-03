@@ -240,7 +240,7 @@ MEAL_PLANS = {
                         ],
 
                         "09:00": [
-                            (2, "Belegtes Brot")
+                            (2, "2 belegte Protein Brote")
                         ],
 
                         "15:00": [
@@ -350,7 +350,7 @@ MEAL_PLANS = {
                     ],
 
                     "09:00": [
-                        (2, "Belegtes Brot")
+                        (2, "2 belegte Protein Brote")
                     ],
 
                     "15:00": [
@@ -2557,11 +2557,11 @@ else:
                     # BELEGTES BROT
                     # ------------------------------------------------
 
-                    elif food_lower == "belegtes brot":
+                    elif food_lower == "2 belegte protein Brote":
 
                         st.container(border=True).markdown(
                             f"""
-                            ### 🥪 Belegtes Brot
+                            ### 🥪 2 belegte Protein Brote
                             **{amount:g} Stück**
                             """
                         )
