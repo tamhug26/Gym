@@ -1785,7 +1785,7 @@ def show_avatar(username, level):
 
             width: 320px !important;
 
-            z-index: 0;
+            z-index: 1;
             pointer-events: none;
         }
 
@@ -1810,8 +1810,11 @@ def show_avatar(username, level):
 
                     top: 110px;
                     right: -10px;
+
                     width: 200px !important;
-                    z-index: 0;
+
+                    z-index: 1;
+                    pointer-events: none;
                 }
 
                 div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
@@ -1824,29 +1827,39 @@ def show_avatar(username, level):
 
 
                 /* =========================
-                TRANSPARENTE INPUTS
+                INPUTS ÜBER AVATAR
                 ========================= */
 
-                /* DATE INPUT */
+                div[data-testid="stDateInput"],
+                div[data-testid="stNumberInput"],
+                div[data-testid="stTextInput"],
+                div[data-testid="stSelectbox"],
+                div[data-testid="stMultiSelect"] {
+
+                    position: relative;
+                    z-index: 2;
+                }
+
+
+                /* =========================
+                HINTERGRÜNDE ENTFERNEN
+                ========================= */
+
                 div[data-testid="stDateInput"] div[data-baseweb="input"],
                 div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
                 div[data-testid="stDateInput"] input,
 
-                /* NUMBER INPUT */
                 div[data-testid="stNumberInput"] div[data-baseweb="input"],
                 div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
                 div[data-testid="stNumberInput"] input,
 
-                /* TEXT INPUT */
                 div[data-testid="stTextInput"] div[data-baseweb="input"],
                 div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
                 div[data-testid="stTextInput"] input,
 
-                /* SELECTBOX */
                 div[data-testid="stSelectbox"] div[data-baseweb="select"],
                 div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
 
-                /* MULTISELECT */
                 div[data-testid="stMultiSelect"] div[data-baseweb="select"],
                 div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
 
