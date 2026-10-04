@@ -1744,7 +1744,6 @@ AVATAR_CONFIG = {
 
 def show_avatar(username, level):
 
-    # Titel ganz normal
     st.title("🏋️ Gym Notes")
 
     if username not in AVATAR_CONFIG:
@@ -1755,13 +1754,11 @@ def show_avatar(username, level):
     if not avatar_path or not os.path.exists(avatar_path):
         return
 
-    # Marker, damit wir genau DIESES Bild mit CSS ansprechen können
     st.markdown(
         '<div id="gym-avatar-marker"></div>',
         unsafe_allow_html=True
     )
 
-    # Avatar
     st.image(
         avatar_path,
         width=260
@@ -1772,8 +1769,7 @@ def show_avatar(username, level):
         <style>
 
         /* =====================================================
-           DESKTOP / LAPTOP
-           Genau wie bisher
+           AVATAR DESKTOP
            ===================================================== */
 
         div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
@@ -1782,98 +1778,136 @@ def show_avatar(username, level):
             position: absolute;
             top: 60px;
             right: 150px;
-
             width: 320px !important;
 
-            z-index: 1;
+            z-index: 0;
             pointer-events: none;
         }
 
-        /* Marker selbst nimmt keinen Platz ein */
         div[data-testid="stElementContainer"]:has(#gym-avatar-marker) {
             display: none;
         }
 
 
         /* =====================================================
-            HANDY
-            ===================================================== */
+           HANDY
+           ===================================================== */
 
-            @media (max-width: 768px) {
+        @media (max-width: 768px) {
 
-                /* =========================
-                AVATAR
-                ========================= */
+            /* Avatar */
+            div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
+            + div[data-testid="stElementContainer"] {
 
-                div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
-                + div[data-testid="stElementContainer"] {
+                position: absolute !important;
 
-                    top: 110px;
-                    right: -10px;
+                top: 110px !important;
+                right: -10px !important;
 
-                    width: 200px !important;
+                width: 200px !important;
 
-                    z-index: 1;
-                    pointer-events: none;
-                }
-
-                div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
-                + div[data-testid="stElementContainer"] img {
-
-                    width: 200px !important;
-                    max-width: 200px !important;
-                    height: auto !important;
-                }
-
-
-                /* =========================
-                INPUTS ÜBER AVATAR
-                ========================= */
-
-                div[data-testid="stDateInput"],
-                div[data-testid="stNumberInput"],
-                div[data-testid="stTextInput"],
-                div[data-testid="stSelectbox"],
-                div[data-testid="stMultiSelect"] {
-
-                    position: relative;
-                    z-index: 2;
-                }
-
-
-                /* =========================
-                HINTERGRÜNDE ENTFERNEN
-                ========================= */
-
-                div[data-testid="stDateInput"] div[data-baseweb="input"],
-                div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
-                div[data-testid="stDateInput"] input,
-
-                div[data-testid="stNumberInput"] div[data-baseweb="input"],
-                div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
-                div[data-testid="stNumberInput"] input,
-
-                div[data-testid="stTextInput"] div[data-baseweb="input"],
-                div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
-                div[data-testid="stTextInput"] input,
-
-                div[data-testid="stSelectbox"] div[data-baseweb="select"],
-                div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-
-                div[data-testid="stMultiSelect"] div[data-baseweb="select"],
-                div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
-
-                    background: transparent !important;
-                    background-color: transparent !important;
-                }
-
+                z-index: 0 !important;
+                pointer-events: none !important;
             }
+
+
+            div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
+            + div[data-testid="stElementContainer"] img {
+
+                width: 200px !important;
+                max-width: 200px !important;
+                height: auto !important;
+            }
+
+
+            /* =================================================
+               STREAMLIT WIDGETS
+
+               Wichtig:
+               Nicht nur input/select transparent machen,
+               sondern ALLE inneren Wrapper.
+               ================================================= */
+
+
+            /* DATE INPUT */
+
+            [data-testid="stDateInput"] div,
+            [data-testid="stDateInput"] input {
+
+                background-color: transparent !important;
+                background: transparent !important;
+            }
+
+
+            /* NUMBER INPUT */
+
+            [data-testid="stNumberInput"] div,
+            [data-testid="stNumberInput"] input {
+
+                background-color: transparent !important;
+                background: transparent !important;
+            }
+
+
+            /* TEXT INPUT */
+
+            [data-testid="stTextInput"] div,
+            [data-testid="stTextInput"] input {
+
+                background-color: transparent !important;
+                background: transparent !important;
+            }
+
+
+            /* SELECTBOX */
+
+            [data-testid="stSelectbox"] div {
+
+                background-color: transparent !important;
+                background: transparent !important;
+            }
+
+
+            /* MULTISELECT */
+
+            [data-testid="stMultiSelect"] div {
+
+                background-color: transparent !important;
+                background: transparent !important;
+            }
+
+
+            /* =================================================
+               BORDER BEHALTEN
+
+               Sonst verschwinden die Felder optisch komplett.
+               ================================================= */
+
+            [data-testid="stDateInput"] [data-baseweb="input"],
+            [data-testid="stNumberInput"] [data-baseweb="input"],
+            [data-testid="stTextInput"] [data-baseweb="input"],
+            [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+            [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+
+                border: 1px solid rgba(255,255,255,0.20) !important;
+            }
+
+
+            /* Text / Zahlen lesbar lassen */
+
+            [data-testid="stDateInput"] input,
+            [data-testid="stNumberInput"] input,
+            [data-testid="stTextInput"] input {
+
+                color: white !important;
+            }
+
+        }
 
         </style>
         """,
         unsafe_allow_html=True
     )
-
 
 def get_avatar_level(saved_df):
 
