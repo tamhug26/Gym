@@ -1827,13 +1827,31 @@ def show_avatar(username, level):
                 TRANSPARENTE INPUTS
                 ========================= */
 
+                /* DATE INPUT */
                 div[data-testid="stDateInput"] div[data-baseweb="input"],
-                div[data-testid="stNumberInput"] div[data-baseweb="input"],
-                div[data-testid="stTextInput"] div[data-baseweb="input"],
-                div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+                div[data-testid="stDateInput"] div[data-baseweb="input"] > div,
+                div[data-testid="stDateInput"] input,
 
-                    background: rgba(255, 255, 255, 0.08) !important;
-                    background-color: rgba(255, 255, 255, 0.08) !important;
+                /* NUMBER INPUT */
+                div[data-testid="stNumberInput"] div[data-baseweb="input"],
+                div[data-testid="stNumberInput"] div[data-baseweb="input"] > div,
+                div[data-testid="stNumberInput"] input,
+
+                /* TEXT INPUT */
+                div[data-testid="stTextInput"] div[data-baseweb="input"],
+                div[data-testid="stTextInput"] div[data-baseweb="input"] > div,
+                div[data-testid="stTextInput"] input,
+
+                /* SELECTBOX */
+                div[data-testid="stSelectbox"] div[data-baseweb="select"],
+                div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+
+                /* MULTISELECT */
+                div[data-testid="stMultiSelect"] div[data-baseweb="select"],
+                div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+
+                    background: transparent !important;
+                    background-color: transparent !important;
                 }
 
             }
