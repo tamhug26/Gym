@@ -29,6 +29,91 @@ gc = gspread.authorize(credentials)
 
 sheet = gc.open(st.secrets["google_sheet"]["name"])
 
+# ============================================================
+# BODY MASSE – GOOGLE SHEETS
+# ============================================================
+
+def get_body_worksheet(username):
+
+    worksheet_name = f"Body_{username}"
+
+    try:
+        worksheet = sheet.worksheet(worksheet_name)
+
+    except gspread.WorksheetNotFound:
+
+        worksheet = sheet.add_worksheet(
+            title=worksheet_name,
+            rows=1000,
+            cols=30
+        )
+
+    return worksheet
+
+
+def load_body_data(username):
+
+    worksheet = get_body_worksheet(username)
+
+    values = worksheet.get_all_values()
+
+    if not values:
+        return pd.DataFrame()
+
+    headers = values[0]
+
+    if not headers:
+        return pd.DataFrame()
+
+    rows = values[1:]
+
+    if not rows:
+        return pd.DataFrame(columns=headers)
+
+    normalized_rows = []
+
+    for row in rows:
+
+        if len(row) < len(headers):
+            row = row + [""] * (len(headers) - len(row))
+
+        normalized_rows.append(
+            row[:len(headers)]
+        )
+
+    return pd.DataFrame(
+        normalized_rows,
+        columns=headers
+    )
+
+
+def save_body_data(username, df):
+
+    worksheet = get_body_worksheet(username)
+
+    worksheet.clear()
+
+    if df.empty:
+        return
+
+    clean_df = df.copy().fillna("")
+
+    for col in clean_df.columns:
+
+        clean_df[col] = clean_df[col].apply(
+            lambda x: x.isoformat()
+            if isinstance(x, (date, datetime))
+            else x
+        )
+
+    data = [
+        clean_df.columns.tolist()
+    ] + clean_df.astype(str).values.tolist()
+
+    worksheet.update(
+        range_name="A1",
+        values=data
+    )
 
 # ============================================================
 # BENUTZER
@@ -65,9 +150,6 @@ USERS = {
         "gender": "male"
     }
 }
-
-
-
 
 # ============================================================
 # ÜBUNGEN
@@ -1683,6 +1765,9 @@ username = \
 saved_df = load_data(
     username
 )
+body_df = load_body_data(
+    username
+)
 
 
 # ============================================================
@@ -2025,7 +2110,12 @@ def get_avatar_level(saved_df):
     return best_level
 avatar_level = get_avatar_level(saved_df)
 
-show_avatar(username, avatar_level)
+if page in [
+    "➕ Neues Training",
+    "📖 Gespeicherte Trainings",
+    "📊 Statistik"
+]:
+    show_avatar(username, avatar_level)
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
@@ -2058,21 +2148,24 @@ if st.session_state.edit_date:
 # HAUPTANSICHT
 # ============================================================
 
+if username in MEALPLAN_USERS:
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "➕ Neues Training",
+        "📖 Gespeicherte Trainings",
+        "📊 Statistik",
+        "🍽️ Mealplan",
+        "📏 Body Maße"
+    ])
+
 else:
 
-    if username in MEALPLAN_USERS:
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "➕ Neues Training",
-            "📖 Gespeicherte Trainings",
-            "📊 Statistik",
-            "🍽️ Mealplan"
-        ])
-    else:
-        tab1, tab2, tab3 = st.tabs([
-            "➕ Neues Training",
-            "📖 Gespeicherte Trainings",
-            "📊 Statistik"
-        ])
+    tab1, tab2, tab3, tab5 = st.tabs([
+        "➕ Neues Training",
+        "📖 Gespeicherte Trainings",
+        "📊 Statistik",
+        "📏 Body Maße"
+    ])
 
 
     # ========================================================
@@ -2972,3 +3065,294 @@ else:
                             **{amount:g} g**
                             """
                         )
+    # ============================================================
+    # BODY MASSE
+    # ============================================================
+
+    with tab5:
+
+        st.subheader("📏 Body Maße")
+
+        st.caption(
+            "Für möglichst vergleichbare Ergebnisse am besten "
+            "immer unter ähnlichen Bedingungen messen."
+        )
+
+
+        # ========================================================
+        # DATUM UND GEWICHT
+        # ========================================================
+
+        body_date = st.date_input(
+            "Datum",
+            value=date.today(),
+            key="body_date"
+        )
+
+        body_weight = st.number_input(
+            "Körpergewicht (kg)",
+            min_value=0.0,
+            max_value=300.0,
+            value=0.0,
+            step=0.1,
+            key="body_weight"
+        )
+
+
+        # ========================================================
+        # MESSBEDINGUNGEN
+        # ========================================================
+
+        st.markdown("### Messbedingungen")
+
+        measurement_time = st.segmented_control(
+            "Tageszeit",
+            options=[
+                "Morgens",
+                "Tagsüber",
+                "Abends"
+            ],
+            default="Morgens",
+            selection_mode="single",
+            key="body_measurement_time"
+        )
+
+        training_status = st.segmented_control(
+            "Training / Pump",
+            options=[
+                "Kein Training davor",
+                "Vor Training",
+                "Nach Training / Pump"
+            ],
+            default="Kein Training davor",
+            selection_mode="single",
+            key="body_training_status"
+        )
+
+        fasted = st.segmented_control(
+            "Nüchtern?",
+            options=[
+                "Ja",
+                "Nein"
+            ],
+            default="Ja",
+            selection_mode="single",
+            key="body_fasted"
+        )
+
+
+        # ========================================================
+        # KÖRPERMASSE
+        # ========================================================
+
+        st.markdown("### Körpermaße")
+
+        st.caption("Alle Angaben in cm.")
+
+
+        # --------------------------
+        # OBERKÖRPER
+        # --------------------------
+
+        st.markdown("#### Oberkörper")
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            biceps_left = st.number_input(
+                "Bizeps links",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_biceps_left"
+            )
+
+        with c2:
+
+            biceps_right = st.number_input(
+                "Bizeps rechts",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_biceps_right"
+            )
+
+
+        chest = st.number_input(
+            "Brust",
+            min_value=0.0,
+            max_value=200.0,
+            step=0.1,
+            key="body_chest"
+        )
+
+
+        # --------------------------
+        # MITTE
+        # --------------------------
+
+        st.markdown("#### Taille & Hüfte")
+
+        waist = st.number_input(
+            "Taille",
+            min_value=0.0,
+            max_value=200.0,
+            step=0.1,
+            key="body_waist"
+        )
+
+        hips = st.number_input(
+            "Hüfte",
+            min_value=0.0,
+            max_value=200.0,
+            step=0.1,
+            key="body_hips"
+        )
+
+        glutes = st.number_input(
+            "Glutes / Po",
+            min_value=0.0,
+            max_value=200.0,
+            step=0.1,
+            key="body_glutes"
+        )
+
+
+        # --------------------------
+        # BEINE
+        # --------------------------
+
+        st.markdown("#### Beine")
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            thigh_left = st.number_input(
+                "Oberschenkel links",
+                min_value=0.0,
+                max_value=150.0,
+                step=0.1,
+                key="body_thigh_left"
+            )
+
+        with c2:
+
+            thigh_right = st.number_input(
+                "Oberschenkel rechts",
+                min_value=0.0,
+                max_value=150.0,
+                step=0.1,
+                key="body_thigh_right"
+            )
+
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            calf_left = st.number_input(
+                "Wade links",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_calf_left"
+            )
+
+        with c2:
+
+            calf_right = st.number_input(
+                "Wade rechts",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_calf_right"
+            )
+
+
+        # ========================================================
+        # NOTIZ
+        # ========================================================
+
+        body_note = st.text_input(
+            "Notiz",
+            key="body_note"
+        )
+
+
+        # ========================================================
+        # SPEICHERN
+        # ========================================================
+
+        if st.button(
+            "📏 Körpermaße speichern",
+            key="save_body_measurements"
+        ):
+
+            new_body_entry = pd.DataFrame([{
+
+                "Datum": body_date,
+
+                "Gewicht kg": body_weight,
+
+                "Tageszeit": measurement_time,
+                "Training Pump": training_status,
+                "Nüchtern": fasted,
+
+                "Bizeps links cm": biceps_left,
+                "Bizeps rechts cm": biceps_right,
+
+                "Brust cm": chest,
+
+                "Taille cm": waist,
+                "Hüfte cm": hips,
+                "Glutes cm": glutes,
+
+                "Oberschenkel links cm": thigh_left,
+                "Oberschenkel rechts cm": thigh_right,
+
+                "Wade links cm": calf_left,
+                "Wade rechts cm": calf_right,
+
+                "Notiz": body_note
+            }])
+
+
+            # Falls für diesen Tag bereits eine Messung existiert:
+            # alte Messung ersetzen
+
+            old_body_df = body_df.copy()
+
+            if (
+                not old_body_df.empty
+                and "Datum" in old_body_df.columns
+            ):
+
+                old_body_df = old_body_df[
+                    old_body_df["Datum"].astype(str)
+                    != str(body_date)
+                ]
+
+
+            full_body_df = pd.concat(
+                [
+                    old_body_df,
+                    new_body_entry
+                ],
+                ignore_index=True
+            )
+
+
+            save_body_data(
+                username,
+                full_body_df
+            )
+
+            st.success(
+                "Körpermaße gespeichert! 📏"
+            )
+
+            time.sleep(0.5)
+
+            st.rerun()
