@@ -1795,7 +1795,10 @@ def show_avatar(username, level):
 
         @media (max-width: 768px) {
 
-            /* Avatar */
+            /* =========================================
+            AVATAR
+            ========================================= */
+
             div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
             + div[data-testid="stElementContainer"] {
 
@@ -1810,7 +1813,6 @@ def show_avatar(username, level):
                 pointer-events: none !important;
             }
 
-
             div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
             + div[data-testid="stElementContainer"] img {
 
@@ -1820,86 +1822,31 @@ def show_avatar(username, level):
             }
 
 
-            /* =================================================
-               STREAMLIT WIDGETS
+            /* =========================================
+            INPUTS VOR DEM AVATAR
+            ========================================= */
 
-               Wichtig:
-               Nicht nur input/select transparent machen,
-               sondern ALLE inneren Wrapper.
-               ================================================= */
+            [data-testid="stDateInput"],
+            [data-testid="stNumberInput"],
+            [data-testid="stTextInput"],
+            [data-testid="stSelectbox"],
+            [data-testid="stMultiSelect"] {
 
-
-            /* DATE INPUT */
-
-            [data-testid="stDateInput"] div,
-            [data-testid="stDateInput"] input {
-
-                background-color: transparent !important;
-                background: transparent !important;
+                position: relative !important;
+                z-index: 2 !important;
             }
 
 
-            /* NUMBER INPUT */
-
-            [data-testid="stNumberInput"] div,
-            [data-testid="stNumberInput"] input {
-
-                background-color: transparent !important;
-                background: transparent !important;
-            }
-
-
-            /* TEXT INPUT */
-
-            [data-testid="stTextInput"] div,
-            [data-testid="stTextInput"] input {
-
-                background-color: transparent !important;
-                background: transparent !important;
-            }
-
-
-            /* SELECTBOX */
-
-            [data-testid="stSelectbox"] div {
-
-                background-color: transparent !important;
-                background: transparent !important;
-            }
-
-
-            /* MULTISELECT */
-
-            [data-testid="stMultiSelect"] div {
-
-                background-color: transparent !important;
-                background: transparent !important;
-            }
-
-
-            /* =================================================
-               BORDER BEHALTEN
-
-               Sonst verschwinden die Felder optisch komplett.
-               ================================================= */
-
-            [data-testid="stDateInput"] [data-baseweb="input"],
-            [data-testid="stNumberInput"] [data-baseweb="input"],
-            [data-testid="stTextInput"] [data-baseweb="input"],
-            [data-testid="stSelectbox"] [data-baseweb="select"] > div,
-            [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
-
-                border: 1px solid rgba(255,255,255,0.20) !important;
-            }
-
-
-            /* Text / Zahlen lesbar lassen */
+            /* =========================================
+            INPUT-TEXT AN STREAMLIT THEME ANPASSEN
+            ========================================= */
 
             [data-testid="stDateInput"] input,
             [data-testid="stNumberInput"] input,
             [data-testid="stTextInput"] input {
 
-                color: white !important;
+                color: var(--text-color) !important;
+                -webkit-text-fill-color: var(--text-color) !important;
             }
 
         }
