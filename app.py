@@ -689,6 +689,12 @@ def safe_string(value, default=""):
 
     return str(value)
 
+def body_value_or_empty(value):
+    if value is None or value == 0:
+        return "Keine Angabe"
+
+    return value
+
 def get_last_set2_weight(saved_df, exercise, machine, griff):
 
     if saved_df.empty:
@@ -3116,17 +3122,16 @@ with tab5:
         training_status = st.segmented_control(
             "Training / Pump",
             options=[
-                "Kein Training davor",
-                "Vor Training",
+                "Ohne Pump",
                 "Nach Training / Pump"
             ],
-            default="Kein Training davor",
+            default="Ohne Pump",
             selection_mode="single",
             key="body_training_status"
         )
 
         fasted = st.segmented_control(
-            "Nüchtern?",
+            "Nüchterner Magen?",
             options=[
                 "Ja",
                 "Nein"
@@ -3290,26 +3295,22 @@ with tab5:
 
                 "Datum": body_date,
 
-                "Gewicht kg": body_weight,
+                "Gewicht kg": body_value_or_empty(body_weight),
 
-                "Tageszeit": measurement_time,
-                "Training Pump": training_status,
-                "Nüchtern": fasted,
+                "Bizeps links cm": body_value_or_empty(biceps_left),
+                "Bizeps rechts cm": body_value_or_empty(biceps_right),
 
-                "Bizeps links cm": biceps_left,
-                "Bizeps rechts cm": biceps_right,
+                "Brust cm": body_value_or_empty(chest),
 
-                "Brust cm": chest,
+                "Taille cm": body_value_or_empty(waist),
+                "Hüfte cm": body_value_or_empty(hips),
+                "Glutes cm": body_value_or_empty(glutes),
 
-                "Taille cm": waist,
-                "Hüfte cm": hips,
-                "Glutes cm": glutes,
+                "Oberschenkel links cm": body_value_or_empty(thigh_left),
+                "Oberschenkel rechts cm": body_value_or_empty(thigh_right),
 
-                "Oberschenkel links cm": thigh_left,
-                "Oberschenkel rechts cm": thigh_right,
-
-                "Wade links cm": calf_left,
-                "Wade rechts cm": calf_right,
+                "Wade links cm": body_value_or_empty(calf_left),
+                "Wade rechts cm": body_value_or_empty(calf_right),
 
                 "Notiz": body_note
             }])
