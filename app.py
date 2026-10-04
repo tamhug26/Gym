@@ -1801,9 +1801,13 @@ def show_avatar(username, level):
 
             @media (max-width: 768px) {
 
-                /* Avatar */
+                /* =========================
+                AVATAR
+                ========================= */
+
                 div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
                 + div[data-testid="stElementContainer"] {
+
                     top: 110px;
                     right: -10px;
                     width: 200px !important;
@@ -1812,19 +1816,24 @@ def show_avatar(username, level):
 
                 div[data-testid="stElementContainer"]:has(#gym-avatar-marker)
                 + div[data-testid="stElementContainer"] img {
+
                     width: 200px !important;
                     max-width: 200px !important;
                     height: auto !important;
                 }
 
-                /* Inputs transparent – passt sich Light/Dark Mode an */
-                div[data-baseweb="input"],
-                div[data-baseweb="select"] > div {
-                    background-color: color-mix(
-                        in srgb,
-                        var(--secondary-background-color) 72%,
-                        transparent
-                    ) !important;
+
+                /* =========================
+                TRANSPARENTE INPUTS
+                ========================= */
+
+                div[data-testid="stDateInput"] div[data-baseweb="input"],
+                div[data-testid="stNumberInput"] div[data-baseweb="input"],
+                div[data-testid="stTextInput"] div[data-baseweb="input"],
+                div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+
+                    background: rgba(255, 255, 255, 0.08) !important;
+                    background-color: rgba(255, 255, 255, 0.08) !important;
                 }
 
             }
