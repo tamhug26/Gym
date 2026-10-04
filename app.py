@@ -2108,14 +2108,10 @@ def get_avatar_level(saved_df):
             )
 
     return best_level
+
 avatar_level = get_avatar_level(saved_df)
 
-if page in [
-    "➕ Neues Training",
-    "📖 Gespeicherte Trainings",
-    "📊 Statistik"
-]:
-    show_avatar(username, avatar_level)
+show_avatar(username, avatar_level)
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
@@ -2172,7 +2168,7 @@ else:
     # NEUES TRAINING
     # ========================================================
 
-    with tab1:
+with tab1:
         training_form(
             username,
             saved_df,
@@ -2184,7 +2180,7 @@ else:
     # GESPEICHERTE TRAININGS
     # ========================================================
 
-    with tab2:
+with tab2:
 
         st.subheader(
             "📖 Gespeicherte Trainings"
@@ -2335,7 +2331,7 @@ else:
     # STATISTIK
     # ========================================================
 
-    with tab3:
+with tab3:
 
         st.subheader(
             "📊 Statistik"
@@ -2704,7 +2700,7 @@ else:
     # MEALPLAN
     # ========================================================
 
-    if username in MEALPLAN_USERS:
+if username in MEALPLAN_USERS:
 
         with tab4:
 
@@ -3069,7 +3065,7 @@ else:
     # BODY MASSE
     # ============================================================
 
-    with tab5:
+with tab5:
 
         st.subheader("📏 Body Maße")
 
