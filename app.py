@@ -2117,7 +2117,7 @@ def get_avatar_level(saved_df):
 
 avatar_level = get_avatar_level(saved_df)
 
-show_avatar(username, avatar_level)
+
 # ============================================================
 # BEARBEITUNGSMODUS
 # ============================================================
@@ -2175,6 +2175,8 @@ else:
     # ========================================================
 
 with tab1:
+        
+        show_avatar(username, avatar_level)
         training_form(
             username,
             saved_df,
@@ -2187,7 +2189,7 @@ with tab1:
     # ========================================================
 
 with tab2:
-
+        show_avatar(username, avatar_level)
         st.subheader(
             "📖 Gespeicherte Trainings"
         )
@@ -2338,11 +2340,10 @@ with tab2:
     # ========================================================
 
 with tab3:
-
+        show_avatar(username, avatar_level)
         st.subheader(
             "📊 Statistik"
         )
-
 
         # ====================================================
         # EXPORT
@@ -2352,13 +2353,11 @@ with tab3:
             "📤 Export"
         )
 
-
         csv_data = saved_df.to_csv(
             index=False
         ).encode(
             "utf-8"
         )
-
 
         st.download_button(
             label="⬇️ CSV exportieren",
@@ -3079,6 +3078,29 @@ with tab5:
             "Für möglichst vergleichbare Ergebnisse am besten "
             "immer unter ähnlichen Bedingungen messen."
         )
+        # ========================================================
+        # MESSANLEITUNG
+        # ========================================================
+
+        with st.expander("📐 Wo muss ich messen?", expanded=False):
+
+            if USERS[username]["gender"] == "female":
+                body_image = "Bodymeasurements/Wbody.png"
+            else:
+                body_image = "Bodymeasurements/Mbody.png"
+
+            if os.path.exists(body_image):
+                st.image(
+                    body_image,
+                    use_container_width=True
+                )
+            else:
+                st.warning("Bild zur Messanleitung nicht gefunden.")
+
+            st.caption(
+                "Das Maßband waagerecht um die markierte Stelle legen. "
+                "Nicht zu locker und nicht in die Haut einschneiden."
+        )
 
 
         # ========================================================
@@ -3160,9 +3182,8 @@ with tab5:
         c1, c2 = st.columns(2)
 
         with c1:
-
             biceps_left = st.number_input(
-                "Bizeps links",
+                "Bizeps links – entspannt",
                 min_value=0.0,
                 max_value=100.0,
                 step=0.1,
@@ -3170,15 +3191,41 @@ with tab5:
             )
 
         with c2:
-
             biceps_right = st.number_input(
-                "Bizeps rechts",
+                "Bizeps rechts – entspannt",
                 min_value=0.0,
                 max_value=100.0,
                 step=0.1,
                 key="body_biceps_right"
             )
 
+        c1, c2 = st.columns(2)
+
+        with c1:
+            biceps_flexed_left = st.number_input(
+                "Bizeps links – angespannt 💪",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_biceps_flexed_left"
+            )
+
+        with c2:
+            biceps_flexed_right = st.number_input(
+                "Bizeps rechts – angespannt 💪",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                key="body_biceps_flexed_right"
+            )
+
+        lat_flexed = st.number_input(
+            "Lat – angespannt / Lat Spread",
+            min_value=0.0,
+            max_value=200.0,
+            step=0.1,
+            key="body_lat_flexed"
+        )
 
         chest = st.number_input(
             "Brust",
@@ -3270,6 +3317,7 @@ with tab5:
                 step=0.1,
                 key="body_calf_right"
             )
+        
 
 
         # ========================================================
@@ -3311,6 +3359,10 @@ with tab5:
 
                 "Wade links cm": body_value_or_empty(calf_left),
                 "Wade rechts cm": body_value_or_empty(calf_right),
+
+                "Lat angespannt cm": body_value_or_empty(lat_flexed),
+                "Bizeps links angespannt cm": body_value_or_empty(biceps_flexed_left),
+                "Bizeps rechts angespannt cm": body_value_or_empty(biceps_flexed_right),
 
                 "Notiz": body_note
             }])
