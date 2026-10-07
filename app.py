@@ -3636,6 +3636,9 @@ with tab5:
                 "Lat angespannt cm": body_value_or_empty(lat_flexed),
                 "Bizeps links angespannt cm": body_value_or_empty(biceps_flexed_left),
                 "Bizeps rechts angespannt cm": body_value_or_empty(biceps_flexed_right),
+                "Tageszeit": measurement_time,
+                "Training / Pump": training_status,
+                "Nüchterner Magen": fasted,
 
                 "Notiz": body_note
             }])
@@ -3678,3 +3681,131 @@ with tab5:
             time.sleep(0.5)
 
             st.rerun()
+            # ============================================================
+            # BISHERIGE KÖRPERMASSE
+            # ============================================================
+
+            st.markdown("---")
+            st.subheader("📋 Bisherige Messungen")
+
+            if body_df.empty:
+
+                st.info("Noch keine Körpermaße gespeichert.")
+
+            else:
+
+                body_table = body_df.copy()
+
+                # Neueste Messung zuerst
+                if "Datum" in body_table.columns:
+
+                    body_table["Datum"] = pd.to_datetime(
+                        body_table["Datum"],
+                        errors="coerce"
+                    )
+
+                    body_table = body_table.sort_values(
+                        "Datum",
+                        ascending=False
+                    )
+
+                    body_table["Datum"] = body_table[
+                        "Datum"
+                    ].dt.strftime("%d.%m.%Y")
+
+                st.dataframe(
+                    body_table,
+                    use_container_width=True,
+                    hide_index=True
+                )
+                # ========================================================
+                # BODY STATISTIK
+                # ========================================================
+
+                st.markdown("---")
+                st.subheader("📈 Entwicklung")
+
+                measurement_columns = [
+                    "Gewicht kg",
+                    "Bizeps links cm",
+                    "Bizeps rechts cm",
+                    "Bizeps links angespannt cm",
+                    "Bizeps rechts angespannt cm",
+                    "Brust cm",
+                    "Taille cm",
+                    "Hüfte cm",
+                    "Glutes cm",
+                    "Oberschenkel links cm",
+                    "Oberschenkel rechts cm",
+                    "Wade links cm",
+                    "Wade rechts cm",
+                    "Lat angespannt cm"
+                ]
+
+                # Nur Spalten anzeigen, die tatsächlich existieren
+                available_measurements = [
+                    col
+                    for col in measurement_columns
+                    if col in body_df.columns
+                ]
+
+                if available_measurements:
+
+                    selected_measurement = st.selectbox(
+                        "Messwert auswählen",
+                        available_measurements,
+                        key="body_stat_measurement"
+                    )
+
+                    body_stats = body_df[
+                        ["Datum", selected_measurement]
+                    ].copy()
+
+                    # Datum richtig umwandeln
+                    body_stats["Datum"] = pd.to_datetime(
+                        body_stats["Datum"],
+                        errors="coerce"
+                    )
+
+                    # "Keine Angabe" usw. in NaN umwandeln
+                    body_stats[selected_measurement] = pd.to_numeric(
+                        body_stats[selected_measurement],
+                        errors="coerce"
+                    )
+
+                    # Nur echte Messungen behalten
+                    body_stats = body_stats.dropna(
+                        subset=[
+                            "Datum",
+                            selected_measurement
+                        ]
+                    )
+
+                    # Chronologisch sortieren
+                    body_stats = body_stats.sort_values(
+                        "Datum"
+                    )
+
+                    if len(body_stats) >= 2:
+
+                        st.line_chart(
+                            body_stats,
+                            x="Datum",
+                            y=selected_measurement,
+                            use_container_width=True
+                        )
+
+                    elif len(body_stats) == 1:
+
+                        st.info(
+                            "Für diesen Messwert gibt es bisher nur "
+                            "eine Messung. Ab der zweiten Messung "
+                            "kann ein Verlauf angezeigt werden."
+                        )
+
+                    else:
+
+                        st.info(
+                            "Für diesen Messwert wurden noch keine "
+                            "Werte gespeichert."
+                        )
