@@ -3348,11 +3348,16 @@ with tab5:
         # ========================================================
 
         with st.expander("📐 Wo muss ich messen?", expanded=False):
-
             if USERS[username]["gender"] == "female":
-                body_image = "Bodymeasurements/Wbody.png"
+                body_filename = "Wbody.png"
             else:
-                body_image = "Bodymeasurements/Mbody.png"
+                body_filename = "Mbody.png"
+
+            body_image = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "Bodymeasurements",
+                body_filename
+            )
 
             if os.path.exists(body_image):
                 st.image(
@@ -3360,7 +3365,9 @@ with tab5:
                     use_container_width=True
                 )
             else:
-                st.warning("Bild zur Messanleitung nicht gefunden.")
+                st.warning(
+                    f"Bild zur Messanleitung nicht gefunden: {body_image}"
+                )
 
             st.caption(
                 "Das Maßband waagerecht um die markierte Stelle legen. "
