@@ -1512,22 +1512,23 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
         uses_weight = True
 
+        # --------------------------------------------------------
+        # CORE: OPTIONAL MIT GEWICHT
+        # --------------------------------------------------------
+
         if is_core and not is_time_exercise:
 
             default_uses_weight = False
 
             if old_row is not None:
 
-                # Falls Gewicht > 0 gespeichert war,
-                # gehen wir davon aus, dass Gewicht benutzt wurde.
                 for old_s in range(1, number_of_sets + 1):
 
                     col = f"Set {old_s} Gewicht"
 
                     if (
                         col in old_row.index
-                        and pd.notna(old_row[col])
-                        and float(old_row[col]) > 0
+                        and safe_float(old_row[col]) > 0
                     ):
                         default_uses_weight = True
                         break
@@ -1538,230 +1539,239 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 key=f"uses_weight_{i}"
             )
 
-            # ========================================================
-            # VARIABLE SETS
-            # ========================================================
+        # ========================================================
+        # EINZELNE SETS
+        # ========================================================
 
-            for s in range(number_of_sets):
+        for s in range(number_of_sets):
 
-                set_number = s + 1
+            set_number = s + 1
 
-                with st.expander(
-                    f"Set {set_number}",
-                    expanded=True
-                ):
+            with st.expander(
+                f"Set {set_number}",
+                expanded=True
+            ):
 
-                    # Standardwerte
-                    weight = 0.0
-                    reps = 0.0
-                    duration = 0.0
+                # ------------------------------------------------
+                # Standardwerte
+                # ------------------------------------------------
 
-                    left_weight = 0.0
-                    left_reps = 0.0
-                    right_weight = 0.0
-                    right_reps = 0.0
+                weight = 0.0
+                reps = 0.0
+                duration = 0.0
 
-                    # -----------------------------------------------
-                    # ZEITÜBUNGEN
-                    # -----------------------------------------------
+                left_weight = 0.0
+                left_reps = 0.0
 
-                    if is_time_exercise:
+                right_weight = 0.0
+                right_reps = 0.0
 
-                        old_duration = 0.0
+                # =================================================
+                # ZEITÜBUNGEN
+                # =================================================
 
-                        if old_row is not None:
+                if is_time_exercise:
 
-                            duration_col = (
-                                f"Set {set_number} Dauer Sekunden"
-                            )
-
-                            if (
-                                duration_col in old_row.index
-                                and pd.notna(old_row[duration_col])
-                                and old_row[duration_col] != ""
-                            ):
-                                old_duration = safe_float(
-                                    old_row[duration_col]
-                                )
-
-                        duration = st.number_input(
-                            "Zeit in Sekunden",
-                            min_value=0.0,
-                            max_value=3600.0,
-                            value=old_duration,
-                            step=5.0,
-                            key=f"duration_{i}_{s}"
-                        )
-
-                    # -----------------------------------------------
-                    # EINSEITIGE ÜBUNG
-                    # -----------------------------------------------
-
-                    elif execution_type == "Einseitig":
-
-                        # Alte Werte laden
-                        old_left_weight = 0.0
-                        old_left_reps = 8.0
-                        old_right_weight = 0.0
-                        old_right_reps = 8.0
-
-                        if old_row is not None:
-
-                            old_left_weight = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Links Gewicht",
-                                    0
-                                )
-                            )
-
-                            old_left_reps = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Links Wdh",
-                                    8
-                                ),
-                                default=8.0
-                            )
-
-                            old_right_weight = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Rechts Gewicht",
-                                    0
-                                )
-                            )
-
-                            old_right_reps = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Rechts Wdh",
-                                    8
-                                ),
-                                default=8.0
-                            )
-
-                        st.markdown("**Links**")
-
-                        if uses_weight:
-
-                            left_weight = st.number_input(
-                                "Gewicht links",
-                                min_value=0.0,
-                                max_value=400.0,
-                                value=old_left_weight,
-                                step=0.5,
-                                key=f"left_weight_{i}_{s}"
-                            )
-
-                        left_reps = st.number_input(
-                            "Wdh links",
-                            min_value=0.0,
-                            max_value=1000.0,
-                            value=old_left_reps,
-                            step=0.5,
-                            key=f"left_reps_{i}_{s}"
-                        )
-
-                        st.markdown("**Rechts**")
-
-                        if uses_weight:
-
-                            right_weight = st.number_input(
-                                "Gewicht rechts",
-                                min_value=0.0,
-                                max_value=400.0,
-                                value=old_right_weight,
-                                step=0.5,
-                                key=f"right_weight_{i}_{s}"
-                            )
-
-                        right_reps = st.number_input(
-                            "Wdh rechts",
-                            min_value=0.0,
-                            max_value=1000.0,
-                            value=old_right_reps,
-                            step=0.5,
-                            key=f"right_reps_{i}_{s}"
-                        )
-
-                    # -----------------------------------------------
-                    # BEIDSEITIGE / NORMALE ÜBUNG
-                    # -----------------------------------------------
-
-                    else:
-
-                        old_weight = 0.0
-                        old_reps = 8.0
-
-                        if old_row is not None:
-
-                            old_weight = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Gewicht",
-                                    0
-                                )
-                            )
-
-                            old_reps = safe_float(
-                                old_row.get(
-                                    f"Set {set_number} Wdh",
-                                    8
-                                ),
-                                default=8.0
-                            )
-
-                        if uses_weight:
-
-                            weight = st.number_input(
-                                "Gewicht",
-                                min_value=0.0,
-                                max_value=400.0,
-                                value=old_weight,
-                                step=0.5,
-                                key=f"weight_{i}_{s}"
-                            )
-
-                        reps = st.number_input(
-                            "Wdh",
-                            min_value=0.0,
-                            max_value=1000.0,
-                            value=old_reps,
-                            step=0.5,
-                            key=f"reps_{i}_{s}"
-                        )
-
-                    # -----------------------------------------------
-                    # SET-NOTIZ
-                    # -----------------------------------------------
-
-                    old_set_note = ""
+                    old_duration = 0.0
 
                     if old_row is not None:
 
-                        old_set_note = safe_string(
+                        old_duration = safe_float(
                             old_row.get(
-                                f"Set {set_number} Notiz",
-                                ""
+                                f"Set {set_number} Dauer Sekunden",
+                                0
                             )
                         )
 
-                    note_set = st.text_input(
-                        "Set-Notiz",
-                        value=old_set_note,
-                        key=f"note_set_{i}_{s}"
+                    duration = st.number_input(
+                        "Zeit in Sekunden",
+                        min_value=0.0,
+                        max_value=3600.0,
+                        value=old_duration,
+                        step=5.0,
+                        key=f"duration_{i}_{s}"
                     )
 
-                    sets.append({
-                        "weight": weight,
-                        "reps": reps,
-                        "duration": duration,
+                # =================================================
+                # EINSEITIG
+                # =================================================
 
-                        "left_weight": left_weight,
-                        "left_reps": left_reps,
+                elif execution_type == "Einseitig":
 
-                        "right_weight": right_weight,
-                        "right_reps": right_reps,
+                    old_left_weight = 0.0
+                    old_left_reps = 8.0
 
-                        "note": note_set
-                    })
+                    old_right_weight = 0.0
+                    old_right_reps = 8.0
 
+                    if old_row is not None:
+
+                        old_left_weight = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Links Gewicht",
+                                0
+                            )
+                        )
+
+                        old_left_reps = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Links Wdh",
+                                8
+                            ),
+                            default=8.0
+                        )
+
+                        old_right_weight = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Rechts Gewicht",
+                                0
+                            )
+                        )
+
+                        old_right_reps = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Rechts Wdh",
+                                8
+                            ),
+                            default=8.0
+                        )
+
+                    # --------------------------
+                    # LINKS
+                    # --------------------------
+
+                    st.markdown("**Links**")
+
+                    if uses_weight:
+
+                        left_weight = st.number_input(
+                            "Gewicht links",
+                            min_value=0.0,
+                            max_value=400.0,
+                            value=old_left_weight,
+                            step=0.5,
+                            key=f"left_weight_{i}_{s}"
+                        )
+
+                    left_reps = st.number_input(
+                        "Wdh links",
+                        min_value=0.0,
+                        max_value=1000.0,
+                        value=old_left_reps,
+                        step=0.5,
+                        key=f"left_reps_{i}_{s}"
+                    )
+
+                    # --------------------------
+                    # RECHTS
+                    # --------------------------
+
+                    st.markdown("**Rechts**")
+
+                    if uses_weight:
+
+                        right_weight = st.number_input(
+                            "Gewicht rechts",
+                            min_value=0.0,
+                            max_value=400.0,
+                            value=old_right_weight,
+                            step=0.5,
+                            key=f"right_weight_{i}_{s}"
+                        )
+
+                    right_reps = st.number_input(
+                        "Wdh rechts",
+                        min_value=0.0,
+                        max_value=1000.0,
+                        value=old_right_reps,
+                        step=0.5,
+                        key=f"right_reps_{i}_{s}"
+                    )
+
+                # =================================================
+                # BEIDSEITIG
+                # =================================================
+
+                else:
+
+                    old_weight = 0.0
+                    old_reps = 8.0
+
+                    if old_row is not None:
+
+                        old_weight = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Gewicht",
+                                0
+                            )
+                        )
+
+                        old_reps = safe_float(
+                            old_row.get(
+                                f"Set {set_number} Wdh",
+                                8
+                            ),
+                            default=8.0
+                        )
+
+                    if uses_weight:
+
+                        weight = st.number_input(
+                            "Gewicht",
+                            min_value=0.0,
+                            max_value=400.0,
+                            value=old_weight,
+                            step=0.5,
+                            key=f"weight_{i}_{s}"
+                        )
+
+                    reps = st.number_input(
+                        "Wdh",
+                        min_value=0.0,
+                        max_value=1000.0,
+                        value=old_reps,
+                        step=0.5,
+                        key=f"reps_{i}_{s}"
+                    )
+
+                # =================================================
+                # SET-NOTIZ
+                # =================================================
+
+                old_set_note = ""
+
+                if old_row is not None:
+
+                    old_set_note = safe_string(
+                        old_row.get(
+                            f"Set {set_number} Notiz",
+                            ""
+                        )
+                    )
+
+                note_set = st.text_input(
+                    "Set-Notiz",
+                    value=old_set_note,
+                    key=f"note_set_{i}_{s}"
+                )
+
+                # =================================================
+                # SET INTERN SPEICHERN
+                # =================================================
+
+                sets.append({
+                    "weight": weight,
+                    "reps": reps,
+                    "duration": duration,
+
+                    "left_weight": left_weight,
+                    "left_reps": left_reps,
+
+                    "right_weight": right_weight,
+                    "right_reps": right_reps,
+
+                    "note": note_set
+                })
         # ========================================================
         # EINTRAG ERSTELLEN
         # ========================================================
