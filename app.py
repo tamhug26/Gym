@@ -3350,7 +3350,7 @@ with tab5:
 
         with st.expander("📐 Wo muss ich messen?", expanded=False):
             if USERS[username]["gender"] == "female":
-                body_filename = "Wbody.png"
+                body_filename = "Wbody2.png"
             else:
                 body_filename = "Mbody.png"
 
