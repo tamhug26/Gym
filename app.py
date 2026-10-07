@@ -2149,15 +2149,6 @@ def show_avatar(username, level):
             NUR AVATAR-EINGABEFELDER
             ========================================= */
 
-            /* DATUM */
-            .st-key-avatar_date [data-testid="stDateInput"] div[data-baseweb="input"] {
-                background-color: color-mix(
-                    in srgb,
-                    var(--secondary-background-color) 65%,
-                    transparent
-                ) !important;
-            }
-
 
             /* KALORIENZIEL */
             .st-key-avatar_general [data-testid="stNumberInputContainer"] {
@@ -2169,13 +2160,33 @@ def show_avatar(username, level):
             }
 
 
-            /* MODUS */
-            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+            /* =========================================
+            DATUM
+            ========================================= */
+
+            .st-key-avatar_date [data-testid="stDateInputField"] {
                 background-color: color-mix(
                     in srgb,
                     var(--secondary-background-color) 65%,
                     transparent
                 ) !important;
+            }
+
+
+            /* =========================================
+            MODUS
+            ========================================= */
+
+            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] {
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    transparent
+                ) !important;
+            }
+
+            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+                background-color: transparent !important;
             }
 
 
