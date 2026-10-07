@@ -2177,27 +2177,15 @@ def show_avatar(username, level):
             MODUS
             ========================================= */
 
-            /* Äusserer Selectbox-Bereich = halbtransparent */
-            .st-key-avatar_general [data-testid="stSelectbox"] {
-                position: relative !important;
-            }
-
-            /* Alle inneren Flächen des Modus transparent */
-            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"],
-            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-            .st-key-avatar_general [data-testid="stSelectbox"] div[role="button"],
-            .st-key-avatar_general [data-testid="stSelectbox"] div[role="combobox"] {
-                background: transparent !important;
-                background-color: transparent !important;
-            }
-
-            /* Der tatsächlich sichtbare Balken */
-            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child {
+            .st-key-avatar_general .react-aria-ComboBox input[aria-label="Modus"] {
                 background-color: color-mix(
                     in srgb,
                     var(--secondary-background-color) 65%,
                     transparent
                 ) !important;
+
+                color: var(--text-color) !important;
+                -webkit-text-fill-color: var(--text-color) !important;
             }
 
 
