@@ -2159,26 +2159,47 @@ def show_avatar(username, level):
             INPUT-HINTERGRÜNDE TRANSPARENT
             ========================================= */
 
-            /* Number / Text / Date */
+            /* NUMBER INPUT */
             [data-testid="stNumberInput"] div[data-baseweb="input"],
+            [data-testid="stNumberInput"] div[data-baseweb="base-input"],
+            [data-testid="stNumberInput"] input {
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+
+            /* TEXT INPUT */
             [data-testid="stTextInput"] div[data-baseweb="input"],
-            [data-testid="stDateInput"] div[data-baseweb="input"] {
+            [data-testid="stTextInput"] div[data-baseweb="base-input"],
+            [data-testid="stTextInput"] input {
+                background: transparent !important;
                 background-color: transparent !important;
             }
 
-            /* Selectbox */
-            [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+            /* DATE INPUT */
+            [data-testid="stDateInput"] div[data-baseweb="input"],
+            [data-testid="stDateInput"] div[data-baseweb="base-input"],
+            [data-testid="stDateInput"] input {
+                background: transparent !important;
                 background-color: transparent !important;
             }
 
-            /* Multiselect */
-            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+            /* SELECTBOX */
+            [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+            [data-testid="stSelectbox"] div[role="combobox"] {
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+
+            /* MULTISELECT */
+            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+            [data-testid="stMultiSelect"] div[role="combobox"] {
+                background: transparent !important;
                 background-color: transparent !important;
             }
 
 
             /* =========================================
-            TEXT TROTZDEM SICHTBAR
+            SCHRIFT SICHTBAR LASSEN
             ========================================= */
 
             [data-testid="stDateInput"] input,
@@ -2188,18 +2209,6 @@ def show_avatar(username, level):
                 -webkit-text-fill-color: var(--text-color) !important;
             }
             
-
-            /* =========================================
-            INPUT-TEXT AN STREAMLIT THEME ANPASSEN
-            ========================================= */
-            
-            [data-testid="stDateInput"] input,
-            [data-testid="stNumberInput"] input,
-            [data-testid="stTextInput"] input {
-            
-            color: var(--text-color) !important;
-            -webkit-text-fill-color: var(--text-color) !important;
-            }
 
         }
 
