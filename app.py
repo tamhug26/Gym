@@ -2177,13 +2177,18 @@ def show_avatar(username, level):
             MODUS
             ========================================= */
 
-            .st-key-avatar_general .react-aria-ComboBox input[aria-label="Modus"] {
+            /* Der Wrapper, der Input + Pfeil enthält */
+            .st-key-avatar_general .react-aria-ComboBox div:has(> input[aria-label="Modus"]) {
                 background-color: color-mix(
                     in srgb,
                     var(--secondary-background-color) 65%,
                     transparent
                 ) !important;
+            }
 
+            /* Input selbst transparent + Schrift nach Theme */
+            .st-key-avatar_general .react-aria-ComboBox input[aria-label="Modus"] {
+                background: transparent !important;
                 color: var(--text-color) !important;
                 -webkit-text-fill-color: var(--text-color) !important;
             }
