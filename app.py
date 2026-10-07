@@ -788,8 +788,18 @@ def get_last_mode_and_calories(saved_df):
 # TRAININGSFORMULAR
 # ============================================================
 
-def training_form(username, saved_df, edit_date=None):
+def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     edit_df = pd.DataFrame()
+
+    exercise_edit_row = None
+
+    if (
+        edit_row_index is not None
+        and not saved_df.empty
+        and edit_row_index in saved_df.index
+    ):
+        exercise_edit_row = saved_df.loc[edit_row_index]
+
 
     # ============================================================
     # DATUM / BEARBEITUNG
@@ -822,6 +832,68 @@ def training_form(username, saved_df, edit_date=None):
                 "Datum",
                 value=date.today()
             )
+
+    # ============================================================
+    # HEUTE BEREITS GESPEICHERTE ÜBUNGEN
+    # ============================================================
+
+    today_saved = pd.DataFrame()
+
+    if (
+        not saved_df.empty
+        and "Datum" in saved_df.columns
+    ):
+
+        today_saved = saved_df[
+            saved_df["Datum"].astype(str)
+            == str(training_date)
+        ].copy()
+
+
+    if not today_saved.empty:
+
+        st.markdown("### ✅ Bereits gespeichert")
+
+        for row_index, row in today_saved.iterrows():
+
+            exercise_name = safe_string(
+                row.get("Übung", "Übung")
+            )
+
+            number_sets = safe_int(
+                row.get("Anzahl Sets", 0)
+            )
+
+            execution = safe_string(
+                row.get("Ausführung", "Beidseitig")
+            )
+
+            with st.container(border=True):
+
+                c1, c2 = st.columns([3, 1])
+
+                with c1:
+
+                    st.markdown(
+                        f"**{exercise_name}**  \n"
+                        f"{number_sets} Sets · {execution} · ✓ gespeichert"
+                    )
+
+                with c2:
+
+                    if st.button(
+                        "✏️",
+                        key=f"edit_saved_exercise_{row_index}"
+                    ):
+
+                        st.session_state.exercise_edit_index = row_index
+                        st.rerun()
+
+    else:
+
+        st.caption(
+            "Für diesen Tag wurde noch keine Übung gespeichert."
+        )
 
     # ============================================================
     # ALLGEMEINE ANGABEN
@@ -1104,25 +1176,10 @@ def training_form(username, saved_df, edit_date=None):
         return
 
     # ============================================================
-    # ANZAHL ÜBUNGEN
+    # EINE ÜBUNG PRO SPEICHERVORGANG
     # ============================================================
 
-    default_rows = (
-        len(edit_df)
-        if edit_date and not edit_df.empty
-        else 3
-    )
-
-    rows = st.number_input(
-        "Wie viele Übungen möchtest du eintragen?",
-        min_value=1,
-        value=int(default_rows),
-        step=1,
-        key="exercise_count"
-    )
-
-    rows = int(rows)
-
+    rows = 1
     entries = []
 
     # ============================================================
@@ -1133,7 +1190,12 @@ def training_form(username, saved_df, edit_date=None):
 
         old_row = None
 
-        if (
+        # Einzelne gespeicherte Übung bearbeiten
+        if exercise_edit_row is not None:
+            old_row = exercise_edit_row
+
+        # Alter Bearbeitungsmodus für kompletten Trainingstag
+        elif (
             edit_date
             and not edit_df.empty
             and i < len(edit_df)
@@ -1168,6 +1230,41 @@ def training_form(username, saved_df, edit_date=None):
             index=exercise_index,
             key=f"exercise_{i}"
         )
+
+        # ========================================================
+        # AUSFÜHRUNG
+        # ========================================================
+
+        execution_options = [
+            "Beidseitig",
+            "Einseitig"
+        ]
+
+        old_execution = "Beidseitig"
+
+        if exercise_edit_row is not None:
+
+            saved_execution = exercise_edit_row.get(
+                "Ausführung",
+                "Beidseitig"
+            )
+
+            if saved_execution in execution_options:
+                old_execution = saved_execution
+
+
+        execution_type = st.segmented_control(
+            "Ausführung",
+            options=execution_options,
+            default=old_execution,
+            selection_mode="single",
+            key=f"execution_type_{i}"
+        )
+
+        if execution_type is None:
+            execution_type = "Beidseitig"
+
+
 
         # ========================================================
         # VARIABLE ANZAHL SETS
@@ -1441,149 +1538,229 @@ def training_form(username, saved_df, edit_date=None):
                 key=f"uses_weight_{i}"
             )
 
-        # ========================================================
-        # VARIABLE SETS
-        # ========================================================
+            # ========================================================
+            # VARIABLE SETS
+            # ========================================================
 
-        for s in range(number_of_sets):
+            for s in range(number_of_sets):
 
-            set_number = s + 1
+                set_number = s + 1
 
-            with st.expander(
-                f"Set {set_number}",
-                expanded=True
-            ):
+                with st.expander(
+                    f"Set {set_number}",
+                    expanded=True
+                ):
 
-                # -----------------------------------------------
-                # ZEITÜBUNGEN
-                # -----------------------------------------------
-
-                if is_time_exercise:
-
-                    old_duration = 0.0
-
-                    if old_row is not None:
-
-                        duration_col = (
-                            f"Set {set_number} Dauer Sekunden"
-                        )
-
-                        if (
-                            duration_col in old_row.index
-                            and pd.notna(old_row[duration_col])
-                        ):
-                            old_duration = float(
-                                old_row[duration_col]
-                            )
-
-                    duration = st.number_input(
-                        "Zeit in Sekunden",
-                        min_value=0.0,
-                        max_value=3600.0,
-                        value=old_duration,
-                        step=5.0,
-                        key=f"duration_{i}_{s}"
-                    )
-
+                    # Standardwerte
                     weight = 0.0
                     reps = 0.0
+                    duration = 0.0
 
-                # -----------------------------------------------
-                # NORMALE ÜBUNGEN
-                # -----------------------------------------------
+                    left_weight = 0.0
+                    left_reps = 0.0
+                    right_weight = 0.0
+                    right_reps = 0.0
 
-                else:
+                    # -----------------------------------------------
+                    # ZEITÜBUNGEN
+                    # -----------------------------------------------
 
-                    old_weight = 0.0
+                    if is_time_exercise:
 
-                    weight_col = (
-                        f"Set {set_number} Gewicht"
-                    )
+                        old_duration = 0.0
 
-                    if (
-                        old_row is not None
-                        and weight_col in old_row.index
-                        and pd.notna(old_row[weight_col])
-                    ):
-                        old_weight = float(
-                            old_row[weight_col]
-                        )
+                        if old_row is not None:
 
-                    if uses_weight:
+                            duration_col = (
+                                f"Set {set_number} Dauer Sekunden"
+                            )
 
-                        weight = st.number_input(
-                            "Gewicht",
+                            if (
+                                duration_col in old_row.index
+                                and pd.notna(old_row[duration_col])
+                                and old_row[duration_col] != ""
+                            ):
+                                old_duration = safe_float(
+                                    old_row[duration_col]
+                                )
+
+                        duration = st.number_input(
+                            "Zeit in Sekunden",
                             min_value=0.0,
-                            max_value=400.0,
-                            value=old_weight,
-                            step=0.5,
-                            key=f"weight_{i}_{s}"
+                            max_value=3600.0,
+                            value=old_duration,
+                            step=5.0,
+                            key=f"duration_{i}_{s}"
                         )
+
+                    # -----------------------------------------------
+                    # EINSEITIGE ÜBUNG
+                    # -----------------------------------------------
+
+                    elif execution_type == "Einseitig":
+
+                        # Alte Werte laden
+                        old_left_weight = 0.0
+                        old_left_reps = 8.0
+                        old_right_weight = 0.0
+                        old_right_reps = 8.0
+
+                        if old_row is not None:
+
+                            old_left_weight = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Links Gewicht",
+                                    0
+                                )
+                            )
+
+                            old_left_reps = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Links Wdh",
+                                    8
+                                ),
+                                default=8.0
+                            )
+
+                            old_right_weight = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Rechts Gewicht",
+                                    0
+                                )
+                            )
+
+                            old_right_reps = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Rechts Wdh",
+                                    8
+                                ),
+                                default=8.0
+                            )
+
+                        st.markdown("**Links**")
+
+                        if uses_weight:
+
+                            left_weight = st.number_input(
+                                "Gewicht links",
+                                min_value=0.0,
+                                max_value=400.0,
+                                value=old_left_weight,
+                                step=0.5,
+                                key=f"left_weight_{i}_{s}"
+                            )
+
+                        left_reps = st.number_input(
+                            "Wdh links",
+                            min_value=0.0,
+                            max_value=1000.0,
+                            value=old_left_reps,
+                            step=0.5,
+                            key=f"left_reps_{i}_{s}"
+                        )
+
+                        st.markdown("**Rechts**")
+
+                        if uses_weight:
+
+                            right_weight = st.number_input(
+                                "Gewicht rechts",
+                                min_value=0.0,
+                                max_value=400.0,
+                                value=old_right_weight,
+                                step=0.5,
+                                key=f"right_weight_{i}_{s}"
+                            )
+
+                        right_reps = st.number_input(
+                            "Wdh rechts",
+                            min_value=0.0,
+                            max_value=1000.0,
+                            value=old_right_reps,
+                            step=0.5,
+                            key=f"right_reps_{i}_{s}"
+                        )
+
+                    # -----------------------------------------------
+                    # BEIDSEITIGE / NORMALE ÜBUNG
+                    # -----------------------------------------------
 
                     else:
 
-                        weight = 0.0
+                        old_weight = 0.0
+                        old_reps = 8.0
 
-                    # Wiederholungen
-                    old_reps = 8.0
+                        if old_row is not None:
 
-                    reps_col = (
-                        f"Set {set_number} Wdh"
-                    )
+                            old_weight = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Gewicht",
+                                    0
+                                )
+                            )
 
-                    if (
-                        old_row is not None
-                        and reps_col in old_row.index
-                        and pd.notna(old_row[reps_col])
-                    ):
-                        old_reps = float(
-                            old_row[reps_col]
+                            old_reps = safe_float(
+                                old_row.get(
+                                    f"Set {set_number} Wdh",
+                                    8
+                                ),
+                                default=8.0
+                            )
+
+                        if uses_weight:
+
+                            weight = st.number_input(
+                                "Gewicht",
+                                min_value=0.0,
+                                max_value=400.0,
+                                value=old_weight,
+                                step=0.5,
+                                key=f"weight_{i}_{s}"
+                            )
+
+                        reps = st.number_input(
+                            "Wdh",
+                            min_value=0.0,
+                            max_value=1000.0,
+                            value=old_reps,
+                            step=0.5,
+                            key=f"reps_{i}_{s}"
                         )
 
-                    reps = st.number_input(
-                        "Wdh",
-                        min_value=0.0,
-                        max_value=1000.0,
-                        value=old_reps,
-                        step=0.5,
-                        key=f"reps_{i}_{s}"
+                    # -----------------------------------------------
+                    # SET-NOTIZ
+                    # -----------------------------------------------
+
+                    old_set_note = ""
+
+                    if old_row is not None:
+
+                        old_set_note = safe_string(
+                            old_row.get(
+                                f"Set {set_number} Notiz",
+                                ""
+                            )
+                        )
+
+                    note_set = st.text_input(
+                        "Set-Notiz",
+                        value=old_set_note,
+                        key=f"note_set_{i}_{s}"
                     )
 
-                    duration = 0.0
+                    sets.append({
+                        "weight": weight,
+                        "reps": reps,
+                        "duration": duration,
 
-                # -----------------------------------------------
-                # SET NOTIZ
-                # -----------------------------------------------
+                        "left_weight": left_weight,
+                        "left_reps": left_reps,
 
-                old_set_note = ""
+                        "right_weight": right_weight,
+                        "right_reps": right_reps,
 
-                note_col = (
-                    f"Set {set_number} Notiz"
-                )
-
-                if (
-                    old_row is not None
-                    and note_col in old_row.index
-                    and pd.notna(old_row[note_col])
-                ):
-                    old_set_note = str(
-                        old_row[note_col]
-                    )
-
-                note_set = st.text_input(
-                    "Set-Notiz",
-                    value=old_set_note,
-                    key=f"note_set_{i}_{s}"
-                )
-
-                sets.append(
-                    (
-                        weight,
-                        reps,
-                        duration,
-                        note_set
-                    )
-                )
+                        "note": note_set
+                    })
 
         # ========================================================
         # EINTRAG ERSTELLEN
@@ -1595,6 +1772,7 @@ def training_form(username, saved_df, edit_date=None):
 
             "Modus": mode,
             "Kalorienziel": calories,
+            "Ausführung": execution_type,
 
             "Period Mode": period_mode,
             "Periode Start": period_start,
@@ -1624,22 +1802,43 @@ def training_form(username, saved_df, edit_date=None):
         for s in range(number_of_sets):
 
             set_number = s + 1
+            set_data = sets[s]
 
+            # Normale / beidseitige Werte
             entry[
                 f"Set {set_number} Gewicht"
-            ] = sets[s][0]
+            ] = set_data["weight"]
 
             entry[
                 f"Set {set_number} Wdh"
-            ] = sets[s][1]
+            ] = set_data["reps"]
 
+            # Einseitige Werte
+            entry[
+                f"Set {set_number} Links Gewicht"
+            ] = set_data["left_weight"]
+
+            entry[
+                f"Set {set_number} Links Wdh"
+            ] = set_data["left_reps"]
+
+            entry[
+                f"Set {set_number} Rechts Gewicht"
+            ] = set_data["right_weight"]
+
+            entry[
+                f"Set {set_number} Rechts Wdh"
+            ] = set_data["right_reps"]
+
+            # Zeit
             entry[
                 f"Set {set_number} Dauer Sekunden"
-            ] = sets[s][2]
+            ] = set_data["duration"]
 
+            # Notiz
             entry[
                 f"Set {set_number} Notiz"
-            ] = sets[s][3]
+            ] = set_data["note"]
 
         entries.append(entry)
 
@@ -1647,36 +1846,54 @@ def training_form(username, saved_df, edit_date=None):
     # SPEICHERN
     # ============================================================
 
-    if edit_date:
-        button_text = "Änderungen speichern"
-    else:
-        button_text = "Training speichern"
+    if st.button(
+        "💾 Änderungen speichern"
+        if edit_row_index is not None
+        else "💾 Übung speichern"
+    ):
 
-    if st.button(button_text):
         new_df = pd.DataFrame(entries)
 
-        # Bereits vorhandene Daten dieses Users
         old_df = saved_df.copy()
 
-        # Beim Bearbeiten: altes Training dieses Datums entfernen
-        if edit_date and not old_df.empty:
-            old_df = old_df[
-                old_df["Datum"].astype(str) != str(edit_date)
-            ]
+        # ================================================
+        # BESTEHENDE ÜBUNG BEARBEITEN
+        # ================================================
 
-        # Neues / bearbeitetes Training hinzufügen
+        if (
+            edit_row_index is not None
+            and edit_row_index in old_df.index
+        ):
+
+            old_df = old_df.drop(
+                index=edit_row_index
+            )
+
+        # ================================================
+        # NEUE / GEÄNDERTE ÜBUNG HINZUFÜGEN
+        # ================================================
+
         full_df = pd.concat(
-            [old_df, new_df],
+            [
+                old_df,
+                new_df
+            ],
             ignore_index=True
         )
 
-        # In Google Sheets speichern
-        save_data(username, full_df)
+        save_data(
+            username,
+            full_df
+        )
 
-        st.success("Training gespeichert! 💪")
-        time.sleep(1)
+        st.session_state.exercise_edit_index = None
 
-        st.session_state.edit_date = None
+        st.success(
+            "Übung gespeichert! ✓"
+        )
+
+        time.sleep(0.5)
+
         st.rerun()
 
 # ============================================================
@@ -1690,6 +1907,8 @@ if "logged_in" not in st.session_state:
 if "edit_date" not in st.session_state:
     st.session_state.edit_date = None
 
+if "exercise_edit_index" not in st.session_state:
+    st.session_state.exercise_edit_index = None
 
 if not st.session_state.logged_in:
 
@@ -2180,7 +2399,8 @@ with tab1:
         training_form(
             username,
             saved_df,
-            edit_date=st.session_state.edit_date
+            edit_date=st.session_state.edit_date,
+            edit_row_index=st.session_state.exercise_edit_index
         )
 
 
