@@ -2193,7 +2193,9 @@ def show_avatar(username, level):
                 -webkit-text-fill-color: var(--text-color) !important;
                 opacity: 1 !important;
             }
-
+            [data-testid="stNumberInputContainer"] {
+                background: red !important;
+            }
         }
 
         </style>
