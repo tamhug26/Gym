@@ -815,23 +815,25 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     # DATUM – NUR LINKE SPALTE
     # ============================================================
 
-    date_col, empty_col = st.columns(2)
+    with st.container(key="avatar_date"):
 
-    with date_col:
+        date_col, empty_col = st.columns(2)
 
-        if edit_date and not saved_df.empty:
+        with date_col:
 
-            training_date = st.date_input(
-                "Datum",
-                value=pd.to_datetime(edit_date).date()
-            )
+            if edit_date and not saved_df.empty:
 
-        else:
+                training_date = st.date_input(
+                    "Datum",
+                    value=pd.to_datetime(edit_date).date()
+                )
 
-            training_date = st.date_input(
-                "Datum",
-                value=date.today()
-            )
+            else:
+
+                training_date = st.date_input(
+                    "Datum",
+                    value=date.today()
+                )
 
     # ============================================================
     # HEUTE BEREITS GESPEICHERTE ÜBUNGEN
@@ -921,25 +923,27 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         if pd.notna(old_calories):
             last_calories = int(old_calories)
 
-    col1, col2 = st.columns(2)
+    with st.container(key="avatar_general"):
 
-    with col1:
-        mode = st.selectbox(
-            "Modus",
-            mode_options,
-            index=mode_options.index(last_mode),
-            key="training_mode"
-        )
+        col1, col2 = st.columns(2)
 
-    with col2:
-        calories = st.number_input(
-            "Kalorienziel",
-            min_value=0,
-            max_value=10000,
-            value=int(last_calories),
-            step=50,
-            key="training_calories"
-        )
+        with col1:
+            mode = st.selectbox(
+                "Modus",
+                mode_options,
+                index=mode_options.index(last_mode),
+                key="training_mode"
+            )
+
+        with col2:
+            calories = st.number_input(
+                "Kalorienziel",
+                min_value=0,
+                max_value=10000,
+                value=int(last_calories),
+                step=50,
+                key="training_calories"
+            )
 
    # ============================================================
     # PERIOD MODE – NUR FÜR FRAUEN
@@ -2142,26 +2146,11 @@ def show_avatar(username, level):
 
 
             /* =========================================
-            INPUTS
+            NUR AVATAR-EINGABEFELDER
             ========================================= */
 
-            [data-testid="stDateInput"],
-            [data-testid="stNumberInput"],
-            [data-testid="stTextInput"],
-            [data-testid="stSelectbox"],
-            [data-testid="stMultiSelect"] {
-                position: relative !important;
-                z-index: 2 !important;
-            }
-
-
-            /* =========================================
-            BALKEN HALBDURCHSICHTIG
-            ========================================= */
-
-            [data-testid="stNumberInput"] div[data-baseweb="input"],
-            [data-testid="stTextInput"] div[data-baseweb="input"],
-            [data-testid="stDateInput"] div[data-baseweb="input"] {
+            /* DATUM */
+            .st-key-avatar_date [data-testid="stDateInput"] div[data-baseweb="input"] {
                 background-color: color-mix(
                     in srgb,
                     var(--secondary-background-color) 65%,
@@ -2170,10 +2159,18 @@ def show_avatar(username, level):
             }
 
 
-            /* SELECTBOX / MULTISELECT */
+            /* KALORIENZIEL */
+            .st-key-avatar_general [data-testid="stNumberInputContainer"] {
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    transparent
+                ) !important;
+            }
 
-            [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+
+            /* MODUS */
+            .st-key-avatar_general [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
                 background-color: color-mix(
                     in srgb,
                     var(--secondary-background-color) 65%,
@@ -2183,18 +2180,14 @@ def show_avatar(username, level):
 
 
             /* =========================================
-            SCHRIFT – IMMER VOLL SICHTBAR
+            TEXT IMMER VORNE + THEME-ABHÄNGIG
             ========================================= */
 
-            [data-testid="stDateInput"] input,
-            [data-testid="stNumberInput"] input,
-            [data-testid="stTextInput"] input {
+            .st-key-avatar_date input,
+            .st-key-avatar_general input {
                 color: var(--text-color) !important;
                 -webkit-text-fill-color: var(--text-color) !important;
                 opacity: 1 !important;
-            }
-            [data-testid="stNumberInputContainer"] {
-                background: red !important;
             }
         }
 
