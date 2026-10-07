@@ -2189,7 +2189,17 @@ def show_avatar(username, level):
             }
             
 
+            /* =========================================
+            INPUT-TEXT AN STREAMLIT THEME ANPASSEN
+            ========================================= */
             
+            [data-testid="stDateInput"] input,
+            [data-testid="stNumberInput"] input,
+            [data-testid="stTextInput"] input {
+            
+            color: var(--text-color) !important;
+            -webkit-text-fill-color: var(--text-color) !important;
+            }
 
         }
 
