@@ -1799,10 +1799,9 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         # SETS DYNAMISCH SPEICHERN
         # ========================================================
 
-        for s in range(number_of_sets):
+        for s, set_data in enumerate(sets):
 
             set_number = s + 1
-            set_data = sets[s]
 
             # Normale / beidseitige Werte
             entry[
