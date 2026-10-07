@@ -2142,7 +2142,7 @@ def show_avatar(username, level):
 
 
             /* =========================================
-            INPUTS VOR DEM AVATAR
+            INPUTS
             ========================================= */
 
             [data-testid="stDateInput"],
@@ -2150,56 +2150,40 @@ def show_avatar(username, level):
             [data-testid="stTextInput"],
             [data-testid="stSelectbox"],
             [data-testid="stMultiSelect"] {
-
                 position: relative !important;
                 z-index: 2 !important;
             }
 
+
             /* =========================================
-            INPUT-HINTERGRÜNDE TRANSPARENT
+            BALKEN HALBDURCHSICHTIG
             ========================================= */
 
-            /* NUMBER INPUT */
             [data-testid="stNumberInput"] div[data-baseweb="input"],
-            [data-testid="stNumberInput"] div[data-baseweb="base-input"],
-            [data-testid="stNumberInput"] input {
-                background: transparent !important;
-                background-color: transparent !important;
-            }
-
-            /* TEXT INPUT */
             [data-testid="stTextInput"] div[data-baseweb="input"],
-            [data-testid="stTextInput"] div[data-baseweb="base-input"],
-            [data-testid="stTextInput"] input {
-                background: transparent !important;
-                background-color: transparent !important;
+            [data-testid="stDateInput"] div[data-baseweb="input"] {
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    transparent
+                ) !important;
             }
 
-            /* DATE INPUT */
-            [data-testid="stDateInput"] div[data-baseweb="input"],
-            [data-testid="stDateInput"] div[data-baseweb="base-input"],
-            [data-testid="stDateInput"] input {
-                background: transparent !important;
-                background-color: transparent !important;
-            }
 
-            /* SELECTBOX */
+            /* SELECTBOX / MULTISELECT */
+
             [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-            [data-testid="stSelectbox"] div[role="combobox"] {
-                background: transparent !important;
-                background-color: transparent !important;
-            }
-
-            /* MULTISELECT */
-            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
-            [data-testid="stMultiSelect"] div[role="combobox"] {
-                background: transparent !important;
-                background-color: transparent !important;
+            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    transparent
+                ) !important;
             }
 
 
             /* =========================================
-            SCHRIFT SICHTBAR LASSEN
+            SCHRIFT – IMMER VOLL SICHTBAR
             ========================================= */
 
             [data-testid="stDateInput"] input,
@@ -2207,8 +2191,8 @@ def show_avatar(username, level):
             [data-testid="stTextInput"] input {
                 color: var(--text-color) !important;
                 -webkit-text-fill-color: var(--text-color) !important;
+                opacity: 1 !important;
             }
-            
 
         }
 
