@@ -2155,6 +2155,39 @@ def show_avatar(username, level):
                 z-index: 2 !important;
             }
 
+            /* =========================================
+            INPUT-HINTERGRÜNDE TRANSPARENT
+            ========================================= */
+
+            /* Number / Text / Date */
+            [data-testid="stNumberInput"] div[data-baseweb="input"],
+            [data-testid="stTextInput"] div[data-baseweb="input"],
+            [data-testid="stDateInput"] div[data-baseweb="input"] {
+                background-color: transparent !important;
+            }
+
+            /* Selectbox */
+            [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+                background-color: transparent !important;
+            }
+
+            /* Multiselect */
+            [data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+                background-color: transparent !important;
+            }
+
+
+            /* =========================================
+            TEXT TROTZDEM SICHTBAR
+            ========================================= */
+
+            [data-testid="stDateInput"] input,
+            [data-testid="stNumberInput"] input,
+            [data-testid="stTextInput"] input {
+                color: var(--text-color) !important;
+                -webkit-text-fill-color: var(--text-color) !important;
+            }
+            
 
             /* =========================================
             INPUT-TEXT AN STREAMLIT THEME ANPASSEN
