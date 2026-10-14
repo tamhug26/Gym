@@ -259,7 +259,7 @@ exercises_by_group = {
 MEAL_PLANS = {
 
 
-        "Tamara": {
+    "Tamara": {
 
         # ==================================================
         # 2400 KCAL
@@ -271,60 +271,70 @@ MEAL_PLANS = {
                 (1, "Frühstücksporridge")
             ],
 
-            "9i": [
-                (30, "Proteinpulver"),
-                (200, "Mandelmilch"),
-                (1, "Milchreis PT")
-            ],
+            "9i / Nacht": {
 
-            "Nacht": [
-                (10, "Proteinpulver"),
-                (20, "Erdnussbutter"),
-                (250, "Magerquark")
-            ],
+                "Milchreis": [
+                    (1, "Milchreis PT")
+                ],
 
-            "Hauptmahlzeiten": {
+                "Joghurt": [
+                    (200, "Alpro Joghurt"),
+                    (20, "Proteinpulver"),
+                    (30, "Haferflocken"),
+                    (4, "Chiasamen"),
+                    (40, "Datteln")
+                ],
 
-                "RH": [
+                "Magerquark": [
+                    (250, "Magerquark"),
+                    (20, "Proteinpulver"),
+                    (20, "Erdnussbutter"),
+                    (20, "Datteln")
+                ]
+            },
+
+            "Mittag / 4i": {
+
+                "Rindhack": [
                     (150, "Rindhack"),
                     (150, "Kartoffeln"),
                     (30, "Reis roh"),
                     (50, "Gemüsemix")
                 ],
 
-                "TU": [
+                "Tofu": [
                     (200, "Tofu"),
+                    (100, "Kartoffeln"),
                     (50, "Reis roh"),
-                    (10, "Avocado"),
-                    (100, "Kartoffeln")
+                    (10, "Avocado")
                 ],
 
-                "EI": [
+                "Eiweiss": [
                     (250, "Eiweiss"),
-                    (50, "Avocado"),
+                    (200, "Kartoffeln"),
                     (50, "Reis roh"),
-                    (200, "Kartoffeln")
+                    (50, "Avocado")
                 ],
 
-                "GA": [
+                "Garnelen": [
                     (200, "Garnelen"),
+                    (150, "Kartoffeln"),
                     (50, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
+                    (20, "Avocado")
                 ],
 
-                "MO": [
+                "Mozzarella": [
                     (125, "Mozzarella"),
                     (150, "Kartoffeln"),
                     (60, "Reis roh"),
                     (50, "Tomaten")
                 ],
 
-                "PO": [
+                "Poulet": [
                     (200, "Poulet"),
+                    (120, "Kartoffeln"),
                     (50, "Reis roh"),
-                    (20, "Avocado"),
-                    (120, "Kartoffeln")
+                    (20, "Avocado")
                 ]
             }
         },
@@ -339,60 +349,70 @@ MEAL_PLANS = {
                 (1, "Frühstücksporridge")
             ],
 
-            "9i": [
-                (30, "Proteinpulver"),
-                (200, "Mandelmilch"),
-                (1, "Milchreis PT")
-            ],
+            "9i / Nacht": {
 
-            "Nacht": [
-                (10, "Proteinpulver"),
-                (20, "Erdnussbutter"),
-                (250, "Magerquark")
-            ],
+                "Milchreis": [
+                    (1, "Milchreis PT")
+                ],
 
-            "Hauptmahlzeiten": {
+                "Joghurt": [
+                    (200, "Alpro Joghurt"),
+                    (20, "Proteinpulver"),
+                    (30, "Haferflocken"),
+                    (4, "Chiasamen"),
+                    (40, "Datteln")
+                ],
 
-                "RH": [
+                "Magerquark": [
+                    (250, "Magerquark"),
+                    (20, "Proteinpulver"),
+                    (20, "Erdnussbutter"),
+                    (20, "Datteln")
+                ]
+            },
+
+            "Mittag / 4i": {
+
+                "Rindhack": [
                     (150, "Rindhack"),
                     (150, "Kartoffeln"),
                     (60, "Reis roh"),
                     (70, "Gemüsemix")
                 ],
 
-                "TU": [
+                "Tofu": [
                     (200, "Tofu"),
+                    (100, "Kartoffeln"),
                     (70, "Reis roh"),
-                    (30, "Avocado"),
-                    (100, "Kartoffeln")
+                    (30, "Avocado")
                 ],
 
-                "EI": [
+                "Eiweiss": [
                     (250, "Eiweiss"),
-                    (50, "Avocado"),
+                    (200, "Kartoffeln"),
                     (80, "Reis roh"),
-                    (200, "Kartoffeln")
+                    (50, "Avocado")
                 ],
 
-                "GA": [
+                "Garnelen": [
                     (200, "Garnelen"),
+                    (150, "Kartoffeln"),
                     (80, "Reis roh"),
-                    (20, "Avocado"),
-                    (150, "Kartoffeln")
+                    (20, "Avocado")
                 ],
 
-                "MO": [
+                "Mozzarella": [
                     (125, "Mozzarella"),
                     (180, "Kartoffeln"),
                     (80, "Reis roh"),
                     (50, "Tomaten")
                 ],
 
-                "PO": [
+                "Poulet": [
                     (200, "Poulet"),
+                    (120, "Kartoffeln"),
                     (80, "Reis roh"),
-                    (20, "Avocado"),
-                    (120, "Kartoffeln")
+                    (20, "Avocado")
                 ]
             }
         }
@@ -3094,19 +3114,18 @@ if username in MEALPLAN_USERS:
 
                 meal_sections = list(selected_plan.keys())
 
-                # Schöner anzeigen:
-                # "Hauptmahlzeiten" wird für Tamara als Mittag / 4i
-                # separat behandelt.
-                if username == "Tamara" and "Hauptmahlzeiten" in meal_sections:
+                # ====================================================
+                # TAMARA – MAHLZEITENAUSWAHL
+                # ====================================================
+
+                if username == "Tamara":
 
                     meal_time = st.segmented_control(
                         "Mahlzeit",
                         options=[
                             "Frühstück",
-                            "9i",
-                            "Nacht",
-                            "Mittag",
-                            "4i"
+                            "9i / Nacht",
+                            "Mittag / 4i"
                         ],
                         default="Frühstück",
                         selection_mode="single",
@@ -3116,22 +3135,32 @@ if username in MEALPLAN_USERS:
                     if meal_time is None:
                         meal_time = "Frühstück"
 
-                    # ====================================================
-                    # MITTAG / 4i
-                    # ====================================================
+                    # ================================================
+                    # FRÜHSTÜCK
+                    # ================================================
 
-                    if meal_time in ["Mittag", "4i"]:
+                    if meal_time == "Frühstück":
 
-                        meal_options = selected_plan["Hauptmahlzeiten"]
+                        selected_meal = selected_plan["Frühstück"]
+
+                        meal_title = "Frühstück"
+
+                    # ================================================
+                    # 9i / NACHT UND MITTAG / 4i
+                    # ================================================
+
+                    else:
+
+                        meal_options = selected_plan[meal_time]
 
                         option_names = list(meal_options.keys())
 
                         selected_option = st.segmented_control(
-                            "Proteinquelle",
+                            "Variante",
                             options=option_names,
                             default=option_names[0],
                             selection_mode="single",
-                            key=f"tamara_{meal_time}_protein"
+                            key=f"tamara_{meal_time}_option"
                         )
 
                         if selected_option is None:
@@ -3141,15 +3170,7 @@ if username in MEALPLAN_USERS:
 
                         meal_title = f"{meal_time} – {selected_option}"
 
-                    # ====================================================
-                    # FRÜHSTÜCK / 9i / NACHT
-                    # ====================================================
 
-                    else:
-
-                        selected_meal = selected_plan[meal_time]
-
-                        meal_title = meal_time
 
 
                 # ====================================================
@@ -3352,8 +3373,8 @@ if username in MEALPLAN_USERS:
                             - 40 g Haferflocken
                             - 30 g Proteinpulver
                             - 30 g Mixed Berries
-                            - 10 g Chiasamen
-                            - 5 g Erdnussbutter
+                            - 8 g Chiasamen
+                            - 30 g Erdnussbutter
                             """
                         )
 
