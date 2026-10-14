@@ -258,78 +258,144 @@ exercises_by_group = {
 
 MEAL_PLANS = {
 
-    "Tamara": {
 
-        # Tamara – 2400 kcal
+        "Tamara": {
+
+        # ==================================================
+        # 2400 KCAL
+        # ==================================================
 
         "2400 kcal": {
 
-                # FIX
-                "Frühstück": [
-                    (1, "Frühstücksporridge")
+            "Frühstück": [
+                (1, "Frühstücksporridge")
+            ],
+
+            "9i": [
+                (30, "Proteinpulver"),
+                (200, "Mandelmilch"),
+                (1, "Milchreis PT")
+            ],
+
+            "Nacht": [
+                (10, "Proteinpulver"),
+                (20, "Erdnussbutter"),
+                (250, "Magerquark")
+            ],
+
+            "Hauptmahlzeiten": {
+
+                "RH": [
+                    (150, "Rindhack"),
+                    (150, "Kartoffeln"),
+                    (30, "Reis roh"),
+                    (50, "Gemüsemix")
                 ],
 
-                # FIX
-                "9i": [
-                    (30, "Proteinpulver"),
-                    (200, "Mandelmilch"),
-                    (1, "Milchreis PT")
+                "TU": [
+                    (200, "Tofu"),
+                    (50, "Reis roh"),
+                    (10, "Avocado"),
+                    (100, "Kartoffeln")
                 ],
 
-                # AUSWAHL – für Mittag UND 4i
-                "Hauptmahlzeiten": {
+                "EI": [
+                    (250, "Eiweiss"),
+                    (50, "Avocado"),
+                    (50, "Reis roh"),
+                    (200, "Kartoffeln")
+                ],
 
-                    "RH": [
-                        (150, "Rindhack"),
-                        (150, "Kartoffeln"),
-                        (30, "Reis roh"),
-                        (50, "Gemüsemix")
-                    ],
+                "GA": [
+                    (200, "Garnelen"),
+                    (50, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
 
-                    "TU": [
-                        (200, "Tofu"),
-                        (50, "Reis roh"),
-                        (10, "Avocado"),
-                        (100, "Kartoffeln")
-                    ],
+                "MO": [
+                    (125, "Mozzarella"),
+                    (150, "Kartoffeln"),
+                    (60, "Reis roh"),
+                    (50, "Tomaten")
+                ],
 
-                    "EI": [
-                        (250, "Eiweiss"),
-                        (50, "Avocado"),
-                        (50, "Reis roh"),
-                        (200, "Kartoffeln")
-                    ],
-
-                    "GA": [
-                        (200, "Garnelen"),
-                        (50, "Reis roh"),
-                        (20, "Avocado"),
-                        (150, "Kartoffeln")
-                    ],
-
-                    "MO": [
-                        (125, "Mozzarella"),
-                        (150, "Kartoffeln"),
-                        (60, "Reis roh"),
-                        (50, "Tomaten")
-                    ],
-
-                    "PO": [
-                        (200, "Poulet"),
-                        (50, "Reis roh"),
-                        (20, "Avocado"),
-                        (120, "Kartoffeln")
-                    ]
-                },
-
-                # FIX – nur noch Magerquark, kein Skyr
-                "Abend": [
-                    (10, "Proteinpulver"),
-                    (20, "Erdnussbutter"),
-                    (250, "Magerquark")
+                "PO": [
+                    (200, "Poulet"),
+                    (50, "Reis roh"),
+                    (20, "Avocado"),
+                    (120, "Kartoffeln")
                 ]
             }
-        
+        },
+
+        # ==================================================
+        # 2600 KCAL
+        # ==================================================
+
+        "2600 kcal": {
+
+            "Frühstück": [
+                (1, "Frühstücksporridge")
+            ],
+
+            "9i": [
+                (30, "Proteinpulver"),
+                (200, "Mandelmilch"),
+                (1, "Milchreis PT")
+            ],
+
+            "Nacht": [
+                (10, "Proteinpulver"),
+                (20, "Erdnussbutter"),
+                (250, "Magerquark")
+            ],
+
+            "Hauptmahlzeiten": {
+
+                "RH": [
+                    (150, "Rindhack"),
+                    (150, "Kartoffeln"),
+                    (60, "Reis roh"),
+                    (70, "Gemüsemix")
+                ],
+
+                "TU": [
+                    (200, "Tofu"),
+                    (70, "Reis roh"),
+                    (30, "Avocado"),
+                    (100, "Kartoffeln")
+                ],
+
+                "EI": [
+                    (250, "Eiweiss"),
+                    (50, "Avocado"),
+                    (80, "Reis roh"),
+                    (200, "Kartoffeln")
+                ],
+
+                "GA": [
+                    (200, "Garnelen"),
+                    (80, "Reis roh"),
+                    (20, "Avocado"),
+                    (150, "Kartoffeln")
+                ],
+
+                "MO": [
+                    (125, "Mozzarella"),
+                    (180, "Kartoffeln"),
+                    (80, "Reis roh"),
+                    (50, "Tomaten")
+                ],
+
+                "PO": [
+                    (200, "Poulet"),
+                    (80, "Reis roh"),
+                    (20, "Avocado"),
+                    (120, "Kartoffeln")
+                ]
+            }
+        }
     },
 
 
@@ -3038,9 +3104,9 @@ if username in MEALPLAN_USERS:
                         options=[
                             "Frühstück",
                             "9i",
+                            "Nacht",
                             "Mittag",
-                            "4i",
-                            "Abend"
+                            "4i"
                         ],
                         default="Frühstück",
                         selection_mode="single",
@@ -3050,9 +3116,9 @@ if username in MEALPLAN_USERS:
                     if meal_time is None:
                         meal_time = "Frühstück"
 
-                    # ------------------------------------------------
+                    # ====================================================
                     # MITTAG / 4i
-                    # ------------------------------------------------
+                    # ====================================================
 
                     if meal_time in ["Mittag", "4i"]:
 
@@ -3075,9 +3141,9 @@ if username in MEALPLAN_USERS:
 
                         meal_title = f"{meal_time} – {selected_option}"
 
-                    # ------------------------------------------------
-                    # FIXE MAHLZEITEN
-                    # ------------------------------------------------
+                    # ====================================================
+                    # FRÜHSTÜCK / 9i / NACHT
+                    # ====================================================
 
                     else:
 
