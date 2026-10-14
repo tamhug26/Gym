@@ -255,6 +255,115 @@ exercises_by_group = {
 # ============================================================
 # MEALPLANS
 # ============================================================
+# ============================================================
+# NÄHRWERTDATENBANK
+# Werte gemäss Excel, Stand Oktober 2026
+# Standard: pro 100 g, ausser anders angegeben
+# ============================================================
+
+FOOD_NUTRITION = {
+    # Zusätze
+    "Proteinpulver": {"protein": 73.33, "carbs": 9.67, "kcal": 373.33, "fat": 6.20},
+    "Isoclear": {"protein": 80, "carbs": 3, "kcal": 346.67, "fat": 0},
+
+    # Frühstück
+    "Alpro Joghurt": {"protein": 4, "carbs": 0, "kcal": 42, "fat": 2.3},
+    "Walnüsse": {"protein": 15, "carbs": 5, "kcal": 700, "fat": 65},
+    "Granola": {"protein": 16, "carbs": 27, "kcal": 553, "fat": None},
+    "Mandeln": {"protein": 21, "carbs": 22, "kcal": 576, "fat": 49},
+    "Chiasamen": {"protein": 17, "carbs": 42, "kcal": 486, "fat": 31},
+    "Starbucks Chilled Coffee": {"protein": 2.9, "carbs": 4.2, "kcal": 35, "fat": 0.9},
+    "Haferflocken": {"protein": 13, "carbs": 60, "kcal": 360, "fat": 7},
+    "Skyr": {"protein": 11, "carbs": 4, "kcal": 70, "fat": 0.2},
+    "Honig": {"protein": 0, "carbs": 80, "kcal": 300, "fat": 0},
+    "Erdnussbutter": {"protein": 23, "carbs": 7.1, "kcal": 646, "fat": 47},
+    "Reis roh": {"protein": 8, "carbs": 77, "kcal": 340, "fat": 0.7},
+
+    # Proteinquellen
+    "Hüttenkäse": {"protein": 13, "carbs": 3, "kcal": 98, "fat": 4},
+    "Feta Light": {"protein": 15.7, "carbs": 0.8, "kcal": 273, "fat": 23},
+    "Halloumi": {"protein": 21, "carbs": 2, "kcal": 321, "fat": 24.8},
+    "Tofu": {"protein": 14, "carbs": 1.4, "kcal": 131, "fat": 8},
+    "Garnelen": {"protein": 20, "carbs": 1, "kcal": 100, "fat": 1.7},
+    "Poulet": {"protein": 22, "carbs": 1, "kcal": 119, "fat": 2.6},
+    "Rindersteak": {"protein": 21, "carbs": 0.8, "kcal": 121, "fat": 4},
+    "Rindhack": {"protein": 19, "carbs": 0, "kcal": 194, "fat": 12},
+    "Lachs": {"protein": 20.7, "carbs": 0.3, "kcal": 208, "fat": 13},
+    "Hummus Reduce": {"protein": 6.5, "carbs": 11, "kcal": 155, "fat": 8.3},
+    "Mozzarella": {"protein": 20.5, "carbs": 1.5, "kcal": 165, "fat": 8.5},
+    "Tempeh": {"protein": 18, "carbs": 4.9, "kcal": 161, "fat": 9},
+    "Käse": {"protein": 25, "carbs": 0, "kcal": 120, "fat": 30},
+    "Eiweiss": {"protein": 11, "carbs": 0, "kcal": 50, "fat": 0},
+    "Pute": {"protein": 23, "carbs": 0, "kcal": 110, "fat": 1},
+    "Greek Joghurt": {"protein": 4.8, "carbs": 3.9, "kcal": 118, "fat": 9},
+    "Magerquark": {"protein": 12, "carbs": 4.1, "kcal": 68, "fat": 0.2},
+    "Seelachs": {"protein": 17, "carbs": 0, "kcal": 74, "fat": 0.5},
+    "Tilapia": {"protein": 20, "carbs": 0, "kcal": 95, "fat": 2},
+
+    # Gemüse und Obst
+    "Pilze": {"protein": 3.1, "carbs": 3.3, "kcal": 22, "fat": 0.3},
+    "Spinat": {"protein": 2.9, "carbs": 3.6, "kcal": 23, "fat": 0.4},
+    "Brokkoli": {"protein": 2.8, "carbs": 6.6, "kcal": 34, "fat": 0.4},
+    "Blumenkohl": {"protein": 1.9, "carbs": 4.9, "kcal": 25, "fat": 0.3},
+    "Kartoffeln": {"protein": 2, "carbs": 17, "kcal": 77, "fat": 0.1},
+    "Avocado": {"protein": 2, "carbs": 1.8, "kcal": 160, "fat": 15},
+    "Zucchini": {"protein": 1.6, "carbs": 2.2, "kcal": 16, "fat": 0.3},
+    "Peperoni": {"protein": 1, "carbs": 6, "kcal": 26, "fat": 0.3},
+    "Aubergine": {"protein": 1, "carbs": 5.9, "kcal": 25, "fat": 0.2},
+    "Karotten": {"protein": 0.9, "carbs": 9.6, "kcal": 41, "fat": 0.2},
+    "Tomaten": {"protein": 0.9, "carbs": 3.9, "kcal": 18, "fat": 0.2},
+    "Gurken": {"protein": 0.7, "carbs": 2, "kcal": 12, "fat": 0.1},
+    "Schwarze Bohnen": {"protein": 7.7, "carbs": 21, "kcal": 132, "fat": 0.5},
+    "Süsskartoffeln": {"protein": 1.6, "carbs": 20, "kcal": 86, "fat": 0.1},
+    "Zwiebel": {"protein": 1.2, "carbs": 4.9, "kcal": 27, "fat": 0.2},
+    "Linsen trocken": {"protein": 26, "carbs": 55, "kcal": 350, "fat": 1.1},
+    "Apfel": {"protein": 0.3, "carbs": 14, "kcal": 53, "fat": 0.2},
+    "Banane": {"protein": 1, "carbs": 20, "kcal": 105, "fat": 0.3},
+    "Mixed Berries": {"protein": 1, "carbs": 15, "kcal": 65, "fat": 0.3},
+    "Lange Bohnen": {"protein": 2, "carbs": 5, "kcal": 35, "fat": 0.1},
+    "Spargeln": {"protein": 2, "carbs": 2, "kcal": 20, "fat": 0.1},
+    "Salat": {"protein": 1.5, "carbs": 1, "kcal": 15, "fat": 0.2},
+    "Datteln": {"protein": 2.5, "carbs": 75, "kcal": 282, "fat": 0.1},
+    "Gemüsemix": {"protein": 4, "carbs": 11, "kcal": 24, "fat": 0.5},
+    "Feigen getrocknet": {"protein": 3.2, "carbs": 57, "kcal": 274, "fat": 0.2},
+
+    # Kohlenhydrate
+    "Pasta roh": {"protein": 12, "carbs": 71, "kcal": 359, "fat": None},
+    "Gnocchi": {"protein": 3, "carbs": 30, "kcal": 145, "fat": None},
+    "Gepuffter Reis": {"protein": 6, "carbs": 80, "kcal": 370, "fat": None},
+    "Kartoffelstock": {"protein": 2, "carbs": 13, "kcal": 73, "fat": None},
+
+    # Milchprodukte und weitere Zutaten
+    "Mandelmilch": {"protein": 0.4, "carbs": 0, "kcal": 13, "fat": 1.1},
+    "Entöltes Mandelmehl": {"protein": 45, "carbs": 5, "kcal": 325, "fat": 12},
+    "Philadelphia Balance": {"protein": 5.4, "carbs": 4.3, "kcal": 226, "fat": 11},
+    "Kokosmilch": {"protein": 1.7, "carbs": 3.4, "kcal": 218, "fat": 21},
+    "Olivenöl": {"protein": 0, "carbs": 0, "kcal": 820, "fat": 91},
+    "Matcha": {"protein": 22.8, "carbs": 2.9, "kcal": 138, "fat": 4.06},
+}
+
+# Lebensmittel, deren Excel-Werte sich auf Stück/Portionen
+# statt auf 100 g beziehen.
+FOOD_NUTRITION_PER_UNIT = {
+    "Linsenwaffel": {"unit": "Stück (7 g)", "protein": 1.8, "carbs": 4.1, "kcal": 26, "fat": 1},
+    "Ei": {"unit": "grosses Ei", "protein": 6, "carbs": 0.6, "kcal": 77, "fat": 5.3},
+    "Proteinbite": {"unit": "Stück", "protein": 1, "carbs": 4.12, "kcal": 31.6, "fat": None},
+    "Wrap": {"unit": "Stück", "protein": 11, "carbs": 24, "kcal": 197, "fat": None},
+    "Bagel": {"unit": "Stück", "protein": 27, "carbs": 56, "kcal": 395, "fat": None},
+    "Brötchen": {"unit": "Stück", "protein": 16, "carbs": 19, "kcal": 206, "fat": 6},
+    "Gyoza Tofu und Gemüse": {"unit": "20 g", "protein": 1, "carbs": 26, "kcal": 155, "fat": None},
+}
+
+# Fertige Rezepte – Werte gemäss Excel
+# Portionsdefinitionen später bei Bedarf ergänzen.
+FOOD_NUTRITION_RECIPES = {
+    "Frühstücksporridge": {"protein": 36.24, "carbs": 36.89, "kcal": 523.78, "fat": 22.65},
+    "Frühstücksjoghurt Can": {"protein": 53.25, "carbs": 39.01, "kcal": 550.11, "fat": 17.74},
+    "Morningshake Can": {"protein": 32.6, "carbs": 53.61, "kcal": 487.6, "fat": 12.56},
+    "Apfel-Zimt-Protein-Muffins": {"protein": 8, "carbs": 2.91, "kcal": 65.4, "fat": 0},
+    "Milchreis P T": {"protein": 23.1, "carbs": 46.16, "kcal": 418.4, "fat": 13.706},
+    "Belegtes Brot": {"protein": 30.88, "carbs": 23.62, "kcal": 530.35, "fat": 28.3},
+}
 
 MEAL_PLANS = {
 
@@ -627,11 +736,8 @@ MEAL_PLANS = {
         }
     }
 
-
-
 # Benutzer, die den Mealplan-Tab sehen dürfen
 MEALPLAN_USERS = ["Tamara", "Can", "Nemo", "Onur"]
-
 
 def format_meal_amount(amount, food):
     """
@@ -2092,8 +2198,6 @@ saved_df = load_data(
 body_df = load_body_data(
     username
 )
-
-
 # ============================================================
 # SIDEBAR
 # ============================================================
