@@ -888,6 +888,28 @@ def safe_string(value, default=""):
 
     return str(value)
 
+def get_latest_body_weight(body_df):
+    if body_df.empty:
+        return None, None
+
+    if not all(col in body_df.columns for col in ["Datum", "Gewicht kg"]):
+        return None, None
+
+    df = body_df.copy()
+
+    df["Datum"] = pd.to_datetime(df["Datum"], errors="coerce")
+    df["Gewicht kg"] = pd.to_numeric(df["Gewicht kg"], errors="coerce")
+
+    df = df.dropna(subset=["Datum", "Gewicht kg"])
+    df = df[df["Gewicht kg"] > 0]
+
+    if df.empty:
+        return None, None
+
+    latest = df.sort_values("Datum").iloc[-1]
+
+    return float(latest["Gewicht kg"]), latest["Datum"].strftime("%d.%m.%Y")
+
 def body_value_or_empty(value):
     if value is None or value == 0:
         return "Keine Angabe"
@@ -935,6 +957,41 @@ def get_last_set2_weight(saved_df, exercise, machine, griff):
     )
 
     return weight
+
+def get_last_training_weights(saved_df, exercise):
+    if saved_df.empty:
+        return ""
+
+    df = saved_df.copy()
+
+    df["Datum"] = pd.to_datetime(
+        df["Datum"], errors="coerce"
+    )
+
+    matches = df[
+        df["Übung"] == exercise
+    ].sort_values("Datum", ascending=False, kind="stable")
+
+    if matches.empty:
+        return ""
+
+    last_training = matches.iloc[0]
+    weights = []
+
+    for set_number in range(1, 20):
+        col = f"Set {set_number} Gewicht"
+
+        if col not in df.columns:
+            continue
+
+        weight = safe_float(
+            last_training[col], default=0
+        )
+
+        if weight > 0:
+            weights.append(f"{set_number}. {weight:g} kg")
+
+    return " · ".join(weights)
 
 def get_last_mode_and_calories(saved_df):
 
@@ -1672,6 +1729,25 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 "⚠️ Schulterblätter nach hinten und runter drücken."
             )
 
+
+
+        if machine == "Bodyweight":
+            latest_body_weight, latest_body_date = get_latest_body_weight(
+                load_body_data(username)
+            )
+
+            if latest_body_weight is not None:
+                st.info(
+                    f"⚖️ Dein zuletzt gespeichertes Körpergewicht: "
+                    f"{latest_body_weight:g} kg "
+                    f"(vom {latest_body_date})"
+                )
+            else:
+                st.caption(
+                    "Noch kein Körpergewicht gespeichert. "
+                    "Du kannst es unter 'Body Maße' eintragen."
+                )
+
         # --------------------------------------------------------
         # LETZTES GEWICHT
         # --------------------------------------------------------
@@ -1713,7 +1789,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             "Hanging"
         ]
 
-        uses_weight = True
+        uses_weight = machine != "Bodyweight"
 
         # --------------------------------------------------------
         # CORE: OPTIONAL MIT GEWICHT
@@ -2058,55 +2134,55 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     # SPEICHERN
     # ============================================================
 
+    if "training_saving" not in st.session_state:
+        st.session_state.training_saving = False
+
+    
     if st.button(
         "💾 Änderungen speichern"
         if edit_row_index is not None
-        else "💾 Übung speichern"
+        else "💾 Übung speichern",
+        disabled=st.session_state.training_saving
     ):
 
-        new_df = pd.DataFrame(entries)
+        if st.session_state.training_saving:
+            st.stop()
 
-        old_df = saved_df.copy()
+        st.session_state.training_saving = True
 
-        # ================================================
-        # BESTEHENDE ÜBUNG BEARBEITEN
-        # ================================================
+        try:
+            with st.spinner("⏳ Übung wird gespeichert..."):
 
-        if (
-            edit_row_index is not None
-            and edit_row_index in old_df.index
-        ):
+                new_df = pd.DataFrame(entries)
+                old_df = saved_df.copy()
 
-            old_df = old_df.drop(
-                index=edit_row_index
-            )
+                # Bestehende Übung bearbeiten
+                if (
+                    edit_row_index is not None
+                    and edit_row_index in old_df.index
+                ):
+                    old_df = old_df.drop(
+                        index=edit_row_index
+                    )
 
-        # ================================================
-        # NEUE / GEÄNDERTE ÜBUNG HINZUFÜGEN
-        # ================================================
+                # Neue / geänderte Übung hinzufügen
+                full_df = pd.concat(
+                    [old_df, new_df],
+                    ignore_index=True
+                )
 
-        full_df = pd.concat(
-            [
-                old_df,
-                new_df
-            ],
-            ignore_index=True
-        )
+                save_data(username, full_df)
 
-        save_data(
-            username,
-            full_df
-        )
+            st.session_state.exercise_edit_index = None
+            st.session_state.training_saving = False
 
-        st.session_state.exercise_edit_index = None
+            st.toast("Übung gespeichert! ✓")
+            st.rerun()
 
-        st.success(
-            "Übung gespeichert! ✓"
-        )
+        except Exception as e:
+            st.session_state.training_saving = False
+            st.error(f"Fehler beim Speichern: {e}")
 
-        time.sleep(0.5)
-
-        st.rerun()
 
 # ============================================================
 # LOGIN
@@ -2980,6 +3056,14 @@ with tab3:
                         stats_df["Übung"]
                         == selected_exercise
                     ].copy()
+
+                    
+                    last_weights = get_last_training_weights(
+                        saved_df, selected_exercise
+                    )
+
+                    if last_weights:
+                        st.caption(f"Letztes Training: {last_weights}")
 
 
                     if "Datum" in progress_df.columns:
