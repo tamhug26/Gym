@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from io import BytesIO
 import os
+import uuid
 
 
 # ============================================================
@@ -820,16 +821,8 @@ def save_data(username, df):
 
     worksheet = get_user_worksheet(username)
 
-    worksheet.clear()
+    clean_df = df.copy().fillna("")
 
-    if df.empty:
-        return
-
-    clean_df = df.copy()
-
-    clean_df = clean_df.fillna("")
-
-    # Datumswerte und andere Objekte sauber in Strings umwandeln
     for col in clean_df.columns:
         clean_df[col] = clean_df[col].apply(
             lambda x: x.isoformat()
@@ -841,93 +834,109 @@ def save_data(username, df):
         clean_df.columns.tolist()
     ] + clean_df.astype(str).values.tolist()
 
+    if not data[0]:
+        raise ValueError(
+            "Speichern abgebrochen: Keine Spalten vorhanden."
+        )
+
+    existing_values = worksheet.get_all_values()
+
+    # Bestehende Zeilen nicht unbeabsichtigt entfernen
+    if len(data) < len(existing_values):
+        raise ValueError(
+            "Speichern abgebrochen: Der neue Datenstand "
+            "enthält weniger Zeilen als Google Sheets. "
+            "Bitte die Änderung überprüfen."
+        )
+
+    if len(data[0]) > worksheet.col_count:
+        worksheet.add_cols(
+            len(data[0]) - worksheet.col_count
+        )
+
     worksheet.update(
         range_name="A1",
         values=data
     )
 
+def find_training_row_by_id(username, training_id):
+    df = load_data(username)
 
-def save_training_row(username, entry, row_index=None):
-    """
-    Speichert eine einzelne Übung in Google Sheets.
+    if df.empty or "Training ID" not in df.columns:
+        return None
 
-    row_index=None:
-        Neue Übung hinzufügen.
+    matches = df.index[
+        df["Training ID"].astype(str) == str(training_id)
+    ].tolist()
 
-    row_index=0, 1, 2, ...:
-        Bestehende Übung aktualisieren.
+    if len(matches) > 1:
+        raise ValueError(
+            "Doppelte Training ID gefunden. Speichern abgebrochen."
+        )
 
-    Gibt den DataFrame-Zeilenindex zurück.
-    """
+    return matches[0] if matches else None
 
+
+def save_training_row(username, entry, training_id=None):
     worksheet = get_user_worksheet(username)
 
-    # Aktuellen Stand direkt aus Google Sheets laden
     current_df = load_data(username)
 
-    if row_index is not None:
-        row_index = int(row_index)
+    if training_id is None:
+        training_id = str(uuid.uuid4())
 
-        if row_index not in current_df.index:
-            raise ValueError(
-                "Die gespeicherte Übung wurde nicht gefunden."
-            )
+    entry = entry.copy()
+    entry["Training ID"] = training_id
 
-    # Neue Spalten ergänzen, falls erforderlich
+    row_index = find_training_row_by_id(
+        username, training_id
+    )
+
     columns = list(current_df.columns)
 
     for col in entry:
         if col not in columns:
             columns.append(col)
 
-    # Falls neue Spalten benötigt werden, Header erweitern
+    if len(columns) > worksheet.col_count:
+        worksheet.add_cols(
+            len(columns) - worksheet.col_count
+        )
+
     if columns != list(current_df.columns):
         worksheet.update(
             range_name="A1",
             values=[columns]
         )
 
+    if row_index is None:
+        row_index = len(current_df)
+        row_data = {col: "" for col in columns}
+    else:
+        row_data = current_df.iloc[row_index].to_dict()
+
+    row_data.update(entry)
+
     def clean_value(value):
         if value is None:
             return ""
-
         if isinstance(value, (date, datetime)):
             return value.isoformat()
-
         if pd.isna(value):
             return ""
-
         return str(value)
-
-    # Neue Übung
-    if row_index is None:
-        row_index = len(current_df)
-
-        row_data = {
-            col: entry.get(col, "")
-            for col in columns
-        }
-
-    # Bereits angelegte Übung
-    else:
-        row_data = current_df.iloc[row_index].to_dict()
-        row_data.update(entry)
 
     values = [
         clean_value(row_data.get(col, ""))
         for col in columns
     ]
 
-    # DataFrame-Index 0 entspricht Google-Sheets-Zeile 2
-    sheet_row = row_index + 2
-
     worksheet.update(
-        range_name=f"A{sheet_row}",
+        range_name=f"A{row_index + 2}",
         values=[values]
     )
 
-    return row_index
-
+    return training_id
 
 # ============================================================
 # HILFSFUNKTIONEN
@@ -1139,6 +1148,15 @@ def get_last_mode_and_calories(saved_df):
 # ============================================================
 
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
+    
+    # Eindeutige ID für die aktuell bearbeitete Übung
+    if "active_training_id" not in st.session_state:
+        st.session_state.active_training_id = None
+
+    if "saved_training_sets" not in st.session_state:
+        st.session_state.saved_training_sets = []
+
+    
     edit_df = pd.DataFrame()
 
     exercise_edit_row = None
@@ -2140,6 +2158,95 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
                     "note": note_set
                 })
+
+
+        # ========================================================
+        # EINZELNES SET SPEICHERN
+        # ========================================================
+
+        for set_index, set_data in enumerate(sets):
+
+            set_number = set_index + 1
+
+            if st.button(
+                f"💾 Set {set_number} speichern",
+                key=f"save_set_{i}_{set_number}"
+            ):
+
+                with st.spinner(
+                    f"Set {set_number} wird gespeichert..."
+                ):
+
+                    # Falls noch keine Übung begonnen wurde,
+                    # eine eindeutige ID erzeugen
+                    if st.session_state.active_training_id is None:
+                        st.session_state.active_training_id = str(
+                            uuid.uuid4()
+                        )
+
+                    training_id = st.session_state.active_training_id
+
+                    # Allgemeine Angaben
+                    set_entry = {
+                        "Benutzer": username,
+                        "Datum": training_date,
+                        "Modus": mode,
+                        "Kalorienziel": calories,
+                        "Ausführung": execution_type,
+                        "Period Mode": period_mode,
+                        "Periode Start": period_start,
+                        "Periode Ende": period_end,
+                        "Stimmung": mood,
+                        "Schmerzen": pain,
+                        "Cardio Form": cardio_type,
+                        "Cardio Zeit min": cardio_time,
+                        "Cardio Distanz km": cardio_distance,
+                        "Cardio Kalorien": cardio_calories,
+                        "Übung": exercise,
+                        "Machine": machine,
+                        "Griff": griff,
+                        "Extra Info": extra_info,
+                        "Notiz Übung": note,
+                        "Anzahl Sets": number_of_sets,
+                        "Status": "In Bearbeitung"
+                    }
+
+                    # Nur das ausgewählte Set speichern
+                    set_entry.update({
+                        f"Set {set_number} Gewicht":
+                            set_data["weight"],
+                        f"Set {set_number} Wdh":
+                            set_data["reps"],
+                        f"Set {set_number} Links Gewicht":
+                            set_data["left_weight"],
+                        f"Set {set_number} Links Wdh":
+                            set_data["left_reps"],
+                        f"Set {set_number} Rechts Gewicht":
+                            set_data["right_weight"],
+                        f"Set {set_number} Rechts Wdh":
+                            set_data["right_reps"],
+                        f"Set {set_number} Dauer Sekunden":
+                            set_data["duration"],
+                        f"Set {set_number} Notiz":
+                            set_data["note"]
+                    })
+
+                    save_training_row(
+                        username,
+                        set_entry,
+                        training_id=training_id
+                    )
+
+                    if set_number not in st.session_state.saved_training_sets:
+                        st.session_state.saved_training_sets.append(
+                            set_number
+                        )
+
+                st.toast(
+                    f"Set {set_number} gespeichert! ✓"
+                )
+                st.rerun()
+
         # ========================================================
         # EINTRAG ERSTELLEN
         # ========================================================
@@ -2219,58 +2326,66 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
         entries.append(entry)
 
-    # ============================================================
-    # SPEICHERN
-    # ============================================================
-
-    if "training_saving" not in st.session_state:
-        st.session_state.training_saving = False
-
     
-    if st.button(
-        "💾 Änderungen speichern"
-        if edit_row_index is not None
-        else "💾 Übung speichern",
-        disabled=st.session_state.training_saving
-    ):
+    # ============================================================
+    # ÜBUNG ABSCHLIESSEN
+    # ============================================================
 
-        if st.session_state.training_saving:
-            st.stop()
+    if st.button("✓ Übung abschliessen", type="primary"):
 
-        st.session_state.training_saving = True
+        training_id = st.session_state.active_training_id
 
-        try:
-            with st.spinner("⏳ Übung wird gespeichert..."):
+        if training_id is None:
+            st.warning(
+                "Speichere zuerst mindestens ein Set, "
+                "bevor du die Übung abschliesst."
+            )
 
-                new_df = pd.DataFrame(entries)
-                old_df = saved_df.copy()
+        else:
+            try:
+                with st.spinner("Übung wird abgeschlossen..."):
 
-                # Bestehende Übung bearbeiten
-                if (
-                    edit_row_index is not None
-                    and edit_row_index in old_df.index
-                ):
-                    old_df = old_df.drop(
-                        index=edit_row_index
+                    save_training_row(
+                        username,
+                        {"Status": "Abgeschlossen"},
+                        training_id=training_id
                     )
 
-                # Neue / geänderte Übung hinzufügen
-                full_df = pd.concat(
-                    [old_df, new_df],
-                    ignore_index=True
+                st.session_state.active_training_id = None
+                st.session_state.saved_training_sets = []
+
+                st.session_state.exercise_edit_index = None
+
+                # Eingabefelder der Übung zurücksetzen
+                for key in list(st.session_state.keys()):
+                    if key.startswith((
+                        "exercise_",
+                        "execution_type_",
+                        "number_sets_",
+                        "machine_",
+                        "grip_",
+                        "extra_",
+                        "note_",
+                        "uses_weight_",
+                        "weight_",
+                        "reps_",
+                        "duration_",
+                        "left_weight_",
+                        "left_reps_",
+                        "right_weight_",
+                        "right_reps_",
+                        "note_set_"
+                    )):
+                        del st.session_state[key]
+
+                st.toast("Übung abgeschlossen! ✓")
+                st.rerun()
+
+            except Exception as e:
+                st.error(
+                    f"Fehler beim Abschliessen: {e}"
                 )
 
-                save_data(username, full_df)
-
-            st.session_state.exercise_edit_index = None
-            st.session_state.training_saving = False
-
-            st.toast("Übung gespeichert! ✓")
-            st.rerun()
-
-        except Exception as e:
-            st.session_state.training_saving = False
-            st.error(f"Fehler beim Speichern: {e}")
 
 
 # ============================================================
