@@ -846,6 +846,89 @@ def save_data(username, df):
         values=data
     )
 
+
+def save_training_row(username, entry, row_index=None):
+    """
+    Speichert eine einzelne Übung in Google Sheets.
+
+    row_index=None:
+        Neue Übung hinzufügen.
+
+    row_index=0, 1, 2, ...:
+        Bestehende Übung aktualisieren.
+
+    Gibt den DataFrame-Zeilenindex zurück.
+    """
+
+    worksheet = get_user_worksheet(username)
+
+    # Aktuellen Stand direkt aus Google Sheets laden
+    current_df = load_data(username)
+
+    if row_index is not None:
+        row_index = int(row_index)
+
+        if row_index not in current_df.index:
+            raise ValueError(
+                "Die gespeicherte Übung wurde nicht gefunden."
+            )
+
+    # Neue Spalten ergänzen, falls erforderlich
+    columns = list(current_df.columns)
+
+    for col in entry:
+        if col not in columns:
+            columns.append(col)
+
+    # Falls neue Spalten benötigt werden, Header erweitern
+    if columns != list(current_df.columns):
+        worksheet.update(
+            range_name="A1",
+            values=[columns]
+        )
+
+    def clean_value(value):
+        if value is None:
+            return ""
+
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+
+        if pd.isna(value):
+            return ""
+
+        return str(value)
+
+    # Neue Übung
+    if row_index is None:
+        row_index = len(current_df)
+
+        row_data = {
+            col: entry.get(col, "")
+            for col in columns
+        }
+
+    # Bereits angelegte Übung
+    else:
+        row_data = current_df.iloc[row_index].to_dict()
+        row_data.update(entry)
+
+    values = [
+        clean_value(row_data.get(col, ""))
+        for col in columns
+    ]
+
+    # DataFrame-Index 0 entspricht Google-Sheets-Zeile 2
+    sheet_row = row_index + 2
+
+    worksheet.update(
+        range_name=f"A{sheet_row}",
+        values=[values]
+    )
+
+    return row_index
+
+
 # ============================================================
 # HILFSFUNKTIONEN
 # ============================================================
