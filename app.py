@@ -1752,25 +1752,20 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         # LETZTES GEWICHT
         # --------------------------------------------------------
 
-        last_weight = get_last_set2_weight(
-            saved_df,
-            exercise,
-            machine,
-            griff
+        
+        last_weights = get_last_training_weights(
+            saved_df, exercise
         )
 
-        if last_weight is not None:
-
+        if last_weights:
             st.info(
-                f"Letztes Mal bei genau dieser Übung: "
-                f"Set 2 = {last_weight} kg"
+                f"Letztes Training: {last_weights}"
             )
-
         else:
-
             st.caption(
-                "Noch kein früherer Eintrag für diese genaue Übung gefunden."
+                "Noch kein früherer Eintrag für diese Übung gefunden."
             )
+
 
         # ========================================================
         # SETS
