@@ -970,28 +970,39 @@ def get_last_training_weights(saved_df, exercise):
 
     matches = df[
         df["Übung"] == exercise
-    ].sort_values("Datum", ascending=False, kind="stable")
+    ].sort_values(
+        "Datum", ascending=False, kind="stable"
+    )
 
     if matches.empty:
         return ""
 
     last_training = matches.iloc[0]
-    weights = []
+    sets = []
 
-    for set_number in range(1, 20):
-        col = f"Set {set_number} Gewicht"
+    for set_number in range(1, 50):
+        weight_col = f"Set {set_number} Gewicht"
+        reps_col = f"Set {set_number} Wdh"
 
-        if col not in df.columns:
+        if weight_col not in df.columns:
             continue
 
         weight = safe_float(
-            last_training[col], default=0
+            last_training.get(weight_col, 0),
+            default=0
         )
 
-        if weight > 0:
-            weights.append(f"{set_number}. {weight:g} kg")
+        reps = safe_float(
+            last_training.get(reps_col, 0),
+            default=0
+        )
 
-    return " · ".join(weights)
+        if weight > 0 or reps > 0:
+            sets.append(
+                f"{set_number}. {weight:g} kg × {reps:g}"
+            )
+
+    return " · ".join(sets)
 
 def get_last_mode_and_calories(saved_df):
 
