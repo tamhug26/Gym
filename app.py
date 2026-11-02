@@ -155,6 +155,7 @@ USERS = {
 # ÜBUNGEN
 # ============================================================
 
+
 exercises_by_group = {
 
     "Rücken": [
@@ -162,6 +163,8 @@ exercises_by_group = {
         "Lat pull down",
         "Überzüge",
         "Rudern",
+        "Iso-Lateral Row",
+        "Iso-Lateral D.Y. Row",
         "Face pulls",
         "Delt Fly",
         "Hanging"
@@ -169,6 +172,7 @@ exercises_by_group = {
 
     "Brust": [
         "Push",
+        "Incline Chest Press",
         "Butterfly"
     ],
 
@@ -176,6 +180,7 @@ exercises_by_group = {
         "Leg extension",
         "Leg curl",
         "Leg press",
+        "Pendulum Leg Press",
         "Abductor",
         "Adductor",
         "Squat",
@@ -201,12 +206,14 @@ exercises_by_group = {
 
     "Trizeps": [
         "Dips",
-        "Push down"
+        "Push down",
+        "Overhead Triceps Extension"
     ],
 
     "Schultern": [
         "Lateral raises",
         "Front raises",
+        "Cable Front Raise (Between Legs)",
         "Shoulder Press",
         "Delt Fly"
     ],
@@ -1342,7 +1349,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         )
 
         muscle_groups = st.multiselect(
-            "Welche Muskelgruppen hast du trainiert?",
+            "Welche Muskelgruppe trainierst du?",
             all_groups,
             default=all_groups,
             key="muscle_groups"
@@ -1358,7 +1365,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     else:
 
         muscle_groups = st.multiselect(
-            "Welche Muskelgruppen hast du trainiert?",
+            "Welche Muskelgruppe trainierst du?",
             all_groups,
             key="muscle_groups"
         )
