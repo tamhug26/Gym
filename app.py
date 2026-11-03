@@ -1269,6 +1269,13 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     import uuid
     import re
 
+    # Editorzustand gehört immer zum angemeldeten Benutzer.
+    if st.session_state.get("gym_owner") != username:
+        for name in list(st.session_state):
+            if name.startswith("gym_") or name in ("active_training_id", "exercise_edit_index"):
+                st.session_state.pop(name, None)
+        st.session_state.gym_owner = username
+
     def nonempty(value):
         return pd.notna(value) and str(value).strip().lower() not in ("", "nan", "none")
 
@@ -1320,6 +1327,9 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         else:
             target = None
 
+        if target is None and "Übung" not in entry:
+            raise ValueError("Trainingszeile fehlt. Abschluss ohne Sets abgebrochen.")
+
         # Ein neues Training bekommt seine ID vor dem ersten Schreibversuch.
         # Bei unklarem Ergebnis bleibt die ID erhalten, damit ein Retry nicht dupliziert.
         for col in list(entry) + ["Training ID"]:
@@ -1348,6 +1358,17 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         else:
             # Sheet-Zeile = Header + 0-basierter Datenindex + 1
             ws.update(range_name=f"A{target + 2}", values=[output])
+        # Nach jedem erfolgreichen Schreibaufruf den Lesecache verwerfen, auch vor der Prüfung.
+        load_data.clear()
+        _, check_headers, check_rows = read_sheet()
+        id_col = check_headers.index("Training ID")
+        matches = [r for r in check_rows if len(r) > id_col and r[id_col] == training_id]
+        if len(matches) != 1:
+            raise ValueError("Gespeicherte Zeile konnte nicht eindeutig bestätigt werden.")
+        confirmed = dict(zip(check_headers, matches[0]))
+        if any(clean(confirmed.get(col, "")) != clean(value)
+               for col, value in dict(entry, **{"Training ID": training_id}).items()):
+            raise ValueError("Google Sheets bestätigt noch nicht alle Werte. Bitte erneut speichern.")
         return training_id
 
     def saved_set_numbers(row):
@@ -1635,10 +1656,30 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         base_entry["Status"] = "In Bearbeitung"
 
     st.markdown("### Sets")
+    st.caption("Einzeln speichern klappt ein Set zu. Abschließen speichert alle sichtbaren Sets einschließlich deiner Änderungen.")
+    all_set_entries = {}
     for s in range(number_of_sets):
         n = s + 1
         old = old_row if old_row is not None else {}
-        with st.expander(f"Set {n}", expanded=True):
+        is_saved = old_row is not None and n in saved_set_numbers(old_row)
+        if is_saved:
+            if is_time_exercise:
+                summary = f"{safe_float(old.get(f'Set {n} Dauer Sekunden', 0)):g} Sekunden"
+            elif execution_type == "Einseitig":
+                parts = []
+                for side in ("Links", "Rechts"):
+                    reps = safe_float(old.get(f"Set {n} {side} Wdh", 0))
+                    weight = safe_float(old.get(f"Set {n} {side} Gewicht", 0))
+                    parts.append(f"{side}: {weight:g} kg × {reps:g}" if uses_weight else f"{side}: {reps:g} Wdh")
+                summary = " · ".join(parts)
+            else:
+                reps = safe_float(old.get(f"Set {n} Wdh", 0))
+                weight = safe_float(old.get(f"Set {n} Gewicht", 0))
+                summary = f"{weight:g} kg × {reps:g}" if uses_weight else f"{reps:g} Wdh"
+            label = f"Set {n} · {summary} · gespeichert ✓ (zum Bearbeiten öffnen)"
+        else:
+            label = f"Set {n} · noch nicht gespeichert"
+        with st.expander(label, expanded=not is_saved):
             values = {"weight": 0.0, "reps": 0.0, "duration": 0.0,
                       "left_weight": 0.0, "left_reps": 0.0,
                       "right_weight": 0.0, "right_reps": 0.0}
@@ -1667,24 +1708,41 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                     step=0.5, key=key(f"reps_{s}"))
             set_note = st.text_input("Set-Notiz", value=clean(old.get(f"Set {n} Notiz", "")),
                                      key=key(f"set_note_{s}"))
+            payload = {
+                f"Set {n} Gewicht": values["weight"],
+                f"Set {n} Wdh": values["reps"],
+                f"Set {n} Links Gewicht": values["left_weight"],
+                f"Set {n} Links Wdh": values["left_reps"],
+                f"Set {n} Rechts Gewicht": values["right_weight"],
+                f"Set {n} Rechts Wdh": values["right_reps"],
+                f"Set {n} Dauer Sekunden": values["duration"],
+                f"Set {n} Notiz": set_note,
+            }
+            all_set_entries.update(payload)
+            if is_saved:
+                changed = any(
+                    (safe_float(old.get(col, 0)) != safe_float(value))
+                    if not col.endswith("Notiz") else clean(old.get(col, "")) != clean(value)
+                    for col, value in payload.items()
+                )
+                if changed:
+                    st.caption("Geänderte Eingaben sind noch nicht gespeichert.")
+            valid_set = (values["duration"] > 0 if is_time_exercise else
+                         values["left_reps"] > 0 and values["right_reps"] > 0
+                         if execution_type == "Einseitig" else values["reps"] > 0)
             if st.button(f"💾 Set {n} speichern", key=key(f"save_{s}"),
                          disabled=st.session_state.gym_pending_save):
+                if not valid_set:
+                    st.warning("Bitte eine positive Dauer bzw. Wiederholungszahl eingeben.")
+                    return
                 st.session_state.gym_pending_save = True
-                # ID vor dem ersten Google-Sheets-Aufruf merken; Retry bleibt idempotent.
                 if st.session_state.active_training_id is None:
                     st.session_state.active_training_id = str(uuid.uuid4())
                 training_id = st.session_state.active_training_id
-                entry = base_entry.copy()
-                entry.update({
-                    f"Set {n} Gewicht": values["weight"],
-                    f"Set {n} Wdh": values["reps"],
-                    f"Set {n} Links Gewicht": values["left_weight"],
-                    f"Set {n} Links Wdh": values["left_reps"],
-                    f"Set {n} Rechts Gewicht": values["right_weight"],
-                    f"Set {n} Rechts Wdh": values["right_reps"],
-                    f"Set {n} Dauer Sekunden": values["duration"],
-                    f"Set {n} Notiz": set_note
-                })
+                entry = dict(base_entry, **payload)
+                entry["Status"] = "In Bearbeitung"
+                previous = saved_set_numbers(old_row) if old_row is not None else []
+                entry["Anzahl Sets"] = len(set(previous) | {n})
                 try:
                     with st.spinner(f"Set {n} wird gespeichert..."):
                         persist_set(entry, training_id, legacy_index=legacy_index)
@@ -1714,25 +1772,43 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
     if st.button("✓ Übung abschliessen", type="primary", key=key("finish"),
                  disabled=st.session_state.gym_pending_save):
+        # Alle sichtbaren Eingaben zusammen mit dem Abschlussstatus schreiben.
+        # So kann insbesondere das letzte Set nicht beim Abschließen verloren gehen.
+        invalid = []
+        for n in range(1, number_of_sets + 1):
+            if is_time_exercise:
+                valid = all_set_entries[f"Set {n} Dauer Sekunden"] > 0
+            elif execution_type == "Einseitig":
+                valid = (all_set_entries[f"Set {n} Links Wdh"] > 0 and
+                         all_set_entries[f"Set {n} Rechts Wdh"] > 0)
+            else:
+                valid = all_set_entries[f"Set {n} Wdh"] > 0
+            if not valid:
+                invalid.append(str(n))
+        if invalid:
+            st.warning("Bitte Set(s) " + ", ".join(invalid) + " vervollständigen.")
+            return
+        if st.session_state.active_training_id is None:
+            st.session_state.active_training_id = str(uuid.uuid4())
         training_id = st.session_state.active_training_id
-        if not training_id:
-            st.warning("Speichere zuerst mindestens ein Set.")
-        else:
-            try:
-                st.session_state.gym_pending_save = True
-                with st.spinner("Übung wird abgeschlossen..."):
-                    # Die Originaldaten für Datum und Übung müssen erhalten bleiben.
-                    persist_set({"Status": "Abgeschlossen"}, training_id)
-                st.session_state.active_training_id = None
-                st.session_state.gym_active_identity = None
-                st.session_state.gym_edit_row = None
-                st.session_state.gym_editor_version += 1
-                st.toast("Übung abgeschlossen! ✓")
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Übung konnte nicht abgeschlossen werden: {exc}")
-            finally:
-                st.session_state.gym_pending_save = False
+        entry = dict(base_entry, **all_set_entries)
+        entry["Status"] = "Abgeschlossen"
+        entry["Anzahl Sets"] = number_of_sets
+        try:
+            st.session_state.gym_pending_save = True
+            with st.spinner("Alle Sets werden gespeichert und die Übung abgeschlossen..."):
+                persist_set(entry, training_id, legacy_index=legacy_index)
+            st.session_state.active_training_id = None
+            st.session_state.gym_active_identity = None
+            st.session_state.gym_edit_row = None
+            st.session_state.exercise_edit_index = None
+            st.session_state.gym_editor_version += 1
+            st.toast("Alle Sets gespeichert – Übung abgeschlossen! ✓")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Übung konnte nicht abgeschlossen werden: {exc}")
+        finally:
+            st.session_state.gym_pending_save = False
 
 # ============================================================
 # LOGIN
@@ -2210,27 +2286,16 @@ avatar_level = get_avatar_level(saved_df)
 # ============================================================
 
 if st.session_state.edit_date:
-
-    st.warning(
-        f"Bearbeitungsmodus für Training vom "
-        f"{st.session_state.edit_date}"
-    )
-
-
-    training_form(
-        username,
-        saved_df,
-        edit_date=st.session_state.edit_date
-    )
-
-
-    if st.button(
-        "Bearbeitung abbrechen"
-    ):
-
-        st.session_state.edit_date = None
-
-        st.rerun()
+    st.warning(f"Bearbeitungsmodus für Training vom {st.session_state.edit_date}")
+    if st.button("Bearbeitung beenden"):
+        if st.session_state.get("active_training_id"):
+            st.warning("Schließe zuerst die aktuelle Übung ab, damit offene Eingaben erhalten bleiben.")
+        else:
+            st.session_state.edit_date = None
+            st.session_state.exercise_edit_index = None
+            st.session_state.gym_edit_row = None
+            st.session_state.gym_editor_version = st.session_state.get("gym_editor_version", 0) + 1
+            st.rerun()
 
 # ============================================================
 # HAUPTANSICHT
@@ -2346,29 +2411,14 @@ with tab2:
             else:
 
                 # Nur interessante Spalten anzeigen
-                display_columns = [
-                    col
-                    for col in [
-                        "Übung",
-                        "Machine",
-                        "Griff",
-                        "Extra Info",
-                        "Set 1 Gewicht",
-                        "Set 1 Wdh",
-                        "Set 1 Dauer Sekunden",
-                        "Set 2 Gewicht",
-                        "Set 2 Wdh",
-                        "Set 2 Dauer Sekunden",
-                        "Set 3 Gewicht",
-                        "Set 3 Wdh",
-                        "Set 3 Dauer Sekunden",
-                        "Set 4 Gewicht",
-                        "Set 4 Wdh",
-                        "Set 4 Dauer Sekunden",
-                        "Notiz Übung"
-                    ]
-                    if col in day_df.columns
-                ]
+                import re
+                preferred = ["Übung", "Status", "Anzahl Sets", "Ausführung", "Machine", "Griff", "Extra Info"]
+                set_columns = sorted(
+                    [col for col in day_df.columns if re.match(r"^Set \d+ ", str(col))],
+                    key=lambda col: (int(re.search(r"\d+", col).group()), col)
+                )
+                display_columns = [col for col in preferred + set_columns + ["Notiz Übung"]
+                                   if col in day_df.columns]
 
 
                 st.dataframe(
@@ -2389,10 +2439,14 @@ with tab2:
                         "✏️ Dieses Training bearbeiten"
                     ):
 
-                        st.session_state.edit_date = \
-                            selected_date_str
-
-                        st.rerun()
+                        if st.session_state.get("active_training_id"):
+                            st.warning("Schließe zuerst die aktuelle Übung ab.")
+                        else:
+                            st.session_state.edit_date = selected_date_str
+                            st.session_state.exercise_edit_index = None
+                            st.session_state.gym_edit_row = None
+                            st.session_state.gym_editor_version = st.session_state.get("gym_editor_version", 0) + 1
+                            st.rerun()
 
 
                 
