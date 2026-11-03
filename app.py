@@ -1361,22 +1361,30 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     st.markdown("### ✅ Bereits gespeichert")
     if day_rows.empty:
         st.caption("Für diesen Tag wurde noch keine Übung gespeichert.")
+    
     for row_index, row in day_rows.iterrows():
         title = safe_string(row.get("Übung", "Übung"))
         status = safe_string(row.get("Status", "Abgeschlossen"))
         actual = len(saved_set_numbers(row))
-        planned = safe_int(row.get("Anzahl Sets", actual))
+
         left, right = st.columns([5, 1])
+
         with left:
-            st.markdown(f"**{title}** · {actual}/{planned} Sets · {status}")
+            st.markdown(
+                f"**{title}** · {actual} Sets · {status}"
+            )
+
         with right:
             if st.button("✏️", key=key(f"edit_{row_index}")):
                 if st.session_state.active_training_id is not None:
-                    st.warning("Schliesse zuerst deine aktuelle Übung ab.")
+                    st.warning(
+                        "Schliesse zuerst deine aktuelle Übung ab."
+                    )
                 else:
                     st.session_state.gym_edit_row = row_index
                     st.session_state.gym_editor_version += 1
                     st.rerun()
+
 
     old_row = None
     legacy_index = None
@@ -1500,11 +1508,21 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     execution_type = st.segmented_control("Ausführung", options=execution_options,
         default=old_execution if old_execution in execution_options else "Beidseitig",
         selection_mode="single", key=key("execution")) or "Beidseitig"
-    default_sets = safe_int(old_row.get("Anzahl Sets", 4)) if old_row is not None else 4
-    if default_sets < 1:
-        default_sets = max(saved_set_numbers(old_row), default=4) if old_row is not None else 4
-    number_of_sets = int(st.number_input("Anzahl Sets", min_value=1,
-                                        value=default_sets, step=1, key=key("number_sets")))
+    
+    # Anzahl sichtbarer Sets automatisch verwalten
+    visible_sets_key = key("visible_sets")
+
+    if visible_sets_key not in st.session_state:
+        if old_row is not None:
+            existing_sets = saved_set_numbers(old_row)
+            st.session_state[visible_sets_key] = max(
+                existing_sets, default=1
+            )
+        else:
+            st.session_state[visible_sets_key] = 1
+
+    number_of_sets = st.session_state[visible_sets_key]
+
     if exercise in exercises_by_group.get("Calisthenics", []) or exercise in exercises_by_group.get("TRX", []) or exercise == "Hanging":
         machine_options = ["Bodyweight"]
     else:
@@ -1640,6 +1658,22 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                     st.error(f"Set {n} konnte nicht gespeichert werden: {exc}")
                 finally:
                     st.session_state.gym_pending_save = False
+
+    
+    # ========================================================
+    # WEITERES SET HINZUFÜGEN
+    # ========================================================
+
+    if st.button(
+        "➕ Weiteres Set hinzufügen",
+        key=key("add_set"),
+        use_container_width=True,
+        disabled=st.session_state.gym_pending_save
+    ):
+        st.session_state[visible_sets_key] += 1
+        st.rerun()
+
+
 
     if st.button("✓ Übung abschliessen", type="primary", key=key("finish"),
                  disabled=st.session_state.gym_pending_save):
