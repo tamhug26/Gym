@@ -876,21 +876,39 @@ def find_training_row_by_id(username, training_id):
 
     return matches[0] if matches else None
 
-
 def save_training_row(username, entry, training_id=None):
     worksheet = get_user_worksheet(username)
-
     current_df = load_data(username)
 
+    entry = entry.copy()
+
+    # Neue Übung oder bestehende Übung?
     if training_id is None:
         training_id = str(uuid.uuid4())
+        is_new = True
+    else:
+        is_new = False
 
-    entry = entry.copy()
-    entry["Training ID"] = training_id
+    training_id = str(training_id)
 
     row_index = find_training_row_by_id(
         username, training_id
     )
+
+    # Eine vorhandene ID darf niemals stillschweigend
+    # eine neue Übung erzeugen.
+    if not is_new and row_index is None:
+        raise ValueError(
+            "Training ID nicht gefunden. "
+            "Speichern abgebrochen, um Duplikate zu verhindern."
+        )
+
+    if is_new and row_index is not None:
+        raise ValueError(
+            "Training ID existiert bereits."
+        )
+
+    entry["Training ID"] = training_id
 
     columns = list(current_df.columns)
 
@@ -909,14 +927,6 @@ def save_training_row(username, entry, training_id=None):
             values=[columns]
         )
 
-    if row_index is None:
-        row_index = len(current_df)
-        row_data = {col: "" for col in columns}
-    else:
-        row_data = current_df.iloc[row_index].to_dict()
-
-    row_data.update(entry)
-
     def clean_value(value):
         if value is None:
             return ""
@@ -926,15 +936,52 @@ def save_training_row(username, entry, training_id=None):
             return ""
         return str(value)
 
-    values = [
-        clean_value(row_data.get(col, ""))
-        for col in columns
-    ]
+    if is_new:
+        row_data = {
+            col: entry.get(col, "")
+            for col in columns
+        }
 
-    worksheet.update(
-        range_name=f"A{row_index + 2}",
-        values=[values]
-    )
+        values = [
+            clean_value(row_data[col])
+            for col in columns
+        ]
+
+        worksheet.append_row(
+            values,
+            value_input_option="RAW"
+        )
+
+    else:
+        row_data = current_df.iloc[row_index].to_dict()
+        row_data.update(entry)
+
+        values = [
+            clean_value(row_data.get(col, ""))
+            for col in columns
+        ]
+
+        # Vor dem Überschreiben nochmals prüfen
+        # (Schutz gegen zwischenzeitliche Änderungen)
+        latest_df = load_data(username)
+
+        if (
+            row_index >= len(latest_df)
+            or str(
+                latest_df.iloc[row_index].get(
+                    "Training ID", ""
+                )
+            ) != training_id
+        ):
+            raise ValueError(
+                "Die Trainingszeile hat sich verändert. "
+                "Speichern abgebrochen."
+            )
+
+        worksheet.update(
+            range_name=f"A{row_index + 2}",
+            values=[values]
+        )
 
     return training_id
 
@@ -1148,1243 +1195,446 @@ def get_last_mode_and_calories(saved_df):
 # ============================================================
 
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
-    
-    # Eindeutige ID für die aktuell bearbeitete Übung
+    """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
+
+    Benötigt die vorhandenen App-Helfer: get_user_worksheet, load_data,
+    load_body_data, get_latest_body_weight, get_last_training_weights,
+    get_last_mode_and_calories, get_available_exercises, exercises_by_group,
+    USERS, safe_float, safe_int, safe_string sowie st, pd, date, datetime, uuid.
+    """
+    import uuid
+    import re
+
+    def nonempty(value):
+        return pd.notna(value) and str(value).strip().lower() not in ("", "nan", "none")
+
+    def clean(value):
+        if value is None:
+            return ""
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+        try:
+            if pd.isna(value):
+                return ""
+        except (TypeError, ValueError):
+            pass
+        return str(value)
+
+    def read_sheet():
+        ws = get_user_worksheet(username)
+        values = ws.get_all_values()
+        if not values:
+            return ws, [], []
+        headers = values[0]
+        return ws, headers, values[1:]
+
+    def persist_set(entry, training_id, legacy_index=None):
+        """Neue Zeile anhängen oder exakt eine bestehende Zeile aktualisieren."""
+        ws, headers, rows = read_sheet()
+        if headers and len(headers) != len(set(headers)):
+            raise ValueError("Doppelte Spaltenüberschriften in Google Sheets.")
+        if training_id is None:
+            raise ValueError("Eine stabile Training ID fehlt.")
+        id_column = headers.index("Training ID") if "Training ID" in headers else None
+        matches = ([idx for idx, row in enumerate(rows)
+                    if id_column is not None and len(row) > id_column
+                    and row[id_column] == training_id])
+        if len(matches) > 1:
+            raise ValueError("Training ID ist mehrfach vorhanden; Abbruch.")
+        if matches:
+            target = matches[0]
+        elif legacy_index is not None:
+            target = int(legacy_index)
+            if target < 0 or target >= len(rows):
+                raise ValueError("Alte Trainingszeile nicht gefunden.")
+            current = dict(zip(headers, rows[target]))
+            if nonempty(current.get("Training ID", "")):
+                raise ValueError("Die alte Trainingszeile hat inzwischen eine andere ID.")
+            if (clean(current.get("Übung")) != clean(entry.get("Übung"))
+                    or clean(current.get("Datum")) != clean(entry.get("Datum"))):
+                raise ValueError("Alte Trainingszeile hat sich verändert; Abbruch.")
+        else:
+            target = None
+
+        # Ein neues Training bekommt seine ID vor dem ersten Schreibversuch.
+        # Bei unklarem Ergebnis bleibt die ID erhalten, damit ein Retry nicht dupliziert.
+        for col in list(entry) + ["Training ID"]:
+            if col not in headers:
+                headers.append(col)
+        if not headers:
+            raise ValueError("Keine Spalten vorhanden.")
+        if len(headers) > ws.col_count:
+            ws.add_cols(len(headers) - ws.col_count)
+        original_headers = ws.row_values(1)
+        if original_headers != headers:
+            ws.update(range_name="A1", values=[headers])
+
+        if target is None:
+            data = {col: "" for col in headers}
+        else:
+            data = dict(zip(headers, rows[target]))
+        data.update(entry)
+        data["Training ID"] = training_id
+        output = [clean(data.get(col, "")) for col in headers]
+
+        if target is None:
+            # Nicht per append_row: gspread kann nach einem Timeout trotzdem
+            # geschrieben haben. Ein erneuter Klick prüft zuerst dieselbe ID.
+            ws.append_row(output, value_input_option="RAW")
+        else:
+            # Sheet-Zeile = Header + 0-basierter Datenindex + 1
+            ws.update(range_name=f"A{target + 2}", values=[output])
+        return training_id
+
+    def saved_set_numbers(row):
+        result = []
+        for col in row.index:
+            match = re.fullmatch(r"Set (\d+) (Gewicht|Wdh|Links Gewicht|Links Wdh|Rechts Gewicht|Rechts Wdh|Dauer Sekunden|Notiz)", str(col))
+            if match and nonempty(row[col]):
+                number = int(match.group(1))
+                if number not in result:
+                    result.append(number)
+        return sorted(result)
+
+    if "gym_editor_version" not in st.session_state:
+        st.session_state.gym_editor_version = 0
     if "active_training_id" not in st.session_state:
         st.session_state.active_training_id = None
+    if "gym_active_identity" not in st.session_state:
+        st.session_state.gym_active_identity = None
+    if "gym_edit_row" not in st.session_state:
+        st.session_state.gym_edit_row = None
+    if "gym_pending_save" not in st.session_state:
+        st.session_state.gym_pending_save = False
 
-    if "saved_training_sets" not in st.session_state:
-        st.session_state.saved_training_sets = []
+    version = st.session_state.gym_editor_version
+    def key(name):
+        return f"gym_{version}_{name}"
 
-    
-    edit_df = pd.DataFrame()
+    # Das ausgewählte Datum bleibt frei wählbar; keine automatische Datumswiederherstellung.
+    selected_day = st.date_input(
+        "Datum", value=pd.to_datetime(edit_date).date() if edit_date else date.today(),
+        key=key("date"))
+    selected_date = str(selected_day)
 
-    exercise_edit_row = None
+    # Editierziel wird beim Klick auf ✏️ gesetzt. Externes edit_row_index
+    # wird nur verwendet, wenn noch kein internes Ziel gewählt wurde.
+    if st.session_state.gym_edit_row is None and edit_row_index is not None:
+        st.session_state.gym_edit_row = edit_row_index
+    edit_index = st.session_state.gym_edit_row
 
-    if (
-        edit_row_index is not None
-        and not saved_df.empty
-        and edit_row_index in saved_df.index
-    ):
-        exercise_edit_row = saved_df.loc[edit_row_index]
-
-
-    # ============================================================
-    # DATUM / BEARBEITUNG
-    # ============================================================
-
-    if edit_date and not saved_df.empty:
-        edit_df = saved_df[
-            saved_df["Datum"].astype(str) == str(edit_date)
-        ].copy()
-
-
-    # ============================================================
-    # DATUM – NUR LINKE SPALTE
-    # ============================================================
-
-    with st.container(key="avatar_date"):
-
-        date_col, empty_col = st.columns(2)
-
-        with date_col:
-
-            if edit_date and not saved_df.empty:
-
-                training_date = st.date_input(
-                    "Datum",
-                    value=pd.to_datetime(edit_date).date()
-                )
-
-            else:
-
-                training_date = st.date_input(
-                    "Datum",
-                    value=date.today()
-                )
-
-    # ============================================================
-    # HEUTE BEREITS GESPEICHERTE ÜBUNGEN
-    # ============================================================
-
-    today_saved = pd.DataFrame()
-
-    if (
-        not saved_df.empty
-        and "Datum" in saved_df.columns
-    ):
-
-        today_saved = saved_df[
-            saved_df["Datum"].astype(str)
-            == str(training_date)
-        ].copy()
-
-
-    if not today_saved.empty:
-
-        st.markdown("### ✅ Bereits gespeichert")
-
-        for row_index, row in today_saved.iterrows():
-
-            exercise_name = safe_string(
-                row.get("Übung", "Übung")
-            )
-
-            number_sets = safe_int(
-                row.get("Anzahl Sets", 0)
-            )
-
-            execution = safe_string(
-                row.get("Ausführung", "Beidseitig")
-            )
-
-            with st.container(border=True):
-
-                c1, c2 = st.columns([3, 1])
-
-                with c1:
-
-                    st.markdown(
-                        f"**{exercise_name}**  \n"
-                        f"{number_sets} Sets · {execution} · ✓ gespeichert"
-                    )
-
-                with c2:
-
-                    if st.button(
-                        "✏️",
-                        key=f"edit_saved_exercise_{row_index}"
-                    ):
-
-                        st.session_state.exercise_edit_index = row_index
-                        st.rerun()
-
+    latest = load_data(username)
+    if latest.empty:
+        latest = pd.DataFrame(columns=list(saved_df.columns))
+    if "Datum" in latest.columns:
+        day_rows = latest[latest["Datum"].astype(str) == selected_date]
     else:
+        day_rows = latest.iloc[0:0]
 
-        st.caption(
-            "Für diesen Tag wurde noch keine Übung gespeichert."
-        )
+    st.markdown("### ✅ Bereits gespeichert")
+    if day_rows.empty:
+        st.caption("Für diesen Tag wurde noch keine Übung gespeichert.")
+    for row_index, row in day_rows.iterrows():
+        title = safe_string(row.get("Übung", "Übung"))
+        status = safe_string(row.get("Status", "Abgeschlossen"))
+        actual = len(saved_set_numbers(row))
+        planned = safe_int(row.get("Anzahl Sets", actual))
+        left, right = st.columns([5, 1])
+        with left:
+            st.markdown(f"**{title}** · {actual}/{planned} Sets · {status}")
+        with right:
+            if st.button("✏️", key=key(f"edit_{row_index}")):
+                if st.session_state.active_training_id is not None:
+                    st.warning("Schliesse zuerst deine aktuelle Übung ab.")
+                else:
+                    st.session_state.gym_edit_row = row_index
+                    st.session_state.gym_editor_version += 1
+                    st.rerun()
 
-    # ============================================================
-    # ALLGEMEINE ANGABEN
-    # ============================================================
+    old_row = None
+    legacy_index = None
+    if edit_index is not None:
+        if edit_index not in latest.index:
+            st.error("Die ausgewählte Trainingszeile existiert nicht mehr.")
+            st.stop()
+        old_row = latest.loc[edit_index]
+        legacy_index = edit_index if not nonempty(old_row.get("Training ID", "")) else None
+        if st.session_state.active_training_id is None:
+            st.session_state.active_training_id = (
+                str(old_row["Training ID"]) if legacy_index is None else str(uuid.uuid4()))
+        st.info(f"Bearbeitung: {safe_string(old_row.get('Übung', 'Übung'))}")
+
+    # Wenn eine Übung begonnen wurde, laden wir die aktuellen Werte derselben ID.
+    active_id = st.session_state.active_training_id
+    if active_id and "Training ID" in latest.columns:
+        found = latest[latest["Training ID"].astype(str) == str(active_id)]
+        if len(found) > 1:
+            st.error("Doppelte Training ID. Speichern gestoppt.")
+            st.stop()
+        if len(found) == 1:
+            old_row = found.iloc[0]
+            legacy_index = None
 
     st.subheader("Allgemeine Angaben")
+    last_mode, last_calories = get_last_mode_and_calories(latest)
+    modes = ["Maintaining", "Bulk", "Cut"]
+    default_mode = str(old_row.get("Modus", last_mode)) if old_row is not None else last_mode
+    if default_mode not in modes:
+        default_mode = "Maintaining"
+    default_cal = safe_int(old_row.get("Kalorienziel", last_calories)) if old_row is not None else safe_int(last_calories)
+    c1, c2 = st.columns(2)
+    with c1:
+        mode = st.selectbox("Modus", modes, index=modes.index(default_mode), key=key("mode"))
+    with c2:
+        calories = st.number_input("Kalorienziel", 0, 10000, int(default_cal), step=50, key=key("calories"))
 
-    last_mode, last_calories = get_last_mode_and_calories(saved_df)
-
-    mode_options = ["Maintaining", "Bulk", "Cut"]
-
-    if last_mode not in mode_options:
-        last_mode = "Maintaining"
-
-    # Beim Bearbeiten alte Werte laden
-    if edit_date and not edit_df.empty:
-        first_old_row = edit_df.iloc[0]
-
-        old_mode = first_old_row.get("Modus", last_mode)
-        if old_mode in mode_options:
-            last_mode = old_mode
-
-        old_calories = first_old_row.get("Kalorienziel", last_calories)
-
-        if pd.notna(old_calories):
-            last_calories = int(old_calories)
-
-    with st.container(key="avatar_general"):
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            mode = st.selectbox(
-                "Modus",
-                mode_options,
-                index=mode_options.index(last_mode),
-                key="training_mode"
-            )
-
-        with col2:
-            calories = st.number_input(
-                "Kalorienziel",
-                min_value=0,
-                max_value=10000,
-                value=int(last_calories),
-                step=50,
-                key="training_calories"
-            )
-
-   # ============================================================
-    # PERIOD MODE – NUR FÜR FRAUEN
-    # ============================================================
-
-    period_mode = False
-    period_start = ""
-    period_end = ""
-
-    # Period Mode nur anzeigen, wenn der Benutzer als female
-    # hinterlegt wurde
+    period_mode, period_start, period_end = False, "", ""
     if USERS[username]["gender"] == "female":
-
-        default_period_mode = False
-
-        if edit_date and not edit_df.empty:
-            old_period = edit_df.iloc[0].get("Period Mode", False)
-
-            if pd.notna(old_period):
-                if isinstance(old_period, str):
-                    default_period_mode = old_period.lower() == "true"
-                else:
-                    default_period_mode = bool(old_period)
-
-        period_mode = st.checkbox(
-            "Period Mode",
-            value=default_period_mode,
-            key="period_mode"
-        )
-
+        old_period = str(old_row.get("Period Mode", "False")).lower() == "true" if old_row is not None else False
+        period_mode = st.checkbox("Period Mode", value=old_period, key=key("period"))
         if period_mode:
-
-            old_period_start = training_date
-            old_period_end = training_date
-
-            if edit_date and not edit_df.empty:
-
-                value = edit_df.iloc[0].get("Periode Start", "")
-
-                if pd.notna(value) and str(value) not in ["", "nan"]:
-                    old_period_start = pd.to_datetime(value).date()
-
-                value = edit_df.iloc[0].get("Periode Ende", "")
-
-                if pd.notna(value) and str(value) not in ["", "nan"]:
-                    old_period_end = pd.to_datetime(value).date()
-
             p1, p2 = st.columns(2)
-
+            def period_date(col):
+                value = old_row.get(col, "") if old_row is not None else ""
+                return pd.to_datetime(value).date() if nonempty(value) else selected_day
             with p1:
-                period_start = st.date_input(
-                    "Periode Start",
-                    value=old_period_start,
-                    key="period_start"
-                )
-
+                period_start = st.date_input("Periode Start", value=period_date("Periode Start"), key=key("period_start"))
             with p2:
-                period_end = st.date_input(
-                    "Periode Ende",
-                    value=old_period_end,
-                    key="period_end"
-                )
+                period_end = st.date_input("Periode Ende", value=period_date("Periode Ende"), key=key("period_end"))
 
-    # ============================================================
-    # STIMMUNG
-    # ============================================================
-
-    default_mood = 3
-
-    if edit_date and not edit_df.empty:
-        old_mood = edit_df.iloc[0].get("Stimmung", 3)
-
-        if pd.notna(old_mood):
-            default_mood = int(old_mood)
-
-    mood = st.slider(
-        "Stimmung / Gefühl",
-        min_value=1,
-        max_value=5,
-        value=default_mood,
-        help="1 = super toll, 3 = normal, 5 = dreckig",
-        key="training_mood"
-    )
-
+    mood_default = safe_int(old_row.get("Stimmung", 3)) if old_row is not None else 3
+    mood = st.slider("Stimmung / Gefühl", 1, 5, min(5, max(1, mood_default)),
+                     help="1 = super toll, 3 = normal, 5 = dreckig", key=key("mood"))
     pain = ""
-
     if mood >= 4:
-
-        old_pain = ""
-
-        if edit_date and not edit_df.empty:
-            value = edit_df.iloc[0].get("Schmerzen", "")
-
-            if pd.notna(value):
-                old_pain = str(value)
-
-        pain = st.text_input(
-            "Gab es Schmerzen? Wenn ja, wo?",
-            value=old_pain,
-            key="training_pain"
-        )
-
-    # ============================================================
-    # CARDIO
-    # ============================================================
+        pain = st.text_input("Gab es Schmerzen? Wenn ja, wo?",
+                             value=clean(old_row.get("Schmerzen", "")) if old_row is not None else "",
+                             key=key("pain"))
 
     st.subheader("Cardio")
-
-    cardio_options = [
-        "Kein Cardio",
-        "Laufen",
-        "Fahrrad",
-        "Stepper",
-        "Stairmaster",
-        "Crosstrainer",
-        "Rudern",
-        "Walking",
-        "Anderes"
-    ]
-
-    old_cardio_type = "Kein Cardio"
-
-    if edit_date and not edit_df.empty:
-        value = edit_df.iloc[0].get("Cardio Form", "Kein Cardio")
-
-        if pd.notna(value) and value in cardio_options:
-            old_cardio_type = value
-
-    cardio_type = st.selectbox(
-        "Cardio-Form",
-        cardio_options,
-        index=cardio_options.index(old_cardio_type),
-        key="cardio_type"
-    )
-
-    cardio_time = 0.0
-    cardio_distance = 0.0
-    cardio_calories = 0.0
-
+    cardio_options = ["Kein Cardio", "Laufen", "Fahrrad", "Stepper", "Stairmaster",
+                      "Crosstrainer", "Rudern", "Walking", "Anderes"]
+    old_cardio = str(old_row.get("Cardio Form", "Kein Cardio")) if old_row is not None else "Kein Cardio"
+    if old_cardio not in cardio_options:
+        old_cardio = "Kein Cardio"
+    cardio_type = st.selectbox("Cardio-Form", cardio_options,
+                               index=cardio_options.index(old_cardio), key=key("cardio_type"))
+    cardio_time = cardio_distance = cardio_calories = 0.0
     if cardio_type != "Kein Cardio":
-
-        if edit_date and not edit_df.empty:
-
-            old_time = edit_df.iloc[0].get("Cardio Zeit min", 0)
-            old_distance = edit_df.iloc[0].get("Cardio Distanz km", 0)
-            old_cardio_calories = edit_df.iloc[0].get("Cardio Kalorien", 0)
-
-            cardio_time = float(old_time) if pd.notna(old_time) else 0.0
-            cardio_distance = float(old_distance) if pd.notna(old_distance) else 0.0
-            cardio_calories = float(old_cardio_calories) if pd.notna(old_cardio_calories) else 0.0
-
         c1, c2, c3 = st.columns(3)
-
         with c1:
-            cardio_time = st.number_input(
-                "Cardio Zeit in Minuten",
-                min_value=0.0,
-                value=cardio_time,
-                step=1.0,
-                key="cardio_time"
-            )
-
+            cardio_time = st.number_input("Cardio Zeit in Minuten", min_value=0.0,
+                value=safe_float(old_row.get("Cardio Zeit min", 0)) if old_row is not None else 0.0,
+                step=1.0, key=key("cardio_time"))
         with c2:
-            cardio_distance = st.number_input(
-                "Distanz in km",
-                min_value=0.0,
-                value=cardio_distance,
-                step=0.1,
-                key="cardio_distance"
-            )
-
+            cardio_distance = st.number_input("Distanz in km", min_value=0.0,
+                value=safe_float(old_row.get("Cardio Distanz km", 0)) if old_row is not None else 0.0,
+                step=0.1, key=key("cardio_distance"))
         with c3:
-            cardio_calories = st.number_input(
-                "Cardio Kalorien",
-                min_value=0.0,
-                value=cardio_calories,
-                step=10.0,
-                key="cardio_calories"
-            )
-
-    # ============================================================
-    # KRAFTTRAINING
-    # ============================================================
+            cardio_calories = st.number_input("Cardio Kalorien", min_value=0.0,
+                value=safe_float(old_row.get("Cardio Kalorien", 0)) if old_row is not None else 0.0,
+                step=10.0, key=key("cardio_calories"))
 
     st.subheader("Krafttraining")
-
-    all_groups = [
-        "Rücken",
-        "Brust",
-        "Beine",
-        "Glutes",
-        "Trizeps",
-        "Bizeps",
-        "Schultern",
-        "core",
-        "Calisthenics",
-        "TRX"
-    ]
-
-    if edit_date and not edit_df.empty:
-
-        old_exercises = sorted(
-            edit_df["Übung"].dropna().unique()
-        )
-
-        muscle_groups = st.multiselect(
-            "Welche Muskelgruppe trainierst du?",
-            all_groups,
-            default=all_groups,
-            key="muscle_groups"
-        )
-
-        available_exercises = sorted(
-            set(
-                get_available_exercises(muscle_groups)
-                + old_exercises
-            )
-        )
-
-    else:
-
-        muscle_groups = st.multiselect(
-            "Welche Muskelgruppe trainierst du?",
-            all_groups,
-            key="muscle_groups"
-        )
-
-        available_exercises = get_available_exercises(
-            muscle_groups
-        )
-
+    all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps",
+                  "Schultern", "core", "Calisthenics", "TRX"]
+    old_exercise = clean(old_row.get("Übung", "")) if old_row is not None else ""
+    defaults = [g for g in all_groups if old_exercise in exercises_by_group.get(g, [])]
+    muscle_groups = st.multiselect("Welche Muskelgruppe trainierst du?", all_groups,
+                                   default=defaults, key=key("muscle_groups"))
+    available_exercises = list(get_available_exercises(muscle_groups))
+    if old_exercise and old_exercise not in available_exercises:
+        available_exercises.append(old_exercise)
+    available_exercises = sorted(set(available_exercises))
     if not available_exercises:
         st.info("Wähle mindestens eine Muskelgruppe aus.")
         return
+    exercise = st.selectbox("Übung", available_exercises,
+                            index=available_exercises.index(old_exercise) if old_exercise in available_exercises else 0,
+                            key=key("exercise"))
 
-    # ============================================================
-    # EINE ÜBUNG PRO SPEICHERVORGANG
-    # ============================================================
+    # Nach dem ersten Set ist die Zuordnung fix. Datum und Übung können
+    # nicht stillschweigend zu einer anderen gespeicherten Zeile werden.
+    identity = (selected_date, exercise)
+    if old_row is not None and active_id:
+        expected = (clean(old_row.get("Datum")), clean(old_row.get("Übung")))
+        if identity != expected:
+            st.error(f"Du bearbeitest '{expected[1]}' vom {expected[0]}. "
+                     "Wähle dieses Datum und diese Übung, um fortzufahren.")
+            return
+    if st.session_state.gym_active_identity is not None and active_id:
+        if identity != tuple(st.session_state.gym_active_identity):
+            st.error("Die laufende Übung darf nicht gewechselt werden. "
+                     "Wähle wieder die ursprüngliche Übung und das Datum.")
+            return
 
-    rows = 1
-    entries = []
+    execution_options = ["Beidseitig", "Einseitig"]
+    old_execution = clean(old_row.get("Ausführung", "Beidseitig")) if old_row is not None else "Beidseitig"
+    execution_type = st.segmented_control("Ausführung", options=execution_options,
+        default=old_execution if old_execution in execution_options else "Beidseitig",
+        selection_mode="single", key=key("execution")) or "Beidseitig"
+    default_sets = safe_int(old_row.get("Anzahl Sets", 4)) if old_row is not None else 4
+    if default_sets < 1:
+        default_sets = max(saved_set_numbers(old_row), default=4) if old_row is not None else 4
+    number_of_sets = int(st.number_input("Anzahl Sets", min_value=1,
+                                        value=default_sets, step=1, key=key("number_sets")))
+    if exercise in exercises_by_group.get("Calisthenics", []) or exercise in exercises_by_group.get("TRX", []) or exercise == "Hanging":
+        machine_options = ["Bodyweight"]
+    else:
+        machine_options = ["Cable", "Freigewicht", "Maschine"]
+    old_machine = clean(old_row.get("Machine", "")) if old_row is not None else ""
+    machine = st.selectbox("Machine", machine_options,
+        index=machine_options.index(old_machine) if old_machine in machine_options else 0,
+        key=key("machine"))
+    extra_info = ""
+    if exercise in exercises_by_group.get("TRX", []):
+        extra_options = ["Sehr aufrecht / leicht", "Mittel", "Sehr schräg / schwer"]
+        old_extra = clean(old_row.get("Extra Info", "")) if old_row is not None else ""
+        extra_info = st.selectbox("Schräge / Schwierigkeit", extra_options,
+            index=extra_options.index(old_extra) if old_extra in extra_options else 0, key=key("extra"))
+    elif exercise == "Hanging":
+        extra_info = st.text_input("Hanging-Variante / Notiz",
+            value=clean(old_row.get("Extra Info", "")) if old_row is not None else "", key=key("extra"))
+    if exercise in exercises_by_group.get("Beine", []) or exercise in exercises_by_group.get("Glutes", []):
+        griff = "Nicht relevant"
+    else:
+        grip_options = ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"]
+        old_grip = clean(old_row.get("Griff", "Neutral")) if old_row is not None else "Neutral"
+        griff = st.selectbox("Griff", grip_options,
+            index=grip_options.index(old_grip) if old_grip in grip_options else 0, key=key("grip"))
+    note = st.text_input("Notiz zur Übung",
+        value=clean(old_row.get("Notiz Übung", "")) if old_row is not None else "", key=key("note"))
+    if any(g in muscle_groups for g in ("Rücken", "Schultern")):
+        st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
 
-    # ============================================================
-    # ÜBUNGEN
-    # ============================================================
-
-    for i in range(rows):
-
-        old_row = None
-
-        # Einzelne gespeicherte Übung bearbeiten
-        if exercise_edit_row is not None:
-            old_row = exercise_edit_row
-
-        # Alter Bearbeitungsmodus für kompletten Trainingstag
-        elif (
-            edit_date
-            and not edit_df.empty
-            and i < len(edit_df)
-        ):
-            old_row = edit_df.iloc[i]
-
-        st.markdown("---")
-        st.markdown(f"### Übung {i + 1}")
-
-        # --------------------------------------------------------
-        # ÜBUNG
-        # --------------------------------------------------------
-
-        if old_row is not None:
-            old_exercise = old_row.get(
-                "Übung",
-                available_exercises[0]
-            )
+    if machine == "Bodyweight":
+        body_weight, body_day = get_latest_body_weight(load_body_data(username))
+        if body_weight is not None:
+            st.caption(f"⚖️ Letztes Körpergewicht: {body_weight:g} kg (vom {body_day})")
         else:
-            old_exercise = available_exercises[0]
-
-        if old_exercise in available_exercises:
-            exercise_index = available_exercises.index(
-                old_exercise
-            )
-        else:
-            exercise_index = 0
-
-        exercise = st.selectbox(
-            "Übung",
-            available_exercises,
-            index=exercise_index,
-            key=f"exercise_{i}"
-        )
-
-        # ========================================================
-        # AUSFÜHRUNG
-        # ========================================================
-
-        execution_options = [
-            "Beidseitig",
-            "Einseitig"
-        ]
-
-        old_execution = "Beidseitig"
-
-        if exercise_edit_row is not None:
-
-            saved_execution = exercise_edit_row.get(
-                "Ausführung",
-                "Beidseitig"
-            )
-
-            if saved_execution in execution_options:
-                old_execution = saved_execution
-
-
-        execution_type = st.segmented_control(
-            "Ausführung",
-            options=execution_options,
-            default=old_execution,
-            selection_mode="single",
-            key=f"execution_type_{i}"
-        )
-
-        if execution_type is None:
-            execution_type = "Beidseitig"
-
-
-
-        # ========================================================
-        # VARIABLE ANZAHL SETS
-        # ========================================================
-
-        default_sets = 4
-
-        if old_row is not None:
-
-            # Neue Trainings haben die Spalte Anzahl Sets
-            if (
-                "Anzahl Sets" in old_row.index
-                and pd.notna(old_row["Anzahl Sets"])
-            ):
-
-                default_sets = int(
-                    old_row["Anzahl Sets"]
-                )
-
-            # Alte Trainings hatten diese Spalte noch nicht.
-            # Dann schauen wir, wie viele Set-Spalten Daten enthalten.
-            else:
-
-                detected_sets = 0
-
-                for old_s in range(1, 50):
-
-                    weight_col = f"Set {old_s} Gewicht"
-                    reps_col = f"Set {old_s} Wdh"
-                    duration_col = f"Set {old_s} Dauer Sekunden"
-
-                    found_data = False
-
-                    if weight_col in old_row.index:
-                        if pd.notna(old_row[weight_col]):
-                            found_data = True
-
-                    if reps_col in old_row.index:
-                        if pd.notna(old_row[reps_col]):
-                            found_data = True
-
-                    if duration_col in old_row.index:
-                        if pd.notna(old_row[duration_col]):
-                            found_data = True
-
-                    if found_data:
-                        detected_sets = old_s
-
-                if detected_sets > 0:
-                    default_sets = detected_sets
-
-        number_of_sets = st.number_input(
-            "Anzahl Sets",
-            min_value=1,
-            value=int(default_sets),
-            step=1,
-            key=f"number_sets_{i}"
-        )
-
-        number_of_sets = int(number_of_sets)
-
-        # --------------------------------------------------------
-        # MACHINE
-        # --------------------------------------------------------
-
-        if (
-            exercise in exercises_by_group["Calisthenics"]
-            or exercise in exercises_by_group["TRX"]
-            or exercise == "Hanging"
-        ):
-
-            machine_options = ["Bodyweight"]
-
-        else:
-
-            machine_options = [
-                "Cable",
-                "Freigewicht",
-                "Maschine"
-            ]
-
-        if old_row is not None:
-            old_machine = old_row.get(
-                "Machine",
-                machine_options[0]
-            )
-        else:
-            old_machine = machine_options[0]
-
-        if old_machine in machine_options:
-            machine_index = machine_options.index(
-                old_machine
-            )
-        else:
-            machine_index = 0
-
-        machine = st.selectbox(
-            "Machine",
-            machine_options,
-            index=machine_index,
-            key=f"machine_{i}"
-        )
-
-        # --------------------------------------------------------
-        # TRX / HANGING EXTRA
-        # --------------------------------------------------------
-
-        extra_info = ""
-
-        if exercise in exercises_by_group["TRX"]:
-
-            extra_info = st.selectbox(
-                "Schräge / Schwierigkeit",
-                [
-                    "Sehr aufrecht / leicht",
-                    "Mittel",
-                    "Sehr schräg / schwer"
-                ],
-                key=f"extra_{i}"
-            )
-
-        elif exercise == "Hanging":
-
-            extra_info = st.text_input(
-                "Hanging-Variante / Notiz",
-                key=f"extra_{i}"
-            )
-
-        # --------------------------------------------------------
-        # GRIFF
-        # --------------------------------------------------------
-
-        if (
-            exercise in exercises_by_group["Beine"]
-            or exercise in exercises_by_group["Glutes"]
-        ):
-
-            griff = "Nicht relevant"
-
-        else:
-
-            grip_options = [
-                "Neutral",
-                "Breit",
-                "Eng",
-                "Untergriff",
-                "Obergriff"
-            ]
-
-            if old_row is not None:
-                old_griff = old_row.get(
-                    "Griff",
-                    "Neutral"
-                )
-            else:
-                old_griff = "Neutral"
-
-            if old_griff in grip_options:
-                grip_index = grip_options.index(
-                    old_griff
-                )
-            else:
-                grip_index = 0
-
-            griff = st.selectbox(
-                "Griff",
-                grip_options,
-                index=grip_index,
-                key=f"grip_{i}"
-            )
-
-        # --------------------------------------------------------
-        # ÜBUNGSNOTIZ
-        # --------------------------------------------------------
-
-        old_note = ""
-
-        if old_row is not None:
-            value = old_row.get(
-                "Notiz Übung",
-                ""
-            )
-
-            if pd.notna(value):
-                old_note = str(value)
-
-        note = st.text_input(
-            "Notiz zur Übung",
-            value=old_note,
-            key=f"note_{i}"
-        )
-
-        # --------------------------------------------------------
-        # SCHULTER WARNUNG
-        # --------------------------------------------------------
-
-        if any(
-            group in muscle_groups
-            for group in ["Rücken", "Schultern"]
-        ):
-            st.warning(
-                "⚠️ Schulterblätter nach hinten und runter drücken."
-            )
-
-
-
-        if machine == "Bodyweight":
-            latest_body_weight, latest_body_date = get_latest_body_weight(
-                load_body_data(username)
-            )
-
-            if latest_body_weight is not None:
-                st.info(
-                    f"⚖️ Dein zuletzt gespeichertes Körpergewicht: "
-                    f"{latest_body_weight:g} kg "
-                    f"(vom {latest_body_date})"
-                )
-            else:
-                st.caption(
-                    "Noch kein Körpergewicht gespeichert. "
-                    "Du kannst es unter 'Body Maße' eintragen."
-                )
-
-        # --------------------------------------------------------
-        # LETZTES GEWICHT
-        # --------------------------------------------------------
-
-        
-        last_weights = get_last_training_weights(
-            saved_df, exercise
-        )
-
-        if last_weights:
-            st.info(
-                f"Letztes Training: {last_weights}"
-            )
-        else:
-            st.caption(
-                "Noch kein früherer Eintrag für diese Übung gefunden."
-            )
-
-
-        # ========================================================
-        # SETS
-        # ========================================================
-
-        sets = []
-
-        is_core = (
-            exercise in exercises_by_group["core"]
-        )
-
-        is_time_exercise = exercise in [
-            "Side plank right",
-            "Side plank left",
-            "Plank",
-            "Hanging"
-        ]
-
-        uses_weight = machine != "Bodyweight"
-
-        # --------------------------------------------------------
-        # CORE: OPTIONAL MIT GEWICHT
-        # --------------------------------------------------------
-
-        if is_core and not is_time_exercise:
-
-            default_uses_weight = False
-
-            if old_row is not None:
-
-                for old_s in range(1, number_of_sets + 1):
-
-                    col = f"Set {old_s} Gewicht"
-
-                    if (
-                        col in old_row.index
-                        and safe_float(old_row[col]) > 0
-                    ):
-                        default_uses_weight = True
-                        break
-
-            uses_weight = st.checkbox(
-                "Mit Gewicht gearbeitet?",
-                value=default_uses_weight,
-                key=f"uses_weight_{i}"
-            )
-
-        # ========================================================
-        # EINZELNE SETS
-        # ========================================================
-
-        for s in range(number_of_sets):
-
-            set_number = s + 1
-
-            with st.expander(
-                f"Set {set_number}",
-                expanded=True
-            ):
-
-                # ------------------------------------------------
-                # Standardwerte
-                # ------------------------------------------------
-
-                weight = 0.0
-                reps = 0.0
-                duration = 0.0
-
-                left_weight = 0.0
-                left_reps = 0.0
-
-                right_weight = 0.0
-                right_reps = 0.0
-
-                # =================================================
-                # ZEITÜBUNGEN
-                # =================================================
-
-                if is_time_exercise:
-
-                    old_duration = 0.0
-
-                    if old_row is not None:
-
-                        old_duration = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Dauer Sekunden",
-                                0
-                            )
-                        )
-
-                    duration = st.number_input(
-                        "Zeit in Sekunden",
-                        min_value=0.0,
-                        max_value=3600.0,
-                        value=old_duration,
-                        step=5.0,
-                        key=f"duration_{i}_{s}"
-                    )
-
-                # =================================================
-                # EINSEITIG
-                # =================================================
-
-                elif execution_type == "Einseitig":
-
-                    old_left_weight = 0.0
-                    old_left_reps = 8.0
-
-                    old_right_weight = 0.0
-                    old_right_reps = 8.0
-
-                    if old_row is not None:
-
-                        old_left_weight = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Links Gewicht",
-                                0
-                            )
-                        )
-
-                        old_left_reps = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Links Wdh",
-                                8
-                            ),
-                            default=8.0
-                        )
-
-                        old_right_weight = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Rechts Gewicht",
-                                0
-                            )
-                        )
-
-                        old_right_reps = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Rechts Wdh",
-                                8
-                            ),
-                            default=8.0
-                        )
-
-                    # --------------------------
-                    # LINKS
-                    # --------------------------
-
-                    st.markdown("**Links**")
-
+            st.caption("Noch kein Körpergewicht unter 'Body Maße' gespeichert.")
+
+    # Letztes Training kompakt anzeigen, ohne das aktuelle Training zu verwenden.
+    history = latest.copy()
+    if active_id and "Training ID" in history.columns:
+        history = history[history["Training ID"].astype(str) != str(active_id)]
+    last_weights = get_last_training_weights(history, exercise)
+    if last_weights:
+        st.caption(f"Letztes Training: {last_weights}")
+    weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
+    exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
+    max_weight = None
+    if weight_cols and not exercise_history.empty:
+        weights = pd.to_numeric(exercise_history[weight_cols].stack(), errors="coerce").dropna()
+        if not weights.empty:
+            max_weight = float(weights.max())
+    if max_weight is not None:
+        st.caption(f"🏆 Höchstgewicht bisher: {max_weight:g} kg")
+
+    is_time_exercise = exercise in ["Side plank right", "Side plank left", "Plank", "Hanging"]
+    uses_weight = machine != "Bodyweight"
+    if exercise in exercises_by_group.get("core", []) and not is_time_exercise and machine != "Bodyweight":
+        default_weight = any(safe_float(old_row.get(f"Set {n} Gewicht", 0)) > 0
+            for n in range(1, number_of_sets + 1)) if old_row is not None else False
+        uses_weight = st.checkbox("Mit Gewicht gearbeitet?", value=default_weight, key=key("uses_weight"))
+
+    base_entry = {
+        "Benutzer": username, "Datum": selected_day, "Modus": mode,
+        "Kalorienziel": calories, "Ausführung": execution_type,
+        "Period Mode": period_mode, "Periode Start": period_start,
+        "Periode Ende": period_end, "Stimmung": mood, "Schmerzen": pain,
+        "Cardio Form": cardio_type, "Cardio Zeit min": cardio_time,
+        "Cardio Distanz km": cardio_distance, "Cardio Kalorien": cardio_calories,
+        "Übung": exercise, "Machine": machine, "Griff": griff,
+        "Extra Info": extra_info, "Notiz Übung": note, "Anzahl Sets": number_of_sets,
+        "Status": clean(old_row.get("Status", "In Bearbeitung")) if old_row is not None else "In Bearbeitung"
+    }
+    if not base_entry["Status"]:
+        base_entry["Status"] = "In Bearbeitung"
+
+    st.markdown("### Sets")
+    for s in range(number_of_sets):
+        n = s + 1
+        old = old_row if old_row is not None else {}
+        with st.expander(f"Set {n}", expanded=True):
+            values = {"weight": 0.0, "reps": 0.0, "duration": 0.0,
+                      "left_weight": 0.0, "left_reps": 0.0,
+                      "right_weight": 0.0, "right_reps": 0.0}
+            if is_time_exercise:
+                values["duration"] = st.number_input("Zeit in Sekunden", min_value=0.0,
+                    max_value=3600.0, value=safe_float(old.get(f"Set {n} Dauer Sekunden", 0)),
+                    step=5.0, key=key(f"duration_{s}"))
+            elif execution_type == "Einseitig":
+                for side, label in (("Links", "links"), ("Rechts", "rechts")):
+                    st.markdown(f"**{side}**")
+                    prefix = "left" if side == "Links" else "right"
                     if uses_weight:
-
-                        left_weight = st.number_input(
-                            "Gewicht links",
-                            min_value=0.0,
-                            max_value=400.0,
-                            value=old_left_weight,
-                            step=0.5,
-                            key=f"left_weight_{i}_{s}"
-                        )
-
-                    left_reps = st.number_input(
-                        "Wdh links",
-                        min_value=0.0,
-                        max_value=1000.0,
-                        value=old_left_reps,
-                        step=0.5,
-                        key=f"left_reps_{i}_{s}"
-                    )
-
-                    # --------------------------
-                    # RECHTS
-                    # --------------------------
-
-                    st.markdown("**Rechts**")
-
-                    if uses_weight:
-
-                        right_weight = st.number_input(
-                            "Gewicht rechts",
-                            min_value=0.0,
-                            max_value=400.0,
-                            value=old_right_weight,
-                            step=0.5,
-                            key=f"right_weight_{i}_{s}"
-                        )
-
-                    right_reps = st.number_input(
-                        "Wdh rechts",
-                        min_value=0.0,
-                        max_value=1000.0,
-                        value=old_right_reps,
-                        step=0.5,
-                        key=f"right_reps_{i}_{s}"
-                    )
-
-                # =================================================
-                # BEIDSEITIG
-                # =================================================
-
-                else:
-
-                    old_weight = 0.0
-                    old_reps = 8.0
-
-                    if old_row is not None:
-
-                        old_weight = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Gewicht",
-                                0
-                            )
-                        )
-
-                        old_reps = safe_float(
-                            old_row.get(
-                                f"Set {set_number} Wdh",
-                                8
-                            ),
-                            default=8.0
-                        )
-
-                    if uses_weight:
-
-                        weight = st.number_input(
-                            "Gewicht",
-                            min_value=0.0,
-                            max_value=400.0,
-                            value=old_weight,
-                            step=0.5,
-                            key=f"weight_{i}_{s}"
-                        )
-
-                    reps = st.number_input(
-                        "Wdh",
-                        min_value=0.0,
-                        max_value=1000.0,
-                        value=old_reps,
-                        step=0.5,
-                        key=f"reps_{i}_{s}"
-                    )
-
-                # =================================================
-                # SET-NOTIZ
-                # =================================================
-
-                old_set_note = ""
-
-                if old_row is not None:
-
-                    old_set_note = safe_string(
-                        old_row.get(
-                            f"Set {set_number} Notiz",
-                            ""
-                        )
-                    )
-
-                note_set = st.text_input(
-                    "Set-Notiz",
-                    value=old_set_note,
-                    key=f"note_set_{i}_{s}"
-                )
-
-                # =================================================
-                # SET INTERN SPEICHERN
-                # =================================================
-
-                sets.append({
-                    "weight": weight,
-                    "reps": reps,
-                    "duration": duration,
-
-                    "left_weight": left_weight,
-                    "left_reps": left_reps,
-
-                    "right_weight": right_weight,
-                    "right_reps": right_reps,
-
-                    "note": note_set
+                        values[f"{prefix}_weight"] = st.number_input(f"Gewicht {label}", min_value=0.0,
+                            max_value=400.0, value=safe_float(old.get(f"Set {n} {side} Gewicht", 0)),
+                            step=0.5, key=key(f"{prefix}_weight_{s}"))
+                    values[f"{prefix}_reps"] = st.number_input(f"Wdh {label}", min_value=0.0,
+                        max_value=1000.0, value=safe_float(old.get(f"Set {n} {side} Wdh", 8), default=8.0),
+                        step=0.5, key=key(f"{prefix}_reps_{s}"))
+            else:
+                if uses_weight:
+                    values["weight"] = st.number_input("Gewicht", min_value=0.0,
+                        max_value=400.0, value=safe_float(old.get(f"Set {n} Gewicht", 0)),
+                        step=0.5, key=key(f"weight_{s}"))
+                values["reps"] = st.number_input("Wdh", min_value=0.0,
+                    max_value=1000.0, value=safe_float(old.get(f"Set {n} Wdh", 8), default=8.0),
+                    step=0.5, key=key(f"reps_{s}"))
+            set_note = st.text_input("Set-Notiz", value=clean(old.get(f"Set {n} Notiz", "")),
+                                     key=key(f"set_note_{s}"))
+            if st.button(f"💾 Set {n} speichern", key=key(f"save_{s}"),
+                         disabled=st.session_state.gym_pending_save):
+                st.session_state.gym_pending_save = True
+                # ID vor dem ersten Google-Sheets-Aufruf merken; Retry bleibt idempotent.
+                if st.session_state.active_training_id is None:
+                    st.session_state.active_training_id = str(uuid.uuid4())
+                training_id = st.session_state.active_training_id
+                entry = base_entry.copy()
+                entry.update({
+                    f"Set {n} Gewicht": values["weight"],
+                    f"Set {n} Wdh": values["reps"],
+                    f"Set {n} Links Gewicht": values["left_weight"],
+                    f"Set {n} Links Wdh": values["left_reps"],
+                    f"Set {n} Rechts Gewicht": values["right_weight"],
+                    f"Set {n} Rechts Wdh": values["right_reps"],
+                    f"Set {n} Dauer Sekunden": values["duration"],
+                    f"Set {n} Notiz": set_note
                 })
+                try:
+                    with st.spinner(f"Set {n} wird gespeichert..."):
+                        persist_set(entry, training_id, legacy_index=legacy_index)
+                    st.session_state.gym_active_identity = identity
+                    st.toast(f"Set {n} gespeichert! ✓")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Set {n} konnte nicht gespeichert werden: {exc}")
+                finally:
+                    st.session_state.gym_pending_save = False
 
-
-        # ========================================================
-        # EINZELNES SET SPEICHERN
-        # ========================================================
-
-        for set_index, set_data in enumerate(sets):
-
-            set_number = set_index + 1
-
-            if st.button(
-                f"💾 Set {set_number} speichern",
-                key=f"save_set_{i}_{set_number}"
-            ):
-
-                with st.spinner(
-                    f"Set {set_number} wird gespeichert..."
-                ):
-
-                    # Falls noch keine Übung begonnen wurde,
-                    # eine eindeutige ID erzeugen
-                    if st.session_state.active_training_id is None:
-                        st.session_state.active_training_id = str(
-                            uuid.uuid4()
-                        )
-
-                    training_id = st.session_state.active_training_id
-
-                    # Allgemeine Angaben
-                    set_entry = {
-                        "Benutzer": username,
-                        "Datum": training_date,
-                        "Modus": mode,
-                        "Kalorienziel": calories,
-                        "Ausführung": execution_type,
-                        "Period Mode": period_mode,
-                        "Periode Start": period_start,
-                        "Periode Ende": period_end,
-                        "Stimmung": mood,
-                        "Schmerzen": pain,
-                        "Cardio Form": cardio_type,
-                        "Cardio Zeit min": cardio_time,
-                        "Cardio Distanz km": cardio_distance,
-                        "Cardio Kalorien": cardio_calories,
-                        "Übung": exercise,
-                        "Machine": machine,
-                        "Griff": griff,
-                        "Extra Info": extra_info,
-                        "Notiz Übung": note,
-                        "Anzahl Sets": number_of_sets,
-                        "Status": "In Bearbeitung"
-                    }
-
-                    # Nur das ausgewählte Set speichern
-                    set_entry.update({
-                        f"Set {set_number} Gewicht":
-                            set_data["weight"],
-                        f"Set {set_number} Wdh":
-                            set_data["reps"],
-                        f"Set {set_number} Links Gewicht":
-                            set_data["left_weight"],
-                        f"Set {set_number} Links Wdh":
-                            set_data["left_reps"],
-                        f"Set {set_number} Rechts Gewicht":
-                            set_data["right_weight"],
-                        f"Set {set_number} Rechts Wdh":
-                            set_data["right_reps"],
-                        f"Set {set_number} Dauer Sekunden":
-                            set_data["duration"],
-                        f"Set {set_number} Notiz":
-                            set_data["note"]
-                    })
-
-                    save_training_row(
-                        username,
-                        set_entry,
-                        training_id=training_id
-                    )
-
-                    if set_number not in st.session_state.saved_training_sets:
-                        st.session_state.saved_training_sets.append(
-                            set_number
-                        )
-
-                st.toast(
-                    f"Set {set_number} gespeichert! ✓"
-                )
-                st.rerun()
-
-        # ========================================================
-        # EINTRAG ERSTELLEN
-        # ========================================================
-
-        entry = {
-            "Benutzer": username,
-            "Datum": training_date,
-
-            "Modus": mode,
-            "Kalorienziel": calories,
-            "Ausführung": execution_type,
-
-            "Period Mode": period_mode,
-            "Periode Start": period_start,
-            "Periode Ende": period_end,
-
-            "Stimmung": mood,
-            "Schmerzen": pain,
-
-            "Cardio Form": cardio_type,
-            "Cardio Zeit min": cardio_time,
-            "Cardio Distanz km": cardio_distance,
-            "Cardio Kalorien": cardio_calories,
-
-            "Übung": exercise,
-            "Machine": machine,
-            "Griff": griff,
-            "Extra Info": extra_info,
-            "Notiz Übung": note,
-
-            "Anzahl Sets": number_of_sets
-        }
-
-        # ========================================================
-        # SETS DYNAMISCH SPEICHERN
-        # ========================================================
-
-        for s, set_data in enumerate(sets):
-
-            set_number = s + 1
-
-            # Normale / beidseitige Werte
-            entry[
-                f"Set {set_number} Gewicht"
-            ] = set_data["weight"]
-
-            entry[
-                f"Set {set_number} Wdh"
-            ] = set_data["reps"]
-
-            # Einseitige Werte
-            entry[
-                f"Set {set_number} Links Gewicht"
-            ] = set_data["left_weight"]
-
-            entry[
-                f"Set {set_number} Links Wdh"
-            ] = set_data["left_reps"]
-
-            entry[
-                f"Set {set_number} Rechts Gewicht"
-            ] = set_data["right_weight"]
-
-            entry[
-                f"Set {set_number} Rechts Wdh"
-            ] = set_data["right_reps"]
-
-            # Zeit
-            entry[
-                f"Set {set_number} Dauer Sekunden"
-            ] = set_data["duration"]
-
-            # Notiz
-            entry[
-                f"Set {set_number} Notiz"
-            ] = set_data["note"]
-
-        entries.append(entry)
-
-    
-    # ============================================================
-    # ÜBUNG ABSCHLIESSEN
-    # ============================================================
-
-    if st.button("✓ Übung abschliessen", type="primary"):
-
+    if st.button("✓ Übung abschliessen", type="primary", key=key("finish"),
+                 disabled=st.session_state.gym_pending_save):
         training_id = st.session_state.active_training_id
-
-        if training_id is None:
-            st.warning(
-                "Speichere zuerst mindestens ein Set, "
-                "bevor du die Übung abschliesst."
-            )
-
+        if not training_id:
+            st.warning("Speichere zuerst mindestens ein Set.")
         else:
             try:
+                st.session_state.gym_pending_save = True
                 with st.spinner("Übung wird abgeschlossen..."):
-
-                    save_training_row(
-                        username,
-                        {"Status": "Abgeschlossen"},
-                        training_id=training_id
-                    )
-
+                    # Die Originaldaten für Datum und Übung müssen erhalten bleiben.
+                    persist_set({"Status": "Abgeschlossen"}, training_id)
                 st.session_state.active_training_id = None
-                st.session_state.saved_training_sets = []
-
-                st.session_state.exercise_edit_index = None
-
-                # Eingabefelder der Übung zurücksetzen
-                for key in list(st.session_state.keys()):
-                    if key.startswith((
-                        "exercise_",
-                        "execution_type_",
-                        "number_sets_",
-                        "machine_",
-                        "grip_",
-                        "extra_",
-                        "note_",
-                        "uses_weight_",
-                        "weight_",
-                        "reps_",
-                        "duration_",
-                        "left_weight_",
-                        "left_reps_",
-                        "right_weight_",
-                        "right_reps_",
-                        "note_set_"
-                    )):
-                        del st.session_state[key]
-
+                st.session_state.gym_active_identity = None
+                st.session_state.gym_edit_row = None
+                st.session_state.gym_editor_version += 1
                 st.toast("Übung abgeschlossen! ✓")
                 st.rerun()
-
-            except Exception as e:
-                st.error(
-                    f"Fehler beim Abschliessen: {e}"
-                )
+            except Exception as exc:
+                st.error(f"Übung konnte nicht abgeschlossen werden: {exc}")
+            finally:
+                st.session_state.gym_pending_save = False
 
 
 
