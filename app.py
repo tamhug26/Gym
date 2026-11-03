@@ -985,6 +985,33 @@ def save_training_row(username, entry, training_id=None):
 
     return training_id
 
+def delete_training_day(username, selected_date):
+    worksheet = get_user_worksheet(username)
+    df = load_data(username)
+
+    if df.empty or "Datum" not in df.columns:
+        raise ValueError("Keine Trainingsdaten gefunden.")
+
+    matching_indices = df.index[
+        df["Datum"].astype(str) == str(selected_date)
+    ].tolist()
+
+    if not matching_indices:
+        raise ValueError(
+            "Für dieses Datum wurde kein Training gefunden."
+        )
+
+    # Google-Sheets-Zeilennummern:
+    # Zeile 1 = Überschriften, Zeile 2 = erster Datensatz
+    sheet_rows = [int(idx) + 2 for idx in matching_indices]
+
+    # Von unten nach oben löschen, damit sich die
+    # Zeilennummern der übrigen Einträge nicht verschieben.
+    for sheet_row in sorted(sheet_rows, reverse=True):
+        worksheet.delete_rows(sheet_row)
+
+    return len(sheet_rows)
+
 # ============================================================
 # HILFSFUNKTIONEN
 # ============================================================
@@ -2300,36 +2327,59 @@ with tab2:
                         st.rerun()
 
 
+                
                 with c2:
 
                     if st.button(
                         "🗑️ Dieses Training löschen"
                     ):
-
-                        remaining_df = saved_df[
-                            saved_df["Datum"]
-                            != selected_date_str
-                        ].copy()
-
-
-                        save_data(
-                            username,
-                            remaining_df
+                        st.session_state.confirm_delete_date = (
+                            selected_date_str
                         )
 
+                if st.session_state.get(
+                    "confirm_delete_date"
+                ) == selected_date_str:
 
-                        st.success(
-                            "Training gelöscht."
-                        )
+                    st.warning(
+                        f"Willst du wirklich alle Übungen "
+                        f"vom {selected_date_str} löschen?"
+                    )
 
-                        time.sleep(0.5)
+                    confirm_col, cancel_col = st.columns(2)
 
-                        st.rerun()
+                    with confirm_col:
+                        if st.button(
+                            "Ja, endgültig löschen",
+                            type="primary"
+                        ):
+                            try:
+                                deleted_count = delete_training_day(
+                                    username,
+                                    selected_date_str
+                                )
 
+                                st.session_state.pop(
+                                    "confirm_delete_date", None
+                                )
 
-    # ========================================================
-    # STATISTIK
-    # ========================================================
+                                st.toast(
+                                    f"{deleted_count} Übung(en) gelöscht."
+                                )
+                                st.rerun()
+
+                            except Exception as e:
+                                st.error(
+                                    f"Löschen fehlgeschlagen: {e}"
+                                )
+
+                    with cancel_col:
+                        if st.button("Abbrechen"):
+                            st.session_state.pop(
+                                "confirm_delete_date", None
+                            )
+                            st.rerun()
+
 
 with tab3:
         show_avatar(username, avatar_level)
