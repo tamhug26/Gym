@@ -44,24 +44,19 @@ sheet = get_google_connection()
 # ============================================================
 # BODY MASSE – GOOGLE SHEETS
 # ============================================================
-
+@st.cache_resource(ttl=300, show_spinner=False)
 def get_body_worksheet(username):
-
     worksheet_name = f"Body_{username}"
 
     try:
-        worksheet = sheet.worksheet(worksheet_name)
+        return sheet.worksheet(worksheet_name)
 
     except gspread.WorksheetNotFound:
-
-        worksheet = sheet.add_worksheet(
+        return sheet.add_worksheet(
             title=worksheet_name,
             rows=1000,
             cols=30
         )
-
-    return worksheet
-
 
 def load_body_data(username):
 
@@ -778,27 +773,17 @@ def format_meal_amount(amount, food):
 # GOOGLE SHEETS FUNKTIONEN
 # ============================================================
 
-@st.cache_resource
+@st.cache_resource(ttl=300, show_spinner=False)
 def get_user_worksheet(username):
-    """
-    Jeder Benutzer bekommt innerhalb der Gym Notes Database
-    ein eigenes Tabellenblatt.
-
-    Das Worksheet-Objekt wird zwischengespeichert,
-    um unnötige Google-API-Anfragen zu vermeiden.
-    """
-
     try:
-        worksheet = sheet.worksheet(username)
+        return sheet.worksheet(username)
 
     except gspread.WorksheetNotFound:
-        worksheet = sheet.add_worksheet(
+        return sheet.add_worksheet(
             title=username,
             rows=2000,
             cols=50
         )
-
-    return worksheet
 
 @st.cache_data(ttl=30, show_spinner=False)
 def load_data(username):
