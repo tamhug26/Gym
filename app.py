@@ -21,14 +21,25 @@ scopes = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-credentials = Credentials.from_service_account_info(
-    dict(st.secrets["gcp_service_account"]),
-    scopes=scopes
-)
 
-gc = gspread.authorize(credentials)
+@st.cache_resource
+def get_google_connection():
+    credentials = Credentials.from_service_account_info(
+        dict(st.secrets["gcp_service_account"]),
+        scopes=scopes
+    )
 
-sheet = gc.open(st.secrets["google_sheet"]["name"])
+    gc = gspread.authorize(credentials)
+
+    sheet = gc.open(
+        st.secrets["google_sheet"]["name"]
+    )
+
+    return sheet
+
+
+sheet = get_google_connection()
+
 
 # ============================================================
 # BODY MASSE – GOOGLE SHEETS
@@ -767,10 +778,14 @@ def format_meal_amount(amount, food):
 # GOOGLE SHEETS FUNKTIONEN
 # ============================================================
 
+@st.cache_resource
 def get_user_worksheet(username):
     """
     Jeder Benutzer bekommt innerhalb der Gym Notes Database
     ein eigenes Tabellenblatt.
+
+    Das Worksheet-Objekt wird zwischengespeichert,
+    um unnötige Google-API-Anfragen zu vermeiden.
     """
 
     try:
@@ -785,6 +800,7 @@ def get_user_worksheet(username):
 
     return worksheet
 
+@st.cache_data(ttl=30, show_spinner=False)
 def load_data(username):
 
     worksheet = get_user_worksheet(username)
@@ -878,40 +894,59 @@ def find_training_row_by_id(username, training_id):
 
 def save_training_row(username, entry, training_id=None):
     worksheet = get_user_worksheet(username)
-    current_df = load_data(username)
+
+    # Für Schreibvorgänge immer aktuelle Daten laden,
+    # nicht den 30-Sekunden-Cache verwenden.
+    values = worksheet.get_all_values()
+
+    if values:
+        columns = list(values[0])
+        rows = values[1:]
+    else:
+        columns = []
+        rows = []
 
     entry = entry.copy()
 
-    # Neue Übung oder bestehende Übung?
-    if training_id is None:
+    # Neue oder bestehende Übung unterscheiden
+    is_new = training_id is None
+
+    if is_new:
         training_id = str(uuid.uuid4())
-        is_new = True
-    else:
-        is_new = False
 
     training_id = str(training_id)
+    entry["Training ID"] = training_id
 
-    row_index = find_training_row_by_id(
-        username, training_id
-    )
+    # Bestehende Zeile anhand der Training ID suchen
+    row_index = None
 
-    # Eine vorhandene ID darf niemals stillschweigend
-    # eine neue Übung erzeugen.
+    if "Training ID" in columns:
+        id_column = columns.index("Training ID")
+
+        for index, row in enumerate(rows):
+            existing_id = (
+                str(row[id_column])
+                if len(row) > id_column
+                else ""
+            )
+
+            if existing_id == training_id:
+                if row_index is not None:
+                    raise ValueError(
+                        "Doppelte Training ID gefunden. "
+                        "Speichern abgebrochen."
+                    )
+
+                row_index = index
+
+    # Keine neue Zeile bei unbekannter bestehender ID
     if not is_new and row_index is None:
         raise ValueError(
             "Training ID nicht gefunden. "
-            "Speichern abgebrochen, um Duplikate zu verhindern."
+            "Speichern abgebrochen."
         )
 
-    if is_new and row_index is not None:
-        raise ValueError(
-            "Training ID existiert bereits."
-        )
-
-    entry["Training ID"] = training_id
-
-    columns = list(current_df.columns)
-
+    # Fehlende Spalten ergänzen
     for col in entry:
         if col not in columns:
             columns.append(col)
@@ -921,7 +956,7 @@ def save_training_row(username, entry, training_id=None):
             len(columns) - worksheet.col_count
         )
 
-    if columns != list(current_df.columns):
+    if not values or columns != values[0]:
         worksheet.update(
             range_name="A1",
             values=[columns]
@@ -930,58 +965,59 @@ def save_training_row(username, entry, training_id=None):
     def clean_value(value):
         if value is None:
             return ""
+
         if isinstance(value, (date, datetime)):
             return value.isoformat()
+
         if pd.isna(value):
             return ""
+
         return str(value)
 
     if is_new:
+        # Neue Übung anhängen
         row_data = {
             col: entry.get(col, "")
             for col in columns
         }
 
-        values = [
+        new_values = [
             clean_value(row_data[col])
             for col in columns
         ]
 
         worksheet.append_row(
-            values,
+            new_values,
             value_input_option="RAW"
         )
 
     else:
-        row_data = current_df.iloc[row_index].to_dict()
+        # Bestehende Übung aktualisieren
+        existing_row = rows[row_index]
+
+        row_data = {
+            col: (
+                existing_row[i]
+                if i < len(existing_row)
+                else ""
+            )
+            for i, col in enumerate(columns)
+        }
+
         row_data.update(entry)
 
-        values = [
+        updated_values = [
             clean_value(row_data.get(col, ""))
             for col in columns
         ]
 
-        # Vor dem Überschreiben nochmals prüfen
-        # (Schutz gegen zwischenzeitliche Änderungen)
-        latest_df = load_data(username)
-
-        if (
-            row_index >= len(latest_df)
-            or str(
-                latest_df.iloc[row_index].get(
-                    "Training ID", ""
-                )
-            ) != training_id
-        ):
-            raise ValueError(
-                "Die Trainingszeile hat sich verändert. "
-                "Speichern abgebrochen."
-            )
-
         worksheet.update(
             range_name=f"A{row_index + 2}",
-            values=[values]
+            values=[updated_values]
         )
+
+    # Nur nach erfolgreichem Speichern Cache leeren
+    load_data.clear()
 
     return training_id
 
@@ -1010,6 +1046,7 @@ def delete_training_day(username, selected_date):
     for sheet_row in sorted(sheet_rows, reverse=True):
         worksheet.delete_rows(sheet_row)
 
+    load_data.clear()
     return len(sheet_rows)
 
 # ============================================================
@@ -1697,8 +1734,6 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             finally:
                 st.session_state.gym_pending_save = False
 
-
-
 # ============================================================
 # LOGIN
 # ============================================================
@@ -2197,7 +2232,6 @@ if st.session_state.edit_date:
 
         st.rerun()
 
-
 # ============================================================
 # HAUPTANSICHT
 # ============================================================
@@ -2413,7 +2447,6 @@ with tab2:
                                 "confirm_delete_date", None
                             )
                             st.rerun()
-
 
 with tab3:
         show_avatar(username, avatar_level)
