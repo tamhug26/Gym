@@ -58,10 +58,9 @@ def get_body_worksheet(username):
             cols=30
         )
 
+@st.cache_data(ttl=300, show_spinner=False)
 def load_body_data(username):
-
     worksheet = get_body_worksheet(username)
-
     values = worksheet.get_all_values()
 
     if not values:
@@ -72,27 +71,20 @@ def load_body_data(username):
     if not headers:
         return pd.DataFrame()
 
-    rows = values[1:]
-
-    if not rows:
-        return pd.DataFrame(columns=headers)
-
     normalized_rows = []
 
-    for row in rows:
-
-        if len(row) < len(headers):
-            row = row + [""] * (len(headers) - len(row))
-
+    for row in values[1:]:
+        normalized_row = (
+            row + [""] * max(0, len(headers) - len(row))
+        )
         normalized_rows.append(
-            row[:len(headers)]
+            normalized_row[:len(headers)]
         )
 
     return pd.DataFrame(
         normalized_rows,
         columns=headers
     )
-
 
 def save_body_data(username, df):
 
@@ -3565,6 +3557,8 @@ with tab5:
                 username,
                 full_body_df
             )
+
+            load_body_data.clear()
 
             st.success(
                 "Körpermaße gespeichert! 📏"
