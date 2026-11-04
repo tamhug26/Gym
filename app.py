@@ -1814,7 +1814,6 @@ def show_gym_weight_chart(progress_df):
 
     def draw_chart(chart_data):
         if chart_data.empty:
-            st.caption("Noch keine Gewichtsdaten.")
             return
 
         present = set(chart_data[color_field])
@@ -1921,17 +1920,32 @@ def show_gym_weight_chart(progress_df):
 
         st.subheader(side)
 
-        columns = st.columns(3)
+        available_devices = [
+            device
+            for device in devices
+            if not side_data[
+                side_data["Gerät"] == device
+            ].empty
+        ]
 
-        for column, device in zip(columns, devices):
-            with column:
-                st.markdown(f"**{device}**")
+        if available_devices:
+            columns = st.columns(
+                len(available_devices)
+            )
 
-                draw_chart(
-                    side_data[
-                        side_data["Gerät"] == device
-                    ]
-                )
+            for column, device in zip(
+                columns,
+                available_devices
+            ):
+                with column:
+                    st.markdown(f"**{device}**")
+
+                    draw_chart(
+                        side_data[
+                            side_data["Gerät"] == device
+                        ]
+                    )
+
 
         extra_devices = sorted(
             set(side_data["Gerät"]) - set(devices)
