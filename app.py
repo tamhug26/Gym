@@ -1681,6 +1681,208 @@ def show_gym_set_statistics(saved_df, exercise):
             hide_index=True
         )
 
+def gym_weight_chart_points(progress_df):
+    import re
+
+    numbers = sorted({
+        int(match.group(1))
+        for col in progress_df.columns
+        if (match := re.fullmatch(
+            r"Set (\d+) (Gewicht|Links Gewicht|Rechts Gewicht)",
+            str(col)
+        ))
+    })
+
+    points = []
+
+    for entry, (_, row) in enumerate(
+        progress_df.iterrows(),
+        start=1
+    ):
+        for n in numbers:
+            for part in gym_set_parts(row, n):
+                if (
+                    part["reduction"]
+                    or part["duration"] > 0
+                    or part["weight"] <= 0
+                ):
+                    continue
+
+                side = part["side"] or "Beidseitig"
+
+                machine = (
+                    safe_string(row.get("Machine", ""))
+                    or "Ohne Geräteangabe"
+                )
+
+                points.append({
+                    "Datum": str(row.get("Datum", "")),
+                    "Set": n,
+                    "Gewicht kg": part["weight"],
+                    "Wdh": part["reps"],
+                    "Mit Hilfe": part["help"],
+                    "Seite": side,
+                    "Gerät": machine,
+                    "Eintrag": entry,
+                    "Verlauf": (
+                        f"Set {n} · {side} · {machine}"
+                    )
+                })
+
+    return points
+
+def show_gym_weight_chart(progress_df):
+    import altair as alt
+
+    points = gym_weight_chart_points(progress_df)
+
+    if not points:
+        st.info(
+            "Für diese Übung sind noch keine Gewichtsdaten vorhanden."
+        )
+        return
+
+    data = pd.DataFrame(points)
+
+    data["Datum"] = pd.to_datetime(
+        data["Datum"],
+        errors="coerce"
+    ).dt.normalize()
+
+    data = data.dropna(
+        subset=["Datum"]
+    ).sort_values(
+        ["Datum", "Eintrag", "Set"],
+        kind="stable"
+    )
+
+    if data.empty:
+        st.info(
+            "Für diese Gewichtsdaten fehlt ein gültiges Datum."
+        )
+        return
+
+    dates = sorted(
+        data["Datum"].dt.strftime("%Y-%m-%d").unique()
+    )
+
+    view = st.radio(
+        "Diagrammansicht",
+        [
+            "Über Trainingstage",
+            "Sets eines Trainingstags"
+        ],
+        index=1 if len(dates) == 1 else 0,
+        horizontal=True
+    )
+
+    if view == "Sets eines Trainingstags":
+        day = st.selectbox(
+            "Trainingstag für das Diagramm",
+            dates[::-1],
+            format_func=lambda value: (
+                pd.Timestamp(value).strftime("%d.%m.%Y")
+            )
+        )
+
+        data = data[
+            data["Datum"].dt.strftime("%Y-%m-%d") == day
+        ].copy()
+
+        entries = sorted(data["Eintrag"].unique())
+
+        if len(entries) > 1:
+            selected_entry = st.selectbox(
+                "Eintrag an diesem Trainingstag",
+                entries,
+                index=len(entries) - 1,
+                format_func=lambda value: (
+                    f"Eintrag {entries.index(value) + 1}"
+                )
+            )
+
+            data = data[
+                data["Eintrag"] == selected_entry
+            ].copy()
+
+        data["Linie"] = data["Seite"]
+
+        x = alt.X(
+            "Set:Q",
+            title="Set",
+            axis=alt.Axis(tickMinStep=1)
+        )
+
+        order = alt.Order("Set:Q")
+
+        st.caption(
+            "Verbindet die Ausgangsgewichte der Sets dieses Trainings. "
+            "Links und rechts bleiben getrennt."
+        )
+
+    else:
+        data["Linie"] = data["Verlauf"]
+        data["Reihenfolge"] = range(len(data))
+
+        x = alt.X(
+            "Datum:T",
+            title="Trainingstag",
+            axis=alt.Axis(
+                format="%d.%m.%Y",
+                labelAngle=-35
+            )
+        )
+
+        order = alt.Order("Reihenfolge:Q")
+
+        st.caption(
+            "Verbindet dieselbe Setnummer über Trainingstage. "
+            "Seite und Gerät werden getrennt verglichen; "
+            "fehlende Messungen werden übersprungen."
+        )
+
+        if (
+            data.groupby("Linie")["Datum"].nunique() < 2
+        ).any():
+            st.caption(
+                "Reihen mit nur einem Trainingstag "
+                "erscheinen als einzelne Punkte."
+            )
+
+    chart = alt.Chart(data).mark_line(
+        point=True
+    ).encode(
+        x=x,
+        y=alt.Y(
+            "Gewicht kg:Q",
+            title="Gewicht (kg)",
+            scale=alt.Scale(zero=False)
+        ),
+        color=alt.Color(
+            "Linie:N",
+            title="Reihe"
+        ),
+        order=order,
+        tooltip=[
+            alt.Tooltip(
+                "Datum:T",
+                title="Trainingstag",
+                format="%d.%m.%Y"
+            ),
+            alt.Tooltip("Set:Q", format=".0f"),
+            alt.Tooltip("Seite:N"),
+            alt.Tooltip("Gerät:N"),
+            alt.Tooltip("Gewicht kg:Q"),
+            alt.Tooltip("Wdh:Q"),
+            alt.Tooltip("Mit Hilfe:Q", format=".0f")
+        ]
+    ).properties(height=350)
+
+    st.altair_chart(
+        chart,
+        use_container_width=True
+    )
+
 def get_exercise_weight_summary(saved_df, exercise):
     import re
 
@@ -3575,83 +3777,9 @@ with tab3:
                             )
 
 
-                    # ============================================
-                    # ALLE VORHANDENEN SETS AUTOMATISCH ERKENNEN
-                    # ============================================
-
-                    weight_columns = [
-                        col
-                        for col in progress_df.columns
-                        if col.startswith("Set ")
-                        and col.endswith(" Gewicht")
-                        and " Drop " not in col
-                    ]
+                    show_gym_weight_chart(progress_df)
 
 
-                    # Set-Spalten richtig sortieren:
-                    # Set 1, Set 2, Set 3 ... Set 10 usw.
-                    def get_set_number(column_name):
-                        try:
-                            return int(column_name.split(" ")[1])
-                        except:
-                            return 999
-
-
-                    weight_columns = sorted(
-                        weight_columns,
-                        key=get_set_number
-                    )
-
-
-                    # ============================================
-                    # GEWICHTE NUMERISCH MACHEN
-                    # ============================================
-
-                    for col in weight_columns:
-
-                        progress_df[col] = pd.to_numeric(
-                            progress_df[col],
-                            errors="coerce"
-                        )
-
-
-                    # ============================================
-                    # NUR TATSÄCHLICH BENUTZTE SETS ANZEIGEN
-                    # ============================================
-
-                    weight_columns = [
-                        col
-                        for col in weight_columns
-                        if progress_df[col].notna().any()
-                        and (progress_df[col] > 0).any()
-                    ]
-
-
-                    # ============================================
-                    # CHART
-                    # ============================================
-
-                    if (
-                        weight_columns
-                        and "Datum" in progress_df.columns
-                    ):
-
-                        chart_df = progress_df[
-                            ["Datum"] + weight_columns
-                        ].copy()
-
-                        chart_df = chart_df.set_index("Datum")
-
-                        # 0 kg nicht als echte Messung darstellen
-                        chart_df = chart_df.replace(0, np.nan)
-
-                        st.line_chart(chart_df)
-
-                    else:
-
-                        st.info(
-                            "Für diese Übung sind noch keine Gewichtsdaten vorhanden."
-                        )
 
 
             # ------------------------------------------------
