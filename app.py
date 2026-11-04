@@ -1762,143 +1762,129 @@ def show_gym_weight_chart(progress_df):
         )
         return
 
-    dates = sorted(
-        data["Datum"].dt.strftime("%Y-%m-%d").unique()
+    data["Gerät"] = data["Gerät"].astype(str).str.strip()
+    data["Setname"] = "Set " + data["Set"].astype(str)
+
+    data["Trainingstag"] = (
+        data["Datum"].dt.strftime("%d.%m.%Y")
     )
 
+    data["Reihenfolge"] = range(len(data))
+
     view = st.radio(
-        "Diagrammansicht",
+        "Ansicht",
         [
-            "Über Trainingstage",
-            "Sets eines Trainingstags"
+            "Gewicht über die Zeit",
+            "Trainingstage nach Sets vergleichen"
         ],
-        index=1 if len(dates) == 1 else 0,
         horizontal=True
     )
 
-    if view == "Sets eines Trainingstags":
-        day = st.selectbox(
-            "Trainingstag für das Diagramm",
-            dates[::-1],
-            format_func=lambda value: (
-                pd.Timestamp(value).strftime("%d.%m.%Y")
-            )
+    compare_days = (
+        view == "Trainingstage nach Sets vergleichen"
+    )
+
+    if compare_days:
+        color_field = "Trainingstag"
+
+        color_domain = (
+            data["Trainingstag"]
+            .drop_duplicates()
+            .tolist()
         )
-
-        data = data[
-            data["Datum"].dt.strftime("%Y-%m-%d") == day
-        ].copy()
-
-        entries = sorted(data["Eintrag"].unique())
-
-        if len(entries) > 1:
-            selected_entry = st.selectbox(
-                "Eintrag an diesem Trainingstag",
-                entries,
-                index=len(entries) - 1,
-                format_func=lambda value: (
-                    f"Eintrag {entries.index(value) + 1}"
-                )
-            )
-
-            data = data[
-                data["Eintrag"] == selected_entry
-            ].copy()
-
-        data["Linie"] = data["Gerät"]
-
-        x = alt.X(
-            "Set:Q",
-            title="Set",
-            axis=alt.Axis(tickMinStep=1)
-        )
-
-        order = alt.Order("Set:Q")
 
         st.caption(
-            "Verbindet die Ausgangsgewichte der Sets dieses Trainings. "
-            "Beidseitig, links und rechts erhalten eigene Diagramme."
+            "X: Set 1, 2, 3 … · Y: Gewicht in kg. "
+            "Jeder Trainingstag hat eine eigene Farbe."
         )
 
     else:
-        data["Linie"] = (
-            "Set "
-            + data["Set"].astype(str)
-            + " · "
-            + data["Gerät"]
+        color_field = "Setname"
+
+        color_domain = (
+            data.sort_values("Set")["Setname"]
+            .drop_duplicates()
+            .tolist()
         )
-
-        data["Reihenfolge"] = range(len(data))
-
-        x = alt.X(
-            "Datum:T",
-            title="Trainingstag",
-            axis=alt.Axis(
-                format="%d.%m.%Y",
-                labelAngle=-35
-            )
-        )
-
-        order = alt.Order("Reihenfolge:Q")
 
         st.caption(
-            "Verbindet dieselbe Setnummer über Trainingstage. "
-            "Gerätevarianten bleiben getrennt; "
-            "fehlende Messungen werden übersprungen."
+            "X: Trainingstag · Y: Gewicht in kg. "
+            "Jede Farbe steht für dieselbe Setnummer über die Zeit."
         )
 
-    series_order = (
-        data.sort_values(
-            ["Set", "Gerät"],
-            kind="stable"
-        )["Linie"]
-        .drop_duplicates()
-        .tolist()
-    )
+    def draw_chart(chart_data):
+        if chart_data.empty:
+            st.caption("Noch keine Gewichtsdaten.")
+            return
 
-    for side in ("Beidseitig", "Links", "Rechts"):
-        side_data = data[
-            data["Seite"] == side
-        ].copy()
+        present = set(chart_data[color_field])
 
-        if side_data.empty:
-            continue
-
-        st.subheader(side)
-
-        if view == "Über Trainingstage" and (
-            side_data.groupby("Linie")["Datum"].nunique() < 2
-        ).any():
-            st.caption(
-                "Reihen mit nur einem Trainingstag "
-                "erscheinen als einzelne Punkte."
-            )
-
-        side_series = [
+        legend_values = [
             name
-            for name in series_order
-            if name in set(side_data["Linie"])
+            for name in color_domain
+            if name in present
         ]
 
-        chart = alt.Chart(side_data).mark_line(
+        encoding = {
+            "color": alt.Color(
+                f"{color_field}:N",
+                title=(
+                    "Trainingstag"
+                    if compare_days
+                    else "Set"
+                ),
+                scale=alt.Scale(
+                    domain=color_domain,
+                    scheme="turbo"
+                ),
+                legend=alt.Legend(
+                    orient="bottom",
+                    columns=1,
+                    values=legend_values
+                )
+            )
+        }
+
+        if compare_days:
+            encoding["x"] = alt.X(
+                "Set:Q",
+                title="Set",
+                axis=alt.Axis(
+                    tickMinStep=1,
+                    format="d"
+                )
+            )
+
+            encoding["order"] = alt.Order("Set:Q")
+
+            # Mehrere Einträge desselben Tages behalten
+            # dieselbe Farbe, aber getrennte Linien.
+            encoding["detail"] = alt.Detail("Eintrag:N")
+
+        else:
+            encoding["x"] = alt.X(
+                "Datum:T",
+                title="Trainingstag",
+                axis=alt.Axis(
+                    format="%d.%m.",
+                    labelAngle=-40,
+                    tickCount=4
+                )
+            )
+
+            encoding["order"] = alt.Order(
+                "Reihenfolge:Q"
+            )
+
+        chart = alt.Chart(chart_data).mark_line(
             point=True
         ).encode(
-            x=x,
+            **encoding,
             y=alt.Y(
                 "Gewicht kg:Q",
                 title="Gewicht (kg)",
                 scale=alt.Scale(zero=False)
             ),
-            color=alt.Color(
-                "Linie:N",
-                title="Reihe",
-                scale=alt.Scale(domain=side_series),
-                legend=alt.Legend(
-                    orient="bottom",
-                    labelLimit=350
-                )
-            ),
-            order=order,
             tooltip=[
                 alt.Tooltip(
                     "Datum:T",
@@ -1912,12 +1898,53 @@ def show_gym_weight_chart(progress_df):
                 alt.Tooltip("Wdh:Q"),
                 alt.Tooltip("Mit Hilfe:Q", format=".0f")
             ]
-        ).properties(height=350)
+        ).properties(height=260)
 
         st.altair_chart(
             chart,
             use_container_width=True
         )
+
+    devices = [
+        "Maschine",
+        "Freigewicht",
+        "Cable"
+    ]
+
+    for side in ("Beidseitig", "Links", "Rechts"):
+        side_data = data[
+            data["Seite"] == side
+        ].copy()
+
+        if side_data.empty:
+            continue
+
+        st.subheader(side)
+
+        columns = st.columns(3)
+
+        for column, device in zip(columns, devices):
+            with column:
+                st.markdown(f"**{device}**")
+
+                draw_chart(
+                    side_data[
+                        side_data["Gerät"] == device
+                    ]
+                )
+
+        extra_devices = sorted(
+            set(side_data["Gerät"]) - set(devices)
+        )
+
+        for device in extra_devices:
+            st.markdown(f"**{device}**")
+
+            draw_chart(
+                side_data[
+                    side_data["Gerät"] == device
+                ]
+            )
 
 def get_exercise_weight_summary(saved_df, exercise):
     import re
