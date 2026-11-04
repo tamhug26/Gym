@@ -1234,6 +1234,414 @@ def get_last_mode_and_calories(saved_df):
 # ============================================================
 # TRAININGSFORMULAR
 # ============================================================
+def gym_set_parts(row, n):
+    """Ein Set in Ausgangssatz und Gewichtsreduktion aufteilen."""
+    prefix = f"Set {n} "
+    parts = []
+
+    duration = safe_float(
+        row.get(prefix + "Dauer Sekunden", 0)
+    )
+
+    if duration > 0:
+        return [{
+            "side": "",
+            "weight": 0.0,
+            "reps": 0.0,
+            "help": 0,
+            "duration": duration,
+            "drop": False,
+            "reduction": False
+        }]
+
+    unilateral = (
+        str(row.get("Ausführung", "")) == "Einseitig"
+        or any(
+            safe_float(row.get(prefix + side + field, 0)) > 0
+            for side in ("Links ", "Rechts ")
+            for field in ("Gewicht", "Wdh")
+        )
+    )
+
+    sides = ("Links ", "Rechts ") if unilateral else ("",)
+
+    is_drop = safe_int(
+        row.get(prefix + "Dropsatz", 0)
+    ) == 1
+
+    for reduction in (False, True):
+        if reduction and not is_drop:
+            continue
+
+        for side in sides:
+            base = (
+                prefix
+                + ("Drop " if reduction else "")
+                + side
+            )
+
+            reps = safe_float(row.get(base + "Wdh", 0))
+            weight = safe_float(row.get(base + "Gewicht", 0))
+
+            if reps <= 0 and weight <= 0:
+                continue
+
+            parts.append({
+                "side": side.strip(),
+                "weight": weight,
+                "reps": reps,
+                "help": safe_int(
+                    row.get(base + "Hilfe Wdh", 0)
+                ),
+                "duration": 0.0,
+                "drop": is_drop,
+                "reduction": reduction
+            })
+
+    return parts
+
+def gym_set_summary(row, n):
+    labels = []
+
+    for part in gym_set_parts(row, n):
+        if part["duration"] > 0:
+            text = f"{part['duration']:g} Sekunden"
+
+        else:
+            weight = (
+                f"{part['weight']:g} kg × "
+                if part["weight"] > 0
+                else "ohne Zusatzgewicht · "
+            )
+
+            text = f"{weight}{part['reps']:g} Wdh"
+
+            if part["side"]:
+                text = part["side"] + ": " + text
+
+            if part["reduction"]:
+                text = "Drop: " + text
+
+            if part["help"] > 0:
+                text += (
+                    f" (davon {part['help']} mit Hilfe)"
+                )
+
+        labels.append(text)
+
+    return " · ".join(labels)
+
+def render_gym_set(
+    n, old, key, execution_type,
+    is_time_exercise, uses_weight
+):
+    prefix = f"Set {n} "
+
+    payload = {
+        prefix + field: 0.0
+        for field in (
+            "Gewicht", "Wdh",
+            "Links Gewicht", "Links Wdh",
+            "Rechts Gewicht", "Rechts Wdh",
+            "Dauer Sekunden",
+            "Hilfe Wdh",
+            "Links Hilfe Wdh", "Rechts Hilfe Wdh",
+            "Dropsatz",
+            "Drop Gewicht", "Drop Wdh", "Drop Hilfe Wdh",
+            "Drop Links Gewicht", "Drop Links Wdh",
+            "Drop Links Hilfe Wdh",
+            "Drop Rechts Gewicht", "Drop Rechts Wdh",
+            "Drop Rechts Hilfe Wdh"
+        )
+    }
+
+    errors = []
+
+    sides = (
+        ("Links ", "Rechts ")
+        if execution_type == "Einseitig"
+        else ("",)
+    )
+
+    if is_time_exercise:
+        payload[prefix + "Dauer Sekunden"] = st.number_input(
+            "Zeit in Sekunden",
+            min_value=0.0,
+            max_value=3600.0,
+            value=safe_float(
+                old.get(prefix + "Dauer Sekunden", 0)
+            ),
+            step=5.0,
+            key=key(f"duration_{n - 1}")
+        )
+
+        if payload[prefix + "Dauer Sekunden"] <= 0:
+            errors.append(
+                "Bitte eine positive Dauer eingeben."
+            )
+
+    else:
+        st.caption(
+            "Wiederholungen insgesamt eingeben; "
+            "unterstützte Wiederholungen sind darin enthalten."
+        )
+
+        for reduction in (False, True):
+            if reduction:
+                enabled = uses_weight and st.checkbox(
+                    "Dropsatz · Gewicht reduzieren und direkt weitermachen",
+                    value=safe_int(
+                        old.get(prefix + "Dropsatz", 0)
+                    ) == 1,
+                    key=key(f"drop_{n}")
+                )
+
+                payload[prefix + "Dropsatz"] = int(enabled)
+
+                if not enabled:
+                    break
+
+                st.markdown(
+                    ":orange[**Reduziertes Gewicht**]"
+                )
+                st.caption(
+                    "0 kg bedeutet ohne Zusatzgewicht."
+                )
+
+            for side in sides:
+                base = (
+                    prefix
+                    + ("Drop " if reduction else "")
+                    + side
+                )
+
+                widget = (
+                    f"set_{n}_"
+                    f"{'drop' if reduction else 'main'}_"
+                    f"{side.strip() or 'both'}"
+                )
+
+                if side:
+                    st.markdown(f"**{side.strip()}**")
+
+                if uses_weight:
+                    payload[base + "Gewicht"] = st.number_input(
+                        "Gewicht (kg)",
+                        min_value=0.0,
+                        max_value=400.0,
+                        value=safe_float(
+                            old.get(base + "Gewicht", 0)
+                        ),
+                        step=0.5,
+                        key=key(widget + "_weight")
+                    )
+
+                payload[base + "Wdh"] = st.number_input(
+                    "Wiederholungen insgesamt",
+                    min_value=0.0,
+                    max_value=1000.0,
+                    value=safe_float(
+                        old.get(
+                            base + "Wdh",
+                            0 if reduction else 8
+                        ),
+                        default=0.0 if reduction else 8.0
+                    ),
+                    step=0.5,
+                    key=key(widget + "_reps")
+                )
+
+                helped = st.checkbox(
+                    "Mit Hilfe",
+                    value=safe_int(
+                        old.get(base + "Hilfe Wdh", 0)
+                    ) > 0,
+                    key=key(widget + "_helped")
+                )
+
+                if helped:
+                    payload[base + "Hilfe Wdh"] = st.number_input(
+                        "Davon Wiederholungen mit Hilfe",
+                        min_value=0,
+                        value=max(
+                            1,
+                            safe_int(
+                                old.get(base + "Hilfe Wdh", 1)
+                            )
+                        ),
+                        step=1,
+                        key=key(widget + "_help_count")
+                    )
+
+                if payload[base + "Wdh"] <= 0:
+                    errors.append(
+                        "Bitte überall eine positive "
+                        "Wiederholungszahl eingeben."
+                    )
+
+                if (
+                    payload[base + "Hilfe Wdh"]
+                    > payload[base + "Wdh"]
+                ):
+                    errors.append(
+                        "Wiederholungen mit Hilfe dürfen "
+                        "die Gesamtzahl nicht überschreiten."
+                    )
+
+                if reduction and (
+                    payload[base + "Gewicht"]
+                    >= payload[prefix + side + "Gewicht"]
+                ):
+                    errors.append(
+                        "Das Drop-Gewicht muss kleiner "
+                        "als das Ausgangsgewicht sein."
+                    )
+
+    payload[prefix + "Notiz"] = st.text_input(
+        "Set-Notiz",
+        value=safe_string(
+            old.get(prefix + "Notiz", "")
+        ),
+        key=key(f"set_note_{n - 1}")
+    )
+
+    return payload, list(dict.fromkeys(errors))
+
+def show_gym_set_statistics(saved_df, exercise):
+    import re
+
+    details = []
+
+    if saved_df.empty or "Übung" not in saved_df.columns:
+        return
+
+    rows = saved_df[
+        saved_df["Übung"].astype(str) == str(exercise)
+    ]
+
+    numbers = sorted({
+        int(match.group(1))
+        for col in rows.columns
+        if (match := re.fullmatch(
+            r"Set (\d+) (Gewicht|Wdh|Links Wdh|Rechts Wdh|Dauer Sekunden)",
+            str(col)
+        ))
+    })
+
+    for _, row in rows.iterrows():
+        for n in numbers:
+            for part in gym_set_parts(row, n):
+                kind = "Dropsatz" if part["drop"] else "Normal"
+
+                if part["help"] > 0:
+                    kind += (
+                        " + Hilfe"
+                        if part["drop"]
+                        else " · mit Hilfe"
+                    )
+
+                details.append({
+                    "Datum": str(row.get("Datum", "")),
+                    "Set": n,
+                    "Typ": kind,
+                    "Abschnitt": (
+                        "Reduktion"
+                        if part["reduction"]
+                        else "Ausgangssatz"
+                    ),
+                    "Seite": part["side"] or "–",
+                    "Gewicht kg": (
+                        part["weight"]
+                        if part["duration"] <= 0
+                        else None
+                    ),
+                    "Wdh gesamt": (
+                        part["reps"]
+                        if part["duration"] <= 0
+                        else None
+                    ),
+                    "Davon mit Hilfe": part["help"],
+                    "Sekunden": part["duration"] or None,
+                    "Gerät": safe_string(
+                        row.get("Machine", "")
+                    ),
+                    "Status": safe_string(
+                        row.get("Status", "")
+                    )
+                })
+
+    if not details:
+        return
+
+    table = pd.DataFrame(details)
+
+    table["_date"] = pd.to_datetime(
+        table["Datum"],
+        errors="coerce"
+    )
+
+    table = (
+        table.sort_values(
+            "_date",
+            ascending=False,
+            kind="stable"
+        )
+        .drop(columns="_date")
+        .reset_index(drop=True)
+    )
+
+    def color_row(row):
+        drop = row["Typ"].startswith("Dropsatz")
+        helped = row["Davon mit Hilfe"] > 0
+
+        if drop:
+            style = (
+                "background-color: #fff0d6; color: #542900"
+            )
+        elif helped:
+            style = (
+                "background-color: #eee2ff; color: #36175e"
+            )
+        else:
+            style = ""
+
+        styles = [style] * len(row)
+
+        if helped:
+            position = list(row.index).index(
+                "Davon mit Hilfe"
+            )
+            styles[position] = (
+                "background-color: #d9baff; "
+                "color: #301052; font-weight: bold"
+            )
+
+        return styles
+
+    st.markdown("#### Sets im Detail")
+
+    st.caption(
+        "Orange: Dropsatz · Violett: mit Hilfe. "
+        "Die Hilfezahl ist in den Gesamtwiederholungen enthalten."
+    )
+
+    st.dataframe(
+        table.style.apply(
+            color_row,
+            axis=1
+        ).format(
+            {
+                "Gewicht kg": "{:g}",
+                "Wdh gesamt": "{:g}",
+                "Davon mit Hilfe": "{:g}",
+                "Sekunden": "{:g}"
+            },
+            na_rep="–"
+        ),
+        use_container_width=True,
+        hide_index=True
+    )
+
 def get_exercise_weight_summary(saved_df, exercise):
     import re
 
@@ -1352,7 +1760,9 @@ def get_exercise_weight_summary(saved_df, exercise):
             else:
                 continue
 
-            result["last_set"] = label
+            result["last_set"] = (
+                f"Set {n}: " + gym_set_summary(row, n)
+            )
             result["date"] = str(row.get("Datum", ""))
 
             return result
@@ -1550,22 +1960,61 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         return f"gym_{version}_{name}"
 
     # Das ausgewählte Datum bleibt frei wählbar; keine automatische Datumswiederherstellung.
-    selected_day = st.date_input(
-        "Datum", value=pd.to_datetime(edit_date).date() if edit_date else date.today(),
-        key=key("date"))
-    selected_date = str(selected_day)
-
-    # Editierziel wird beim Klick auf ✏️ gesetzt. Externes edit_row_index
-    # wird nur verwendet, wenn noch kein internes Ziel gewählt wurde.
-    if st.session_state.gym_edit_row is None and edit_row_index is not None:
+        # Erst die ausgewählte Übung laden, dann das Datumsfeld erstellen.
+    if (
+        st.session_state.gym_edit_row is None
+        and edit_row_index is not None
+    ):
         st.session_state.gym_edit_row = edit_row_index
+
     edit_index = st.session_state.gym_edit_row
 
     latest = load_data(username)
+
     if latest.empty:
-        latest = pd.DataFrame(columns=list(saved_df.columns))
+        latest = pd.DataFrame(
+            columns=list(saved_df.columns)
+        )
+
+    default_day = (
+        pd.to_datetime(edit_date).date()
+        if edit_date
+        else date.today()
+    )
+
+    # Beim Bearbeiten das Datum der ausgewählten Übung übernehmen.
+    if edit_index is not None:
+        if edit_index not in latest.index:
+            st.error(
+                "Die ausgewählte Trainingszeile existiert nicht mehr."
+            )
+            return
+
+        stored_date = pd.to_datetime(
+            latest.loc[edit_index].get("Datum", ""),
+            errors="coerce"
+        )
+
+        if pd.isna(stored_date):
+            st.error(
+                "Das Datum dieser Übung konnte nicht gelesen werden."
+            )
+            return
+
+        default_day = stored_date.date()
+
+    selected_day = st.date_input(
+        "Datum",
+        value=default_day,
+        key=key("date")
+    )
+
+    selected_date = str(selected_day)
+
     if "Datum" in latest.columns:
-        day_rows = latest[latest["Datum"].astype(str) == selected_date]
+        day_rows = latest[
+            latest["Datum"].astype(str) == selected_date
+        ]
     else:
         day_rows = latest.iloc[0:0]
 
@@ -1809,90 +2258,67 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         base_entry["Status"] = "In Bearbeitung"
 
     st.markdown("### Sets")
-    st.caption("Einzeln speichern klappt ein Set zu. Abschließen speichert alle sichtbaren Sets einschließlich deiner Änderungen.")
+    st.caption(
+        "Einzeln speichern klappt ein Set zu. "
+        "Abschließen speichert alle sichtbaren Sets samt Änderungen."
+    )
+
     all_set_entries = {}
+    set_errors = {}
+
     for s in range(number_of_sets):
         n = s + 1
         old = old_row if old_row is not None else {}
-        is_saved = old_row is not None and n in saved_set_numbers(old_row)
-        if is_saved:
-            if is_time_exercise:
-                summary = f"{safe_float(old.get(f'Set {n} Dauer Sekunden', 0)):g} Sekunden"
-            elif execution_type == "Einseitig":
-                parts = []
-                for side in ("Links", "Rechts"):
-                    reps = safe_float(old.get(f"Set {n} {side} Wdh", 0))
-                    weight = safe_float(old.get(f"Set {n} {side} Gewicht", 0))
-                    parts.append(f"{side}: {weight:g} kg × {reps:g}" if uses_weight else f"{side}: {reps:g} Wdh")
-                summary = " · ".join(parts)
-            else:
-                reps = safe_float(old.get(f"Set {n} Wdh", 0))
-                weight = safe_float(old.get(f"Set {n} Gewicht", 0))
-                summary = f"{weight:g} kg × {reps:g}" if uses_weight else f"{reps:g} Wdh"
-            label = f"Set {n} · {summary} · gespeichert ✓ (zum Bearbeiten öffnen)"
-        else:
-            label = f"Set {n} · noch nicht gespeichert"
-        with st.expander(label, expanded=not is_saved):
-            values = {"weight": 0.0, "reps": 0.0, "duration": 0.0,
-                      "left_weight": 0.0, "left_reps": 0.0,
-                      "right_weight": 0.0, "right_reps": 0.0}
-            if is_time_exercise:
-                values["duration"] = st.number_input("Zeit in Sekunden", min_value=0.0,
-                    max_value=3600.0, value=safe_float(old.get(f"Set {n} Dauer Sekunden", 0)),
-                    step=5.0, key=key(f"duration_{s}"))
-            elif execution_type == "Einseitig":
-                for side, label in (("Links", "links"), ("Rechts", "rechts")):
-                    st.markdown(f"**{side}**")
-                    prefix = "left" if side == "Links" else "right"
-                    if uses_weight:
-                        values[f"{prefix}_weight"] = st.number_input(f"Gewicht {label}", min_value=0.0,
-                            max_value=400.0, value=safe_float(old.get(f"Set {n} {side} Gewicht", 0)),
-                            step=0.5, key=key(f"{prefix}_weight_{s}"))
-                    values[f"{prefix}_reps"] = st.number_input(f"Wdh {label}", min_value=0.0,
-                        max_value=1000.0, value=safe_float(old.get(f"Set {n} {side} Wdh", 8), default=8.0),
-                        step=0.5, key=key(f"{prefix}_reps_{s}"))
-            else:
-                if uses_weight:
-                    values["weight"] = st.number_input("Gewicht", min_value=0.0,
-                        max_value=400.0, value=safe_float(old.get(f"Set {n} Gewicht", 0)),
-                        step=0.5, key=key(f"weight_{s}"))
-                values["reps"] = st.number_input("Wdh", min_value=0.0,
-                    max_value=1000.0, value=safe_float(old.get(f"Set {n} Wdh", 8), default=8.0),
-                    step=0.5, key=key(f"reps_{s}"))
-            set_note = st.text_input("Set-Notiz", value=clean(old.get(f"Set {n} Notiz", "")),
-                                     key=key(f"set_note_{s}"))
-            payload = {
-                f"Set {n} Gewicht": values["weight"],
-                f"Set {n} Wdh": values["reps"],
-                f"Set {n} Links Gewicht": values["left_weight"],
-                f"Set {n} Links Wdh": values["left_reps"],
-                f"Set {n} Rechts Gewicht": values["right_weight"],
-                f"Set {n} Rechts Wdh": values["right_reps"],
-                f"Set {n} Dauer Sekunden": values["duration"],
-                f"Set {n} Notiz": set_note,
-            }
+
+        is_saved = (
+            old_row is not None
+            and n in saved_set_numbers(old_row)
+        )
+
+        summary = gym_set_summary(old, n) if is_saved else ""
+
+        title = (
+            f"Set {n} · {summary} · gespeichert ✓"
+            if is_saved
+            else f"Set {n} · noch nicht gespeichert"
+        )
+
+        with st.expander(title, expanded=not is_saved):
+            payload, errors = render_gym_set(
+                n,
+                old,
+                key,
+                execution_type,
+                is_time_exercise,
+                uses_weight
+            )
+
             all_set_entries.update(payload)
+            set_errors[n] = errors
+
             if is_saved:
                 changed = any(
-                    (safe_float(old.get(col, 0)) != safe_float(value))
-                    if not col.endswith("Notiz") else clean(old.get(col, "")) != clean(value)
+                    safe_string(old.get(col, ""))
+                    != safe_string(value)
+                    if col.endswith("Notiz")
+                    else safe_float(old.get(col, 0))
+                    != safe_float(value)
                     for col, value in payload.items()
                 )
+
                 if changed:
-                    st.caption("Geänderte Eingaben sind noch nicht gespeichert.")
-            valid_set = (values["duration"] > 0 if is_time_exercise else
-                         values["left_reps"] > 0 and values["right_reps"] > 0
-                         if execution_type == "Einseitig" else values["reps"] > 0)
+                    st.caption(
+                        "Geänderte Eingaben sind noch nicht gespeichert."
+                    )
+
             if st.button(
                 f"💾 Set {n} speichern",
                 key=key(f"save_{s}"),
                 disabled=st.session_state.gym_pending_save
             ):
-                if not valid_set:
-                    st.warning(
-                        "Bitte eine positive Dauer bzw. "
-                        "Wiederholungszahl eingeben."
-                    )
+                if errors:
+                    for error in errors:
+                        st.warning(error)
                     return
 
                 if st.session_state.active_training_id is None:
@@ -1921,7 +2347,6 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                         training_id,
                         legacy_index=legacy_index
                     )
-
                     st.session_state.gym_active_identity = identity
 
                 run_gym_save(
@@ -1929,13 +2354,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                     f"Set {n} wird gespeichert. Bitte kurz warten.",
                     f"Set {n} gespeichert! ✓"
                 )
-
                 return
-
-    
-    # ========================================================
-    # WEITERES SET HINZUFÜGEN
-    # ========================================================
 
     if st.button(
         "➕ Weiteres Set hinzufügen",
@@ -1946,45 +2365,23 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         st.session_state[visible_sets_key] += 1
         st.rerun()
 
-
-
     if st.button(
         "✓ Übung abschliessen",
         type="primary",
         key=key("finish"),
         disabled=st.session_state.gym_pending_save
     ):
-        invalid = []
-        for n in range(1, number_of_sets + 1):
-            if is_time_exercise:
-                valid = (
-                    all_set_entries[
-                        f"Set {n} Dauer Sekunden"
-                    ] > 0
-                )
-            elif execution_type == "Einseitig":
-                valid = (
-                    all_set_entries[
-                        f"Set {n} Links Wdh"
-                    ] > 0
-                    and all_set_entries[
-                        f"Set {n} Rechts Wdh"
-                    ] > 0
-                )
-            else:
-                valid = (
-                    all_set_entries[f"Set {n} Wdh"] > 0
-                )
-
-            if not valid:
-                invalid.append(str(n))
+        invalid = {
+            n: errors
+            for n, errors in set_errors.items()
+            if errors
+        }
 
         if invalid:
-            st.warning(
-                "Bitte Set(s) "
-                + ", ".join(invalid)
-                + " vervollständigen."
-            )
+            for n, errors in invalid.items():
+                st.warning(
+                    f"Set {n}: " + " ".join(errors)
+                )
             return
 
         if st.session_state.active_training_id is None:
@@ -2017,9 +2414,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             "abgeschlossen. Bitte kurz warten.",
             "Alle Sets gespeichert – Übung abgeschlossen! ✓"
         )
-
         return
-
 # ============================================================
 # LOGIN
 # ============================================================
@@ -2928,6 +3323,17 @@ with tab3:
                         "Gerätevarianten dieser Übung."
                     )
 
+                    show_gym_set_statistics(
+                        saved_df,
+                        selected_exercise
+                    )
+
+                    st.caption(
+                        "Das Liniendiagramm zeigt die Ausgangsgewichte. "
+                        "Dropsätze und Hilfe sind in der "
+                        "Detailtabelle markiert."
+                    )
+
                     if "Datum" in progress_df.columns:
 
                         progress_df = \
@@ -2945,6 +3351,7 @@ with tab3:
                         for col in progress_df.columns
                         if col.startswith("Set ")
                         and col.endswith(" Gewicht")
+                        and " Drop " not in col
                     ]
 
 
