@@ -1234,6 +1234,43 @@ def get_last_mode_and_calories(saved_df):
 # ============================================================
 # TRAININGSFORMULAR
 # ============================================================
+def gym_remove_set_fields(row, removed):
+    """Ein Set entfernen und folgende Setfelder nachrücken."""
+    import re
+
+    fields = []
+
+    for column, value in row.items():
+        match = re.fullmatch(
+            r"Set (\d+) (.+)",
+            str(column)
+        )
+
+        if match:
+            fields.append((
+                column,
+                int(match.group(1)),
+                match.group(2),
+                value
+            ))
+
+    # Auch die bisherigen letzten Setfelder müssen geleert werden.
+    patch = {
+        column: ""
+        for column, _, _, _ in fields
+    }
+
+    for column, number, suffix, value in fields:
+        if number < removed:
+            patch[column] = value
+
+        elif number > removed:
+            patch[
+                f"Set {number - 1} {suffix}"
+            ] = value
+
+    return patch
+
 def gym_set_parts(row, n):
     """Ein Set in Ausgangssatz und Gewichtsreduktion aufteilen."""
     prefix = f"Set {n} "
@@ -2265,6 +2302,24 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
     all_set_entries = {}
     set_errors = {}
+    delete_set = None
+
+    delete_request_key = key("set_delete_request")
+    pending_delete = st.session_state.get(delete_request_key)
+
+    if pending_delete:
+        st.warning(
+            f"Löschen von Set {pending_delete['number']} "
+            "wurde noch nicht bestätigt. Klicke erneut auf "
+            "dessen Löschbutton, um den Vorgang abzuschließen."
+        )
+
+    drafts_key = key("set_drafts")
+    revision_key = key("set_revision")
+    revision = st.session_state.get(revision_key, 0)
+
+    def set_key(name):
+        return key(f"sets_{revision}_{name}")
 
     for s in range(number_of_sets):
         n = s + 1
@@ -2275,7 +2330,11 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             and n in saved_set_numbers(old_row)
         )
 
-        summary = gym_set_summary(old, n) if is_saved else ""
+        summary = (
+            gym_set_summary(old, n)
+            if is_saved
+            else ""
+        )
 
         title = (
             f"Set {n} · {summary} · gespeichert ✓"
@@ -2284,10 +2343,15 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         )
 
         with st.expander(title, expanded=not is_saved):
+            render_old = dict(old)
+            render_old.update(
+                st.session_state.get(drafts_key, {})
+            )
+
             payload, errors = render_gym_set(
                 n,
-                old,
-                key,
+                render_old,
+                set_key,
                 execution_type,
                 is_time_exercise,
                 uses_weight
@@ -2314,7 +2378,10 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             if st.button(
                 f"💾 Set {n} speichern",
                 key=key(f"save_{s}"),
-                disabled=st.session_state.gym_pending_save
+                disabled=(
+                    st.session_state.gym_pending_save
+                    or bool(pending_delete)
+                )
             ):
                 if errors:
                     for error in errors:
@@ -2356,11 +2423,172 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 )
                 return
 
+            if st.button(
+                f"🗑️ Set {n} löschen",
+                key=set_key(f"delete_{n}"),
+                disabled=(
+                    st.session_state.gym_pending_save
+                    or (
+                        pending_delete is not None
+                        and pending_delete["number"] != n
+                    )
+                )
+            ):
+                delete_set = n
+
+    # Entwürfe sind jetzt in die neuen Formularfelder übernommen.
+    st.session_state.pop(drafts_key, None)
+
+    # Erst nach allen Sets löschen, damit die anderen Eingaben
+    # vollständig erfasst und im Formular erhalten bleiben.
+    if delete_set is not None:
+        remaining_drafts = gym_remove_set_fields(
+            all_set_entries,
+            delete_set
+        )
+
+        request = pending_delete or {
+            "number": delete_set,
+            "patch": None
+        }
+
+        st.session_state[delete_request_key] = request
+
+        def delete_current_set():
+            training_id = st.session_state.active_training_id
+
+            if (
+                training_id is not None
+                and request["patch"] is not None
+            ):
+                # Bei einem erneuten Versuch dieselben Zielwerte
+                # schreiben, statt ein zweites Set zu entfernen.
+                persist_set(
+                    request["patch"],
+                    training_id,
+                    legacy_index=legacy_index
+                )
+
+            elif training_id is not None:
+                _, headers, rows = read_sheet()
+
+                id_column = (
+                    headers.index("Training ID")
+                    if "Training ID" in headers
+                    else None
+                )
+
+                matches = [
+                    index
+                    for index, row in enumerate(rows)
+                    if id_column is not None
+                    and len(row) > id_column
+                    and str(row[id_column]) == str(training_id)
+                ]
+
+                if len(matches) > 1:
+                    raise ValueError(
+                        "Doppelte Training ID. Löschen abgebrochen."
+                    )
+
+                target = (
+                    matches[0]
+                    if matches
+                    else legacy_index
+                )
+
+                if target is not None:
+                    if target < 0 or target >= len(rows):
+                        raise ValueError(
+                            "Die Trainingszeile existiert nicht mehr."
+                        )
+
+                    stored = dict(zip(headers, rows[target]))
+
+                    if (
+                        clean(stored.get("Datum")) != selected_date
+                        or clean(stored.get("Übung")) != exercise
+                    ):
+                        raise ValueError(
+                            "Die Trainingszeile hat sich verändert. "
+                            "Bitte neu öffnen."
+                        )
+
+                    if (
+                        not matches
+                        and nonempty(stored.get("Training ID", ""))
+                    ):
+                        raise ValueError(
+                            "Die Trainingszeile hat inzwischen "
+                            "eine andere ID."
+                        )
+
+                    patch = gym_remove_set_fields(
+                        stored,
+                        delete_set
+                    )
+
+                    numbers = {
+                        int(match.group(1))
+                        for col in patch
+                        if (match := re.match(
+                            r"^Set (\d+) ",
+                            col
+                        ))
+                    }
+
+                    updated = dict(stored, **patch)
+
+                    patch["Anzahl Sets"] = sum(
+                        bool(gym_set_parts(updated, number))
+                        for number in numbers
+                    )
+
+                    if patch["Anzahl Sets"] == 0:
+                        patch["Status"] = "In Bearbeitung"
+
+                    patch["Datum"] = selected_date
+                    patch["Übung"] = exercise
+
+                    request["patch"] = patch
+
+                    persist_set(
+                        patch,
+                        training_id,
+                        legacy_index=legacy_index
+                    )
+
+                elif old_row is not None:
+                    raise ValueError(
+                        "Die gespeicherte Übung wurde nicht gefunden."
+                    )
+
+            # Nur die Setfelder neu aufbauen.
+            # Datum, Übung und andere Angaben behalten ihren Zustand.
+            st.session_state[drafts_key] = remaining_drafts
+            st.session_state[revision_key] = revision + 1
+            st.session_state[visible_sets_key] = max(
+                1,
+                number_of_sets - 1
+            )
+
+            st.session_state.pop(delete_request_key, None)
+
+        run_gym_save(
+            delete_current_set,
+            f"Set {delete_set} wird gelöscht. Bitte kurz warten.",
+            f"Set {delete_set} gelöscht. ✓"
+        )
+        return
+
     if st.button(
         "➕ Weiteres Set hinzufügen",
         key=key("add_set"),
         use_container_width=True,
-        disabled=st.session_state.gym_pending_save
+        disabled=(
+            st.session_state.gym_pending_save
+            or bool(pending_delete)
+        )
     ):
         st.session_state[visible_sets_key] += 1
         st.rerun()
@@ -2369,7 +2597,10 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         "✓ Übung abschliessen",
         type="primary",
         key=key("finish"),
-        disabled=st.session_state.gym_pending_save
+        disabled=(
+            st.session_state.gym_pending_save
+            or bool(pending_delete)
+        )
     ):
         invalid = {
             n: errors
