@@ -1903,7 +1903,7 @@ def show_gym_weight_chart(progress_df):
                 ),
                 axis=alt.Axis(
                     tickCount=5,
-                    format="~g"
+                    format="~f"
                 )
             ),
             tooltip=[
@@ -1915,7 +1915,7 @@ def show_gym_weight_chart(progress_df):
                 alt.Tooltip("Set:Q", format=".0f"),
                 alt.Tooltip("Seite:N"),
                 alt.Tooltip("Gerät:N"),
-                alt.Tooltip("Gewicht kg:Q"),
+                alt.Tooltip("Gewicht kg:Q", format="~f"),
                 alt.Tooltip("Wdh:Q"),
                 alt.Tooltip("Mit Hilfe:Q", format=".0f")
             ]
