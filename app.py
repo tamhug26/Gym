@@ -1805,7 +1805,7 @@ def show_gym_weight_chart(progress_df):
                 data["Eintrag"] == selected_entry
             ].copy()
 
-        data["Linie"] = data["Seite"]
+        data["Linie"] = data["Gerät"]
 
         x = alt.X(
             "Set:Q",
@@ -1817,11 +1817,17 @@ def show_gym_weight_chart(progress_df):
 
         st.caption(
             "Verbindet die Ausgangsgewichte der Sets dieses Trainings. "
-            "Links und rechts bleiben getrennt."
+            "Beidseitig, links und rechts erhalten eigene Diagramme."
         )
 
     else:
-        data["Linie"] = data["Verlauf"]
+        data["Linie"] = (
+            "Set "
+            + data["Set"].astype(str)
+            + " · "
+            + data["Gerät"]
+        )
+
         data["Reihenfolge"] = range(len(data))
 
         x = alt.X(
@@ -1837,51 +1843,81 @@ def show_gym_weight_chart(progress_df):
 
         st.caption(
             "Verbindet dieselbe Setnummer über Trainingstage. "
-            "Seite und Gerät werden getrennt verglichen; "
+            "Gerätevarianten bleiben getrennt; "
             "fehlende Messungen werden übersprungen."
         )
 
-        if (
-            data.groupby("Linie")["Datum"].nunique() < 2
+    series_order = (
+        data.sort_values(
+            ["Set", "Gerät"],
+            kind="stable"
+        )["Linie"]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    for side in ("Beidseitig", "Links", "Rechts"):
+        side_data = data[
+            data["Seite"] == side
+        ].copy()
+
+        if side_data.empty:
+            continue
+
+        st.subheader(side)
+
+        if view == "Über Trainingstage" and (
+            side_data.groupby("Linie")["Datum"].nunique() < 2
         ).any():
             st.caption(
                 "Reihen mit nur einem Trainingstag "
                 "erscheinen als einzelne Punkte."
             )
 
-    chart = alt.Chart(data).mark_line(
-        point=True
-    ).encode(
-        x=x,
-        y=alt.Y(
-            "Gewicht kg:Q",
-            title="Gewicht (kg)",
-            scale=alt.Scale(zero=False)
-        ),
-        color=alt.Color(
-            "Linie:N",
-            title="Reihe"
-        ),
-        order=order,
-        tooltip=[
-            alt.Tooltip(
-                "Datum:T",
-                title="Trainingstag",
-                format="%d.%m.%Y"
-            ),
-            alt.Tooltip("Set:Q", format=".0f"),
-            alt.Tooltip("Seite:N"),
-            alt.Tooltip("Gerät:N"),
-            alt.Tooltip("Gewicht kg:Q"),
-            alt.Tooltip("Wdh:Q"),
-            alt.Tooltip("Mit Hilfe:Q", format=".0f")
+        side_series = [
+            name
+            for name in series_order
+            if name in set(side_data["Linie"])
         ]
-    ).properties(height=350)
 
-    st.altair_chart(
-        chart,
-        use_container_width=True
-    )
+        chart = alt.Chart(side_data).mark_line(
+            point=True
+        ).encode(
+            x=x,
+            y=alt.Y(
+                "Gewicht kg:Q",
+                title="Gewicht (kg)",
+                scale=alt.Scale(zero=False)
+            ),
+            color=alt.Color(
+                "Linie:N",
+                title="Reihe",
+                scale=alt.Scale(domain=side_series),
+                legend=alt.Legend(
+                    orient="bottom",
+                    labelLimit=350
+                )
+            ),
+            order=order,
+            tooltip=[
+                alt.Tooltip(
+                    "Datum:T",
+                    title="Trainingstag",
+                    format="%d.%m.%Y"
+                ),
+                alt.Tooltip("Set:Q", format=".0f"),
+                alt.Tooltip("Seite:N"),
+                alt.Tooltip("Gerät:N"),
+                alt.Tooltip("Gewicht kg:Q"),
+                alt.Tooltip("Wdh:Q"),
+                alt.Tooltip("Mit Hilfe:Q", format=".0f")
+            ]
+        ).properties(height=350)
+
+        st.altair_chart(
+            chart,
+            use_container_width=True
+        )
 
 def get_exercise_weight_summary(saved_df, exercise):
     import re
