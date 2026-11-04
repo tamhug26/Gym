@@ -998,6 +998,120 @@ def save_training_row(username, entry, training_id=None):
 
     return training_id
 
+def delete_one_training_exercise(username, request):
+    """Genau eine Übung anhand ihrer Training ID löschen."""
+    worksheet = get_user_worksheet(username)
+
+    def find_id(values):
+        if not values or "Training ID" not in values[0]:
+            return None
+
+        column = values[0].index("Training ID")
+
+        matches = [
+            index
+            for index, row in enumerate(values[1:])
+            if len(row) > column
+            and str(row[column]) == request["id"]
+        ]
+
+        if len(matches) > 1:
+            raise ValueError(
+                "Doppelte Training ID. Löschen abgebrochen."
+            )
+
+        return matches[0] if matches else None
+
+    try:
+        values = worksheet.get_all_values()
+        headers = list(values[0]) if values else []
+
+        if len(headers) != len(set(headers)):
+            raise ValueError(
+                "Doppelte Spaltenüberschriften. "
+                "Löschen abgebrochen."
+            )
+
+        target = find_id(values)
+
+        if target is None and request["attached"]:
+            # Bereits gelöscht: keine andere Zeile entfernen.
+            return False
+
+        if target is None:
+            # Ältere Übungen ohne ID eindeutig identifizieren.
+            matches = []
+
+            for index, row in enumerate(values[1:]):
+                current = dict(zip(headers, row))
+
+                if safe_string(
+                    current.get("Training ID", "")
+                ).strip():
+                    continue
+
+                if all(
+                    safe_string(current.get(col, ""))
+                    == safe_string(value)
+                    for col, value in request["expected"].items()
+                ):
+                    matches.append(index)
+
+            if len(matches) != 1:
+                raise ValueError(
+                    "Die alte Übung ist nicht mehr eindeutig "
+                    "zuzuordnen. Bitte neu öffnen. "
+                    "Es wurde nichts gelöscht."
+                )
+
+            target = matches[0]
+
+            if "Training ID" not in headers:
+                headers.append("Training ID")
+
+                if len(headers) > worksheet.col_count:
+                    worksheet.add_cols(
+                        len(headers) - worksheet.col_count
+                    )
+
+                worksheet.update(
+                    range_name="A1",
+                    values=[headers]
+                )
+
+            worksheet.update_cell(
+                target + 2,
+                headers.index("Training ID") + 1,
+                request["id"]
+            )
+
+            request["attached"] = True
+
+            target = find_id(
+                worksheet.get_all_values()
+            )
+
+            if target is None:
+                return False
+
+        request["attached"] = True
+
+        try:
+            worksheet.delete_rows(target + 2)
+
+        except Exception:
+            # Prüfen, ob trotz verlorener Antwort gelöscht wurde.
+            if find_id(
+                worksheet.get_all_values()
+            ) is None:
+                return True
+            raise
+
+        return True
+
+    finally:
+        load_data.clear()
+
 def delete_training_day(username, selected_date):
     worksheet = get_user_worksheet(username)
     df = load_data(username)
@@ -2557,31 +2671,166 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         day_rows = latest.iloc[0:0]
 
     st.markdown("### ✅ Bereits gespeichert")
+
     if day_rows.empty:
-        st.caption("Für diesen Tag wurde noch keine Übung gespeichert.")
-    
+        st.caption(
+            "Für diesen Tag wurde noch keine Übung gespeichert."
+        )
+
+    confirmation_key = key(
+        "delete_exercise_confirmation"
+    )
+
     for row_index, row in day_rows.iterrows():
-        title = safe_string(row.get("Übung", "Übung"))
-        status = safe_string(row.get("Status", "Abgeschlossen"))
+        title = safe_string(
+            row.get("Übung", "Übung")
+        )
+
+        status = safe_string(
+            row.get("Status", "Abgeschlossen")
+        )
+
         actual = len(saved_set_numbers(row))
 
-        left, right = st.columns([5, 1])
+        row_id = safe_string(
+            row.get("Training ID", "")
+        ).strip()
 
-        with left:
+        token = row_id or f"legacy_{row_index}"
+
+        text_col, edit_col, delete_col = st.columns(
+            [6, 1, 1]
+        )
+
+        with text_col:
             st.markdown(
                 f"**{title}** · {actual} Sets · {status}"
             )
 
-        with right:
-            if st.button("✏️", key=key(f"edit_{row_index}")):
-                if st.session_state.active_training_id is not None:
+        with edit_col:
+            if st.button(
+                "✏️",
+                key=key(f"edit_{row_index}"),
+                help="Übung bearbeiten"
+            ):
+                if (
+                    st.session_state.active_training_id
+                    is not None
+                ):
                     st.warning(
-                        "Schliesse zuerst deine aktuelle Übung ab."
+                        "Schließe zuerst deine aktuelle Übung ab."
                     )
+
                 else:
+                    st.session_state.pop(
+                        confirmation_key,
+                        None
+                    )
+
                     st.session_state.gym_edit_row = row_index
                     st.session_state.gym_editor_version += 1
                     st.rerun()
+
+        with delete_col:
+            if st.button(
+                "✕",
+                key=key(f"remove_{row_index}"),
+                help="Diese Übung löschen"
+            ):
+                active = (
+                    st.session_state.active_training_id
+                )
+
+                same_exercise = (
+                    active is not None
+                    and row_id == str(active)
+                ) or edit_index == row_index
+
+                if active is not None and not same_exercise:
+                    st.warning(
+                        "Schließe zuerst die andere Übung ab."
+                    )
+
+                else:
+                    st.session_state[confirmation_key] = {
+                        "token": token,
+                        "id": row_id or str(uuid.uuid4()),
+                        "attached": bool(row_id),
+                        "expected": row.to_dict(),
+                        "reset_editor": same_exercise,
+                    }
+
+        request = st.session_state.get(
+            confirmation_key
+        )
+
+        if request and (
+            request["token"] == token
+            or row_id == request["id"]
+        ):
+            st.warning(
+                f"„{title}“ vom {selected_date} "
+                "mit allen zugehörigen Sets löschen?"
+            )
+
+            yes_col, no_col = st.columns(2)
+
+            with yes_col:
+                if st.button(
+                    "Ja, diese Übung löschen",
+                    type="primary",
+                    key=key(
+                        f"confirm_remove_{row_index}"
+                    )
+                ):
+                    def remove_exercise():
+                        delete_one_training_exercise(
+                            username,
+                            request
+                        )
+
+                        st.session_state.pop(
+                            confirmation_key,
+                            None
+                        )
+
+                        if request["reset_editor"]:
+                            st.session_state.active_training_id = None
+                            st.session_state.gym_active_identity = None
+                            st.session_state.gym_edit_row = None
+                            st.session_state.exercise_edit_index = None
+                            st.session_state.gym_editor_version += 1
+
+                            # Auf dem ausgewählten Datum bleiben.
+                            next_version = (
+                                st.session_state.gym_editor_version
+                            )
+
+                            st.session_state[
+                                f"gym_{next_version}_date"
+                            ] = selected_day
+
+                    run_gym_save(
+                        remove_exercise,
+                        f"„{title}“ wird gelöscht. "
+                        "Bitte kurz warten.",
+                        "Übung gelöscht. ✓"
+                    )
+                    return
+
+            with no_col:
+                if st.button(
+                    "Abbrechen",
+                    key=key(
+                        f"cancel_remove_{row_index}"
+                    )
+                ):
+                    st.session_state.pop(
+                        confirmation_key,
+                        None
+                    )
+                    st.rerun()
+
 
 
     old_row = None
