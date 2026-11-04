@@ -1731,6 +1731,96 @@ def gym_weight_chart_points(progress_df):
 
     return points
 
+def gym_prepare_overlap_lines(rows, color_field, compare_days):
+    """Überlappungen erkennen, ohne Messwerte zu verschieben."""
+    from collections import Counter, defaultdict
+
+    x_field = "Set" if compare_days else "Datum"
+    groups = {}
+    point_counts = defaultdict(int)
+    point_rows = []
+
+    for source in rows:
+        row = dict(source)
+
+        point = (
+            str(row[x_field]),
+            float(row["Gewicht kg"])
+        )
+
+        rank = point_counts[point]
+        point_counts[point] += 1
+
+        # Unterschiedliche Ringgrößen bei gleichen Positionen.
+        row["Punktgroesse"] = (8 + rank * 5) ** 2
+        point_rows.append(row)
+
+        group_key = (
+            str(row[color_field]),
+            row["Eintrag"] if compare_days else None
+        )
+
+        groups.setdefault(group_key, []).append(row)
+
+    series_segments = []
+    counts = Counter()
+
+    for group_rows in groups.values():
+        group_rows = sorted(
+            group_rows,
+            key=lambda row: (
+                row[x_field],
+                row.get("Reihenfolge", 0)
+            )
+        )
+
+        segments = []
+
+        for first, second in zip(
+            group_rows,
+            group_rows[1:]
+        ):
+            signature = tuple(
+                (
+                    str(row[x_field]),
+                    float(row["Gewicht kg"])
+                )
+                for row in (first, second)
+            )
+
+            counts[signature] += 1
+            segments.append((signature, first, second))
+
+        series_segments.append(segments)
+
+    lines = []
+    phases = defaultdict(int)
+
+    for segments in series_segments:
+        current = None
+
+        for signature, first, second in segments:
+            count = counts[signature]
+            phase = phases[signature]
+            phases[signature] += 1
+
+            if (
+                current
+                and current["count"] == count
+                and current["phase"] == phase
+            ):
+                current["rows"].append(second)
+
+            else:
+                current = {
+                    "rows": [first, second],
+                    "count": count,
+                    "phase": phase
+                }
+                lines.append(current)
+
+    return lines, point_rows
+
 def show_gym_weight_chart(progress_df):
     import altair as alt
 
@@ -1886,39 +1976,110 @@ def show_gym_weight_chart(progress_df):
             0.5
         )
 
-        chart = alt.Chart(chart_data).mark_line(
-            point=True,
-            strokeWidth=2
-        ).encode(
-            **encoding,
-            y=alt.Y(
-                "Gewicht kg:Q",
-                title="Gewicht (kg)",
-                scale=alt.Scale(
-                    domain=[
-                        max(0, lowest - padding),
-                        highest + padding
-                    ],
-                    zero=False
-                ),
-                axis=alt.Axis(
-                    tickCount=5,
-                    format="~f"
-                )
+        lines, point_rows = gym_prepare_overlap_lines(
+            chart_data.to_dict("records"),
+            color_field,
+            compare_days
+        )
+
+        y_axis = alt.Y(
+            "Gewicht kg:Q",
+            title="Gewicht (kg)",
+            scale=alt.Scale(
+                domain=[
+                    max(0, lowest - padding),
+                    highest + padding
+                ],
+                zero=False
             ),
-            tooltip=[
-                alt.Tooltip(
-                    "Datum:T",
-                    title="Trainingstag",
-                    format="%d.%m.%Y"
-                ),
-                alt.Tooltip("Set:Q", format=".0f"),
-                alt.Tooltip("Seite:N"),
-                alt.Tooltip("Gerät:N"),
-                alt.Tooltip("Gewicht kg:Q", format="~f"),
-                alt.Tooltip("Wdh:Q"),
-                alt.Tooltip("Mit Hilfe:Q", format=".0f")
-            ]
+            axis=alt.Axis(
+                tickCount=5,
+                format="~f"
+            )
+        )
+
+        tooltips = [
+            alt.Tooltip(
+                "Datum:T",
+                title="Trainingstag",
+                format="%d.%m.%Y"
+            ),
+            alt.Tooltip("Set:Q", format=".0f"),
+            alt.Tooltip("Seite:N"),
+            alt.Tooltip("Gerät:N"),
+            alt.Tooltip("Gewicht kg:Q", format="~f"),
+            alt.Tooltip("Wdh:Q", format="~f"),
+            alt.Tooltip("Mit Hilfe:Q", format=".0f")
+        ]
+
+        backgrounds = []
+        strokes = []
+
+        for line in lines:
+            base = alt.Chart(
+                pd.DataFrame(line["rows"])
+            ).encode(
+                **encoding,
+                y=y_axis,
+                tooltip=tooltips
+            )
+
+            if line["count"] > 1:
+                backgrounds.append(
+                    base.mark_line(
+                        strokeWidth=1,
+                        opacity=0.2
+                    )
+                )
+
+                strokes.append(
+                    base.mark_line(
+                        strokeWidth=3,
+                        strokeDash=[
+                            10,
+                            10 * (line["count"] - 1)
+                        ],
+                        strokeDashOffset=(
+                            -10 * line["phase"]
+                        ),
+                        strokeCap="butt"
+                    )
+                )
+
+            else:
+                strokes.append(
+                    base.mark_line(strokeWidth=2)
+                )
+
+        point_encoding = dict(encoding)
+        point_encoding.pop("order", None)
+        point_encoding.pop("detail", None)
+
+        points_layer = alt.Chart(
+            pd.DataFrame(point_rows)
+        ).mark_point(
+            filled=False,
+            strokeWidth=2,
+            opacity=1
+        ).encode(
+            **point_encoding,
+            y=y_axis,
+            tooltip=tooltips,
+            size=alt.Size(
+                "Punktgroesse:Q",
+                scale=None,
+                legend=None
+            ),
+            order=alt.Order(
+                "Punktgroesse:Q",
+                sort="descending"
+            )
+        )
+
+        chart = alt.layer(
+            *backgrounds,
+            *strokes,
+            points_layer
         ).properties(
             height=320,
             autosize=alt.AutoSizeParams(
@@ -1930,6 +2091,7 @@ def show_gym_weight_chart(progress_df):
             titleFontSize=12,
             titlePadding=12
         )
+
 
         st.altair_chart(
             chart,
