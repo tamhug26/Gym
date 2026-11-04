@@ -1359,6 +1359,58 @@ def get_exercise_weight_summary(saved_df, exercise):
 
     return result
 
+@st.dialog("Bitte warten", dismissible=False)
+def gym_save_dialog(job):
+    st.write(job["message"])
+
+    # Bei einem erneuten Dialog-Durchlauf nicht nochmals speichern.
+    if not job["finished"]:
+        st.session_state.gym_pending_save = True
+
+        try:
+            with st.spinner("Wird in Google Sheets gespeichert …"):
+                job["action"]()
+
+        except Exception as exc:
+            job["error"] = str(exc)
+
+        finally:
+            job["finished"] = True
+            st.session_state.gym_pending_save = False
+
+    if job["error"] is not None:
+        st.error(
+            "Speichern konnte nicht bestätigt werden: "
+            + job["error"]
+        )
+
+        st.info(
+            "Deine Eingaben bleiben im Editor. "
+            "Schließe dieses Fenster, prüfe die gespeicherten "
+            "Werte und versuche es bei Bedarf erneut."
+        )
+
+        if st.button(
+            "Zurück zur Übung",
+            key="gym_close_save_dialog"
+        ):
+            st.rerun()
+
+    else:
+        st.toast(job["success"])
+        st.rerun()
+
+def run_gym_save(action, message, success):
+    job = {
+        "action": action,
+        "message": message,
+        "success": success,
+        "finished": False,
+        "error": None,
+    }
+
+    gym_save_dialog(job)
+
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
 
@@ -1831,29 +1883,54 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             valid_set = (values["duration"] > 0 if is_time_exercise else
                          values["left_reps"] > 0 and values["right_reps"] > 0
                          if execution_type == "Einseitig" else values["reps"] > 0)
-            if st.button(f"💾 Set {n} speichern", key=key(f"save_{s}"),
-                         disabled=st.session_state.gym_pending_save):
+            if st.button(
+                f"💾 Set {n} speichern",
+                key=key(f"save_{s}"),
+                disabled=st.session_state.gym_pending_save
+            ):
                 if not valid_set:
-                    st.warning("Bitte eine positive Dauer bzw. Wiederholungszahl eingeben.")
+                    st.warning(
+                        "Bitte eine positive Dauer bzw. "
+                        "Wiederholungszahl eingeben."
+                    )
                     return
-                st.session_state.gym_pending_save = True
+
                 if st.session_state.active_training_id is None:
-                    st.session_state.active_training_id = str(uuid.uuid4())
+                    st.session_state.active_training_id = str(
+                        uuid.uuid4()
+                    )
+
                 training_id = st.session_state.active_training_id
+
                 entry = dict(base_entry, **payload)
                 entry["Status"] = "In Bearbeitung"
-                previous = saved_set_numbers(old_row) if old_row is not None else []
-                entry["Anzahl Sets"] = len(set(previous) | {n})
-                try:
-                    with st.spinner(f"Set {n} wird gespeichert..."):
-                        persist_set(entry, training_id, legacy_index=legacy_index)
+
+                previous = (
+                    saved_set_numbers(old_row)
+                    if old_row is not None
+                    else []
+                )
+
+                entry["Anzahl Sets"] = len(
+                    set(previous) | {n}
+                )
+
+                def save_current_set():
+                    persist_set(
+                        entry,
+                        training_id,
+                        legacy_index=legacy_index
+                    )
+
                     st.session_state.gym_active_identity = identity
-                    st.toast(f"Set {n} gespeichert! ✓")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Set {n} konnte nicht gespeichert werden: {exc}")
-                finally:
-                    st.session_state.gym_pending_save = False
+
+                run_gym_save(
+                    save_current_set,
+                    f"Set {n} wird gespeichert. Bitte kurz warten.",
+                    f"Set {n} gespeichert! ✓"
+                )
+
+                return
 
     
     # ========================================================
@@ -1871,45 +1948,77 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
 
 
-    if st.button("✓ Übung abschliessen", type="primary", key=key("finish"),
-                 disabled=st.session_state.gym_pending_save):
-        # Alle sichtbaren Eingaben zusammen mit dem Abschlussstatus schreiben.
-        # So kann insbesondere das letzte Set nicht beim Abschließen verloren gehen.
+    if st.button(
+        "✓ Übung abschliessen",
+        type="primary",
+        key=key("finish"),
+        disabled=st.session_state.gym_pending_save
+    ):
         invalid = []
         for n in range(1, number_of_sets + 1):
             if is_time_exercise:
-                valid = all_set_entries[f"Set {n} Dauer Sekunden"] > 0
+                valid = (
+                    all_set_entries[
+                        f"Set {n} Dauer Sekunden"
+                    ] > 0
+                )
             elif execution_type == "Einseitig":
-                valid = (all_set_entries[f"Set {n} Links Wdh"] > 0 and
-                         all_set_entries[f"Set {n} Rechts Wdh"] > 0)
+                valid = (
+                    all_set_entries[
+                        f"Set {n} Links Wdh"
+                    ] > 0
+                    and all_set_entries[
+                        f"Set {n} Rechts Wdh"
+                    ] > 0
+                )
             else:
-                valid = all_set_entries[f"Set {n} Wdh"] > 0
+                valid = (
+                    all_set_entries[f"Set {n} Wdh"] > 0
+                )
+
             if not valid:
                 invalid.append(str(n))
+
         if invalid:
-            st.warning("Bitte Set(s) " + ", ".join(invalid) + " vervollständigen.")
+            st.warning(
+                "Bitte Set(s) "
+                + ", ".join(invalid)
+                + " vervollständigen."
+            )
             return
+
         if st.session_state.active_training_id is None:
-            st.session_state.active_training_id = str(uuid.uuid4())
+            st.session_state.active_training_id = str(
+                uuid.uuid4()
+            )
+
         training_id = st.session_state.active_training_id
+
         entry = dict(base_entry, **all_set_entries)
         entry["Status"] = "Abgeschlossen"
         entry["Anzahl Sets"] = number_of_sets
-        try:
-            st.session_state.gym_pending_save = True
-            with st.spinner("Alle Sets werden gespeichert und die Übung abgeschlossen..."):
-                persist_set(entry, training_id, legacy_index=legacy_index)
+
+        def finish_current_exercise():
+            persist_set(
+                entry,
+                training_id,
+                legacy_index=legacy_index
+            )
+
             st.session_state.active_training_id = None
             st.session_state.gym_active_identity = None
             st.session_state.gym_edit_row = None
             st.session_state.exercise_edit_index = None
             st.session_state.gym_editor_version += 1
-            st.toast("Alle Sets gespeichert – Übung abgeschlossen! ✓")
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Übung konnte nicht abgeschlossen werden: {exc}")
-        finally:
-            st.session_state.gym_pending_save = False
+
+        run_gym_save(
+            finish_current_exercise,
+            "Alle Sets werden gespeichert und die Übung "
+            "abgeschlossen. Bitte kurz warten.",
+            "Alle Sets gespeichert – Übung abgeschlossen! ✓"
+        )
+
+        return
 
 # ============================================================
 # LOGIN
