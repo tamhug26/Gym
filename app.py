@@ -1234,6 +1234,130 @@ def get_last_mode_and_calories(saved_df):
 # ============================================================
 # TRAININGSFORMULAR
 # ============================================================
+def get_exercise_weight_summary(saved_df, exercise):
+    import re
+
+    result = {
+        "maximum": None,
+        "last_set": None,
+        "date": None
+    }
+
+    if saved_df.empty or "Übung" not in saved_df.columns:
+        return result
+
+    rows = saved_df[
+        saved_df["Übung"].astype(str) == str(exercise)
+    ].copy()
+
+    if rows.empty:
+        return result
+
+    def number(value):
+        parsed = pd.to_numeric(
+            str(value).strip().replace(",", "."),
+            errors="coerce"
+        )
+        return 0.0 if pd.isna(parsed) else float(parsed)
+
+    # Alle Setnummern erkennen, auch mehr als vier Sets.
+    set_numbers = sorted({
+        int(match.group(1))
+        for column in rows.columns
+        if (match := re.fullmatch(
+            r"Set (\d+) (Gewicht|Wdh|Links Gewicht|Links Wdh|"
+            r"Rechts Gewicht|Rechts Wdh|Dauer Sekunden)",
+            str(column)
+        ))
+    })
+
+    weight_columns = [
+        column
+        for column in rows.columns
+        if re.fullmatch(
+            r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)",
+            str(column)
+        )
+    ]
+
+    weights = [
+        number(value)
+        for column in weight_columns
+        for value in rows[column]
+    ]
+
+    positive_weights = [
+        weight for weight in weights if weight > 0
+    ]
+
+    if positive_weights:
+        result["maximum"] = max(positive_weights)
+
+    # Neuester Trainingstag zuerst.
+    # Bei gleichem Datum zählt die spätere Tabellenzeile.
+    if "Datum" in rows.columns:
+        rows["_sort_date"] = pd.to_datetime(
+            rows["Datum"],
+            errors="coerce"
+        )
+
+        rows = rows.sort_values(
+            "_sort_date",
+            kind="stable",
+            na_position="first"
+        )
+
+    for _, row in rows.iloc[::-1].iterrows():
+        for n in reversed(set_numbers):
+
+            def value(suffix):
+                return number(
+                    row.get(f"Set {n} {suffix}", "")
+                )
+
+            duration = value("Dauer Sekunden")
+            left_reps = value("Links Wdh")
+            right_reps = value("Rechts Wdh")
+            left_weight = value("Links Gewicht")
+            right_weight = value("Rechts Gewicht")
+            reps = value("Wdh")
+            weight = value("Gewicht")
+
+            if duration > 0:
+                label = f"Set {n}: {duration:g} Sekunden"
+
+            elif (
+                left_reps > 0
+                or right_reps > 0
+                or left_weight > 0
+                or right_weight > 0
+            ):
+                label = (
+                    f"Set {n}: "
+                    f"links {left_weight:g} kg × {left_reps:g} · "
+                    f"rechts {right_weight:g} kg × {right_reps:g}"
+                )
+
+            elif reps > 0 or weight > 0:
+                if weight > 0:
+                    label = (
+                        f"Set {n}: {weight:g} kg × {reps:g}"
+                    )
+                else:
+                    label = (
+                        f"Set {n}: {reps:g} Wdh · "
+                        "ohne Zusatzgewicht"
+                    )
+
+            else:
+                continue
+
+            result["last_set"] = label
+            result["date"] = str(row.get("Datum", ""))
+
+            return result
+
+    return result
 
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
@@ -2660,13 +2784,40 @@ with tab3:
                     ].copy()
 
                     
-                    last_weights = get_last_training_weights(
-                        saved_df, selected_exercise
+                    summary = get_exercise_weight_summary(
+                        saved_df,
+                        selected_exercise
                     )
 
-                    if last_weights:
-                        st.caption(f"Letztes Training: {last_weights}")
+                    maximum = summary["maximum"]
 
+                    st.metric(
+                        "🏆 Höchstgewicht bisher",
+                        f"{maximum:g} kg"
+                        if maximum is not None
+                        else "Keine Gewichtsdaten"
+                    )
+
+                    st.markdown("**Letztes gespeichertes Set**")
+
+                    if summary["last_set"]:
+                        st.write(summary["last_set"])
+
+                        if summary["date"]:
+                            st.caption(
+                                f"Training vom {summary['date']}"
+                            )
+                    else:
+                        st.caption(
+                            "Noch kein gespeichertes Set vorhanden."
+                        )
+
+                    st.caption(
+                        "Auswertung aller gespeicherten Sets, "
+                        "auch aus Übungen in Bearbeitung. "
+                        "Das Höchstgewicht gilt über alle "
+                        "Gerätevarianten dieser Übung."
+                    )
 
                     if "Datum" in progress_df.columns:
 
