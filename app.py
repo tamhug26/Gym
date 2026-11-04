@@ -1655,29 +1655,31 @@ def show_gym_set_statistics(saved_df, exercise):
 
         return styles
 
-    st.markdown("#### Sets im Detail")
+    with st.expander(
+        "📋 Sets im Detail anzeigen",
+        expanded=False
+    ):
+        st.caption(
+            "Orange: Dropsatz · Violett: mit Hilfe. "
+            "Die Hilfezahl ist in den Gesamtwiederholungen enthalten."
+        )
 
-    st.caption(
-        "Orange: Dropsatz · Violett: mit Hilfe. "
-        "Die Hilfezahl ist in den Gesamtwiederholungen enthalten."
-    )
-
-    st.dataframe(
-        table.style.apply(
-            color_row,
-            axis=1
-        ).format(
-            {
-                "Gewicht kg": "{:g}",
-                "Wdh gesamt": "{:g}",
-                "Davon mit Hilfe": "{:g}",
-                "Sekunden": "{:g}"
-            },
-            na_rep="–"
-        ),
-        use_container_width=True,
-        hide_index=True
-    )
+        st.dataframe(
+            table.style.apply(
+                color_row,
+                axis=1
+            ).format(
+                {
+                    "Gewicht kg": "{:g}",
+                    "Wdh gesamt": "{:g}",
+                    "Davon mit Hilfe": "{:g}",
+                    "Sekunden": "{:g}"
+                },
+                na_rep="–"
+            ),
+            use_container_width=True,
+            hide_index=True
+        )
 
 def get_exercise_weight_summary(saved_df, exercise):
     import re
