@@ -1813,34 +1813,36 @@ def show_gym_weight_chart(progress_df):
         )
 
     def draw_chart(chart_data):
+        import colorsys
+        from html import escape
+
         if chart_data.empty:
             return
 
-        present = set(chart_data[color_field])
+        # Gleiche Farben in allen Diagrammen.
+        colors = []
 
-        legend_values = [
-            name
-            for name in color_domain
-            if name in present
-        ]
+        for index in range(len(color_domain)):
+            red, green, blue = colorsys.hls_to_rgb(
+                (index * 0.61803398875) % 1.0,
+                0.48,
+                0.68
+            )
+
+            colors.append(
+                f"#{round(red * 255):02x}"
+                f"{round(green * 255):02x}"
+                f"{round(blue * 255):02x}"
+            )
 
         encoding = {
             "color": alt.Color(
                 f"{color_field}:N",
-                title=(
-                    "Trainingstag"
-                    if compare_days
-                    else "Set"
-                ),
                 scale=alt.Scale(
                     domain=color_domain,
-                    scheme="turbo"
+                    range=colors
                 ),
-                legend=alt.Legend(
-                    orient="bottom",
-                    columns=1,
-                    values=legend_values
-                )
+                legend=None
             )
         }
 
@@ -1850,14 +1852,12 @@ def show_gym_weight_chart(progress_df):
                 title="Set",
                 axis=alt.Axis(
                     tickMinStep=1,
-                    format="d"
+                    format="d",
+                    labelAngle=0
                 )
             )
 
             encoding["order"] = alt.Order("Set:Q")
-
-            # Mehrere Einträge desselben Tages behalten
-            # dieselbe Farbe, aber getrennte Linien.
             encoding["detail"] = alt.Detail("Eintrag:N")
 
         else:
@@ -1866,7 +1866,7 @@ def show_gym_weight_chart(progress_df):
                 title="Trainingstag",
                 axis=alt.Axis(
                     format="%d.%m.",
-                    labelAngle=-40,
+                    labelAngle=-35,
                     tickCount=4
                 )
             )
@@ -1875,14 +1875,36 @@ def show_gym_weight_chart(progress_df):
                 "Reihenfolge:Q"
             )
 
+        lowest = float(
+            chart_data["Gewicht kg"].min()
+        )
+        highest = float(
+            chart_data["Gewicht kg"].max()
+        )
+        padding = max(
+            (highest - lowest) * 0.15,
+            0.5
+        )
+
         chart = alt.Chart(chart_data).mark_line(
-            point=True
+            point=True,
+            strokeWidth=2
         ).encode(
             **encoding,
             y=alt.Y(
                 "Gewicht kg:Q",
                 title="Gewicht (kg)",
-                scale=alt.Scale(zero=False)
+                scale=alt.Scale(
+                    domain=[
+                        max(0, lowest - padding),
+                        highest + padding
+                    ],
+                    zero=False
+                ),
+                axis=alt.Axis(
+                    tickCount=5,
+                    format="~g"
+                )
             ),
             tooltip=[
                 alt.Tooltip(
@@ -1897,12 +1919,48 @@ def show_gym_weight_chart(progress_df):
                 alt.Tooltip("Wdh:Q"),
                 alt.Tooltip("Mit Hilfe:Q", format=".0f")
             ]
-        ).properties(height=260)
+        ).properties(
+            height=320,
+            autosize=alt.AutoSizeParams(
+                type="fit-x",
+                contains="padding"
+            )
+        ).configure_axis(
+            labelFontSize=11,
+            titleFontSize=12,
+            titlePadding=12
+        )
 
         st.altair_chart(
             chart,
             use_container_width=True
         )
+
+        # Legende außerhalb der Zeichenfläche.
+        present = set(chart_data[color_field])
+        labels = []
+
+        for name, color in zip(color_domain, colors):
+            if name in present:
+                labels.append(
+                    '<span style="display:inline-flex;'
+                    'align-items:center;gap:6px;">'
+                    '<span style="width:10px;height:10px;'
+                    'border-radius:50%;'
+                    f'background:{color};'
+                    'display:inline-block;"></span>'
+                    f'{escape(str(name))}</span>'
+                )
+
+        st.markdown(
+            '<div style="display:flex;flex-wrap:wrap;'
+            'gap:8px 16px;font-size:13px;'
+            'margin-bottom:16px;">'
+            + "".join(labels)
+            + "</div>",
+            unsafe_allow_html=True
+        )
+
 
     devices = [
         "Maschine",
