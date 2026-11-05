@@ -147,6 +147,11 @@ USERS = {
     "Onur": {
         "password": "Popeye",
         "gender": "male"
+    },
+
+    "Greg": {
+        "password": "Popeye",
+        "gender": "male"
     }
 }
 
