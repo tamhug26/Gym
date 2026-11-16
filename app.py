@@ -3522,152 +3522,186 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
 
 
-    st.subheader("Krafttraining")
-    all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps",
-                  "Schultern", "core", "Calisthenics", "TRX"]
-    old_exercise = clean(old_row.get("Übung", "")) if old_row is not None else ""
-    defaults = [g for g in all_groups if old_exercise in exercises_by_group.get(g, [])]
-    muscle_groups = st.multiselect("Welche Muskelgruppe trainierst du?", all_groups,
-                                   default=defaults, key=key("muscle_groups"))
-    available_exercises = list(get_available_exercises(muscle_groups))
-    if old_exercise and old_exercise not in available_exercises:
-        available_exercises.append(old_exercise)
-    available_exercises = sorted(set(available_exercises))
-    if not available_exercises:
-        st.info("Wähle mindestens eine Muskelgruppe aus.")
-        return
-    exercise = st.selectbox("Übung", available_exercises,
-                            index=available_exercises.index(old_exercise) if old_exercise in available_exercises else 0,
-                            key=key("exercise"))
-
-    # Nach dem ersten Set ist die Zuordnung fix. Datum und Übung können
-    # nicht stillschweigend zu einer anderen gespeicherten Zeile werden.
-    identity = (selected_date, exercise)
-    if old_row is not None and active_id:
-        expected = (clean(old_row.get("Datum")), clean(old_row.get("Übung")))
-        if identity != expected:
-            st.error(f"Du bearbeitest '{expected[1]}' vom {expected[0]}. "
-                     "Wähle dieses Datum und diese Übung, um fortzufahren.")
-            return
-    if st.session_state.gym_active_identity is not None and active_id:
-        if identity != tuple(st.session_state.gym_active_identity):
-            st.error("Die laufende Übung darf nicht gewechselt werden. "
-                     "Wähle wieder die ursprüngliche Übung und das Datum.")
-            return
-
-    execution_options = ["Beidseitig", "Einseitig"]
-    old_execution = clean(old_row.get("Ausführung", "Beidseitig")) if old_row is not None else "Beidseitig"
-    execution_type = st.segmented_control("Ausführung", options=execution_options,
-        default=old_execution if old_execution in execution_options else "Beidseitig",
-        selection_mode="single", key=key("execution")) or "Beidseitig"
-    
-    # Anzahl sichtbarer Sets automatisch verwalten
-    visible_sets_key = key("visible_sets")
-
-    if visible_sets_key not in st.session_state:
-        if old_row is not None:
-            existing_sets = saved_set_numbers(old_row)
-            st.session_state[visible_sets_key] = max(
-                existing_sets, default=1
-            )
-        else:
-            st.session_state[visible_sets_key] = 1
-
-    number_of_sets = st.session_state[visible_sets_key]
-
-    if exercise in exercises_by_group.get("Calisthenics", []) or exercise in exercises_by_group.get("TRX", []) or exercise == "Hanging":
-        machine_options = ["Bodyweight"]
-    else:
-        machine_options = ["Cable", "Freigewicht", "Maschine"]
-    old_machine = clean(old_row.get("Machine", "")) if old_row is not None else ""
-    machine = st.selectbox("Machine", machine_options,
-        index=machine_options.index(old_machine) if old_machine in machine_options else 0,
-        key=key("machine"))
-    extra_info = ""
-    if exercise in exercises_by_group.get("TRX", []):
-        extra_options = ["Sehr aufrecht / leicht", "Mittel", "Sehr schräg / schwer"]
-        old_extra = clean(old_row.get("Extra Info", "")) if old_row is not None else ""
-        extra_info = st.selectbox("Schräge / Schwierigkeit", extra_options,
-            index=extra_options.index(old_extra) if old_extra in extra_options else 0, key=key("extra"))
-    elif exercise == "Hanging":
-        extra_info = st.text_input("Hanging-Variante / Notiz",
-            value=clean(old_row.get("Extra Info", "")) if old_row is not None else "", key=key("extra"))
-    if exercise in exercises_by_group.get("Beine", []) or exercise in exercises_by_group.get("Glutes", []):
-        griff = "Nicht relevant"
-    else:
-        grip_options = ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"]
-        old_grip = clean(old_row.get("Griff", "Neutral")) if old_row is not None else "Neutral"
-        griff = st.selectbox("Griff", grip_options,
-            index=grip_options.index(old_grip) if old_grip in grip_options else 0, key=key("grip"))
-    note = st.text_input(
-        "Tagesnotiz zur Übung",
-        value=clean(old_row.get("Notiz Übung", ""))
-        if old_row is not None else "",
-        placeholder="Nur für heute, z. B. Schulter gespürt",
-        key=key("note")
+        saved_cardio_type = str(day_value("Cardio Form", "")).strip()
+    has_saved_cardio = (
+        saved_cardio_type not in ("", "Kein Cardio")
+        and (
+            safe_float(day_value("Cardio Zeit min", 0)) > 0
+            or safe_float(day_value("Cardio Distanz km", 0)) > 0
+        )
     )
-    if any(g in muscle_groups for g in ("Rücken", "Schultern")):
-        st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
 
-    if machine == "Bodyweight":
-        body_weight, body_day = get_latest_body_weight(load_body_data(username))
-        if body_weight is not None:
-            st.caption(f"⚖️ Letztes Körpergewicht: {body_weight:g} kg (vom {body_day})")
-        else:
-            st.caption("Noch kein Körpergewicht unter 'Body Maße' gespeichert.")
-
-    # Passendes vorheriges Training finden.
-    history = latest.copy()
-
-    if active_id and "Training ID" in history.columns:
-        history = history[
-            history["Training ID"].astype(str) != str(active_id)
-        ]
-
-    if old_row is not None and old_row.name in history.index:
-        history = history.drop(index=old_row.name)
-
-    last_training = None
-    candidates = history.copy()
-
-    for column, expected in (
-        ("Übung", exercise),
-        ("Machine", machine),
-        ("Ausführung", execution_type),
+    with st.expander(
+        "Krafttraining",
+        expanded=not has_saved_cardio
     ):
-        if column not in candidates.columns:
-            candidates = candidates.iloc[0:0]
-            break
+        all_groups = ["Rücken", "Brust", "Beine", "Glutes", "Trizeps", "Bizeps",
+                      "Schultern", "core", "Calisthenics", "TRX"]
+        old_exercise = clean(old_row.get("Übung", "")) if old_row is not None else ""
+        defaults = [g for g in all_groups if old_exercise in exercises_by_group.get(g, [])]
+        muscle_groups = st.multiselect("Welche Muskelgruppe trainierst du?", all_groups,
+                                       default=defaults, key=key("muscle_groups"))
+        available_exercises = list(get_available_exercises(muscle_groups))
+        if old_exercise and old_exercise not in available_exercises:
+            available_exercises.append(old_exercise)
+        available_exercises = sorted(set(available_exercises))
+        if not available_exercises:
+            st.info("Wähle mindestens eine Muskelgruppe aus.")
+            return
+        exercise = st.selectbox("Übung", available_exercises,
+                                index=available_exercises.index(old_exercise) if old_exercise in available_exercises else 0,
+                                key=key("exercise"))
 
-        candidates = candidates[
-            candidates[column].astype(str).str.strip()
-            == str(expected)
-        ]
+        # Nach dem ersten Set ist die Zuordnung fix. Datum und Übung können
+        # nicht stillschweigend zu einer anderen gespeicherten Zeile werden.
+        identity = (selected_date, exercise)
+        if old_row is not None and active_id:
+            expected = (clean(old_row.get("Datum")), clean(old_row.get("Übung")))
+            if identity != expected:
+                st.error(f"Du bearbeitest '{expected[1]}' vom {expected[0]}. "
+                         "Wähle dieses Datum und diese Übung, um fortzufahren.")
+                return
+        if st.session_state.gym_active_identity is not None and active_id:
+            if identity != tuple(st.session_state.gym_active_identity):
+                st.error("Die laufende Übung darf nicht gewechselt werden. "
+                         "Wähle wieder die ursprüngliche Übung und das Datum.")
+                return
 
-    if not candidates.empty and "Datum" in candidates.columns:
-        candidates = candidates.copy()
-        candidates["_day"] = pd.to_datetime(
-            candidates["Datum"], errors="coerce"
+        execution_options = ["Beidseitig", "Einseitig"]
+        old_execution = clean(old_row.get("Ausführung", "Beidseitig")) if old_row is not None else "Beidseitig"
+        execution_type = st.segmented_control("Ausführung", options=execution_options,
+            default=old_execution if old_execution in execution_options else "Beidseitig",
+            selection_mode="single", key=key("execution")) or "Beidseitig"
+    
+        # Anzahl sichtbarer Sets automatisch verwalten
+        visible_sets_key = key("visible_sets")
+
+        if visible_sets_key not in st.session_state:
+            if old_row is not None:
+                existing_sets = saved_set_numbers(old_row)
+                st.session_state[visible_sets_key] = max(
+                    existing_sets, default=1
+                )
+            else:
+                st.session_state[visible_sets_key] = 1
+
+        number_of_sets = st.session_state[visible_sets_key]
+
+        if exercise in exercises_by_group.get("Calisthenics", []) or exercise in exercises_by_group.get("TRX", []) or exercise == "Hanging":
+            machine_options = ["Bodyweight"]
+        else:
+            machine_options = ["Cable", "Freigewicht", "Maschine"]
+        old_machine = clean(old_row.get("Machine", "")) if old_row is not None else ""
+        machine = st.selectbox("Machine", machine_options,
+            index=machine_options.index(old_machine) if old_machine in machine_options else 0,
+            key=key("machine"))
+        extra_info = ""
+        if exercise in exercises_by_group.get("TRX", []):
+            extra_options = ["Sehr aufrecht / leicht", "Mittel", "Sehr schräg / schwer"]
+            old_extra = clean(old_row.get("Extra Info", "")) if old_row is not None else ""
+            extra_info = st.selectbox("Schräge / Schwierigkeit", extra_options,
+                index=extra_options.index(old_extra) if old_extra in extra_options else 0, key=key("extra"))
+        elif exercise == "Hanging":
+            extra_info = st.text_input("Hanging-Variante / Notiz",
+                value=clean(old_row.get("Extra Info", "")) if old_row is not None else "", key=key("extra"))
+        if exercise in exercises_by_group.get("Beine", []) or exercise in exercises_by_group.get("Glutes", []):
+            griff = "Nicht relevant"
+        else:
+            grip_options = ["Neutral", "Breit", "Eng", "Untergriff", "Obergriff"]
+            old_grip = clean(old_row.get("Griff", "Neutral")) if old_row is not None else "Neutral"
+            griff = st.selectbox("Griff", grip_options,
+                index=grip_options.index(old_grip) if old_grip in grip_options else 0, key=key("grip"))
+        note = st.text_input(
+            "Tagesnotiz zur Übung",
+            value=clean(old_row.get("Notiz Übung", ""))
+            if old_row is not None else "",
+            placeholder="Nur für heute, z. B. Schulter gespürt",
+            key=key("note")
         )
+        if any(g in muscle_groups for g in ("Rücken", "Schultern")):
+            st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
 
-        candidates = candidates[
-            candidates["_day"].notna()
-            & (
-                candidates["_day"]
-                < pd.Timestamp(selected_day) + pd.Timedelta(days=1)
+        if machine == "Bodyweight":
+            body_weight, body_day = get_latest_body_weight(load_body_data(username))
+            if body_weight is not None:
+                st.caption(f"⚖️ Letztes Körpergewicht: {body_weight:g} kg (vom {body_day})")
+            else:
+                st.caption("Noch kein Körpergewicht unter 'Body Maße' gespeichert.")
+
+        # Passendes vorheriges Training finden.
+        history = latest.copy()
+
+        if active_id and "Training ID" in history.columns:
+            history = history[
+                history["Training ID"].astype(str) != str(active_id)
+            ]
+
+        if old_row is not None and old_row.name in history.index:
+            history = history.drop(index=old_row.name)
+
+        last_training = None
+        candidates = history.copy()
+
+        for column, expected in (
+            ("Übung", exercise),
+            ("Machine", machine),
+            ("Ausführung", execution_type),
+        ):
+            if column not in candidates.columns:
+                candidates = candidates.iloc[0:0]
+                break
+
+            candidates = candidates[
+                candidates[column].astype(str).str.strip()
+                == str(expected)
+            ]
+
+        if not candidates.empty and "Datum" in candidates.columns:
+            candidates = candidates.copy()
+            candidates["_day"] = pd.to_datetime(
+                candidates["Datum"], errors="coerce"
             )
-        ]
 
-        candidates = candidates.iloc[::-1].sort_values(
-            "_day",
-            ascending=False,
-            kind="stable"
-        )
+            candidates = candidates[
+                candidates["_day"].notna()
+                & (
+                    candidates["_day"]
+                    < pd.Timestamp(selected_day) + pd.Timedelta(days=1)
+                )
+            ]
 
-        for _, candidate in candidates.iterrows():
-            numbers = sorted({
+            candidates = candidates.iloc[::-1].sort_values(
+                "_day",
+                ascending=False,
+                kind="stable"
+            )
+
+            for _, candidate in candidates.iterrows():
+                numbers = sorted({
+                    int(match.group(1))
+                    for column in candidate.index
+                    if (
+                        match := re.match(
+                            r"^Set (\d+) ", str(column)
+                        )
+                    )
+                })
+
+                if any(gym_set_parts(candidate, n) for n in numbers):
+                    last_training = candidate
+                    break
+
+        if last_training is None:
+            st.caption(
+                "Noch kein passendes vorheriges Training gespeichert."
+            )
+
+        else:
+            last_day = last_training["_day"].strftime("%d.%m.%Y")
+
+            set_numbers = sorted({
                 int(match.group(1))
-                for column in candidate.index
+                for column in last_training.index
                 if (
                     match := re.match(
                         r"^Set (\d+) ", str(column)
@@ -3675,520 +3709,499 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 )
             })
 
-            if any(gym_set_parts(candidate, n) for n in numbers):
-                last_training = candidate
-                break
+            summaries = [
+                (n, gym_set_summary(last_training, n))
+                for n in set_numbers
+                if gym_set_parts(last_training, n)
+            ]
 
-    if last_training is None:
-        st.caption(
-            "Noch kein passendes vorheriges Training gespeichert."
-        )
+            # Kompakte Zeile: Ausgangssätze mit Gewichten und Wiederholungen.
+            compact = []
 
-    else:
-        last_day = last_training["_day"].strftime("%d.%m.%Y")
+            for n, _ in summaries:
+                labels = []
 
-        set_numbers = sorted({
-            int(match.group(1))
-            for column in last_training.index
-            if (
-                match := re.match(
-                    r"^Set (\d+) ", str(column)
+                for part in gym_set_parts(last_training, n):
+                    if part["reduction"]:
+                        continue
+
+                    if part["duration"] > 0:
+                        label = f"{part['duration']:g} s"
+
+                    else:
+                        label = (
+                            f"{part['weight']:g} kg × "
+                            f"{part['reps']:g}"
+                        )
+
+                        if part["side"]:
+                            label = part["side"] + ": " + label
+
+                    labels.append(label)
+
+                compact.append(
+                    f"{n}. " + " / ".join(labels)
                 )
-            )
-        })
 
-        summaries = [
-            (n, gym_set_summary(last_training, n))
-            for n in set_numbers
-            if gym_set_parts(last_training, n)
-        ]
+            last_col, details_col = st.columns([12, 1])
 
-        # Kompakte Zeile: Ausgangssätze mit Gewichten und Wiederholungen.
-        compact = []
+            with last_col:
+                st.caption(
+                    f"Letztes Training ({last_day}): "
+                    + " · ".join(compact)
+                )
 
-        for n, _ in summaries:
-            labels = []
-
-            for part in gym_set_parts(last_training, n):
-                if part["reduction"]:
-                    continue
-
-                if part["duration"] > 0:
-                    label = f"{part['duration']:g} s"
-
-                else:
-                    label = (
-                        f"{part['weight']:g} kg × "
-                        f"{part['reps']:g}"
+            with details_col:
+                if st.button(
+                    "🔍",
+                    help="Details zum letzten Training ansehen",
+                    key=key("last_training_details"),
+                    disabled=st.session_state.gym_pending_save
+                ):
+                    show_last_training_dialog(
+                        exercise,
+                        machine,
+                        execution_type,
+                        last_day,
+                        summaries,
+                        dict(last_training)
                     )
-
-                    if part["side"]:
-                        label = part["side"] + ": " + label
-
-                labels.append(label)
-
-            compact.append(
-                f"{n}. " + " / ".join(labels)
-            )
-
-        last_col, details_col = st.columns([12, 1])
-
-        with last_col:
-            st.caption(
-                f"Letztes Training ({last_day}): "
-                + " · ".join(compact)
-            )
-
-        with details_col:
-            if st.button(
-                "🔍",
-                help="Details zum letzten Training ansehen",
-                key=key("last_training_details"),
-                disabled=st.session_state.gym_pending_save
-            ):
-                show_last_training_dialog(
-                    exercise,
-                    machine,
-                    execution_type,
-                    last_day,
-                    summaries,
-                    dict(last_training)
-                )
-                return
-
-
-    # Dauerhafter Hinweis mit kleinem Bearbeiten-Button.
-    try:
-        permanent_note = load_exercise_note(
-            username, exercise, machine
-        )
-
-    except Exception as exc:
-        st.error(
-            f"Übungshinweis konnte nicht geladen werden: {exc}"
-        )
-
-    else:
-        hint_col, edit_col = st.columns([12, 1])
-
-        with hint_col:
-            st.caption(
-                "📌 " + (
-                    permanent_note or "Noch kein Übungshinweis"
-                )
-            )
-
-        with edit_col:
-            if st.button(
-                "✏️",
-                help="Übungshinweis bearbeiten",
-                key=key(
-                    "edit_note_"
-                    + str((username, exercise, machine))
-                ),
-                disabled=st.session_state.gym_pending_save
-            ):
-                draft_key = key(
-                    "note_dialog_"
-                    + str((username, exercise, machine))
-                )
-
-                # Beim Öffnen den gespeicherten Text einsetzen.
-                st.session_state[draft_key] = permanent_note
-
-                edit_exercise_note_dialog(
-                    username,
-                    exercise,
-                    machine,
-                    draft_key
-                )
-                return
-
-    weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
-    exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
-    max_weight = None
-    if weight_cols and not exercise_history.empty:
-        weights = pd.to_numeric(exercise_history[weight_cols].stack(), errors="coerce").dropna()
-        if not weights.empty:
-            max_weight = float(weights.max())
-    if max_weight is not None:
-        st.caption(f"🏆 Höchstgewicht bisher: {max_weight:g} kg")
-
-    is_time_exercise = exercise in ["Side plank right", "Side plank left", "Plank", "Hanging"]
-    uses_weight = machine != "Bodyweight"
-    if exercise in exercises_by_group.get("core", []) and not is_time_exercise and machine != "Bodyweight":
-        default_weight = any(safe_float(old_row.get(f"Set {n} Gewicht", 0)) > 0
-            for n in range(1, number_of_sets + 1)) if old_row is not None else False
-        uses_weight = st.checkbox("Mit Gewicht gearbeitet?", value=default_weight, key=key("uses_weight"))
-
-    base_entry = {
-        "Benutzer": username,
-        "Datum": selected_day,
-        "Ausführung": execution_type,
-        "Übung": exercise,
-        "Machine": machine,
-        "Griff": griff,
-        "Extra Info": extra_info,
-        "Notiz Übung": note,
-        "Anzahl Sets": number_of_sets,
-        "Status": clean(old_row.get("Status", "In Bearbeitung"))
-        if old_row is not None else "In Bearbeitung",
-    }
-    if not base_entry["Status"]:
-        base_entry["Status"] = "In Bearbeitung"
-
-    st.markdown("### Sets")
-    st.caption(
-        "Einzeln speichern klappt ein Set zu. "
-        "Abschließen speichert alle sichtbaren Sets samt Änderungen."
-    )
-
-    all_set_entries = {}
-    set_errors = {}
-    delete_set = None
-
-    delete_request_key = key("set_delete_request")
-    pending_delete = st.session_state.get(delete_request_key)
-
-    if pending_delete:
-        st.warning(
-            f"Löschen von Set {pending_delete['number']} "
-            "wurde noch nicht bestätigt. Klicke erneut auf "
-            "dessen Löschbutton, um den Vorgang abzuschließen."
-        )
-
-    drafts_key = key("set_drafts")
-    revision_key = key("set_revision")
-    revision = st.session_state.get(revision_key, 0)
-
-    def set_key(name):
-        return key(f"sets_{revision}_{name}")
-
-    for s in range(number_of_sets):
-        n = s + 1
-        old = old_row if old_row is not None else {}
-
-        is_saved = (
-            old_row is not None
-            and n in saved_set_numbers(old_row)
-        )
-
-        summary = (
-            gym_set_summary(old, n)
-            if is_saved
-            else ""
-        )
-
-        title = (
-            f"Set {n} · {summary} · gespeichert ✓"
-            if is_saved
-            else f"Set {n} · noch nicht gespeichert"
-        )
-
-        with st.expander(title, expanded=not is_saved):
-            render_old = dict(old)
-            render_old.update(
-                st.session_state.get(drafts_key, {})
-            )
-
-            payload, errors = render_gym_set(
-                n,
-                render_old,
-                set_key,
-                execution_type,
-                is_time_exercise,
-                uses_weight
-            )
-
-            all_set_entries.update(payload)
-            set_errors[n] = errors
-
-            if is_saved:
-                changed = any(
-                    safe_string(old.get(col, ""))
-                    != safe_string(value)
-                    if col.endswith("Notiz")
-                    else safe_float(old.get(col, 0))
-                    != safe_float(value)
-                    for col, value in payload.items()
-                )
-
-                if changed:
-                    st.caption(
-                        "Geänderte Eingaben sind noch nicht gespeichert."
-                    )
-
-            if st.button(
-                f"💾 Set {n} speichern",
-                key=key(f"save_{s}"),
-                disabled=(
-                    st.session_state.gym_pending_save
-                    or bool(pending_delete)
-                )
-            ):
-                if errors:
-                    for error in errors:
-                        st.warning(error)
                     return
 
-                if st.session_state.active_training_id is None:
-                    st.session_state.active_training_id = str(
-                        uuid.uuid4()
+
+        # Dauerhafter Hinweis mit kleinem Bearbeiten-Button.
+        try:
+            permanent_note = load_exercise_note(
+                username, exercise, machine
+            )
+
+        except Exception as exc:
+            st.error(
+                f"Übungshinweis konnte nicht geladen werden: {exc}"
+            )
+
+        else:
+            hint_col, edit_col = st.columns([12, 1])
+
+            with hint_col:
+                st.caption(
+                    "📌 " + (
+                        permanent_note or "Noch kein Übungshinweis"
+                    )
+                )
+
+            with edit_col:
+                if st.button(
+                    "✏️",
+                    help="Übungshinweis bearbeiten",
+                    key=key(
+                        "edit_note_"
+                        + str((username, exercise, machine))
+                    ),
+                    disabled=st.session_state.gym_pending_save
+                ):
+                    draft_key = key(
+                        "note_dialog_"
+                        + str((username, exercise, machine))
                     )
 
+                    # Beim Öffnen den gespeicherten Text einsetzen.
+                    st.session_state[draft_key] = permanent_note
+
+                    edit_exercise_note_dialog(
+                        username,
+                        exercise,
+                        machine,
+                        draft_key
+                    )
+                    return
+
+        weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
+        exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
+        max_weight = None
+        if weight_cols and not exercise_history.empty:
+            weights = pd.to_numeric(exercise_history[weight_cols].stack(), errors="coerce").dropna()
+            if not weights.empty:
+                max_weight = float(weights.max())
+        if max_weight is not None:
+            st.caption(f"🏆 Höchstgewicht bisher: {max_weight:g} kg")
+
+        is_time_exercise = exercise in ["Side plank right", "Side plank left", "Plank", "Hanging"]
+        uses_weight = machine != "Bodyweight"
+        if exercise in exercises_by_group.get("core", []) and not is_time_exercise and machine != "Bodyweight":
+            default_weight = any(safe_float(old_row.get(f"Set {n} Gewicht", 0)) > 0
+                for n in range(1, number_of_sets + 1)) if old_row is not None else False
+            uses_weight = st.checkbox("Mit Gewicht gearbeitet?", value=default_weight, key=key("uses_weight"))
+
+        base_entry = {
+            "Benutzer": username,
+            "Datum": selected_day,
+            "Ausführung": execution_type,
+            "Übung": exercise,
+            "Machine": machine,
+            "Griff": griff,
+            "Extra Info": extra_info,
+            "Notiz Übung": note,
+            "Anzahl Sets": number_of_sets,
+            "Status": clean(old_row.get("Status", "In Bearbeitung"))
+            if old_row is not None else "In Bearbeitung",
+        }
+        if not base_entry["Status"]:
+            base_entry["Status"] = "In Bearbeitung"
+
+        st.markdown("### Sets")
+        st.caption(
+            "Einzeln speichern klappt ein Set zu. "
+            "Abschließen speichert alle sichtbaren Sets samt Änderungen."
+        )
+
+        all_set_entries = {}
+        set_errors = {}
+        delete_set = None
+
+        delete_request_key = key("set_delete_request")
+        pending_delete = st.session_state.get(delete_request_key)
+
+        if pending_delete:
+            st.warning(
+                f"Löschen von Set {pending_delete['number']} "
+                "wurde noch nicht bestätigt. Klicke erneut auf "
+                "dessen Löschbutton, um den Vorgang abzuschließen."
+            )
+
+        drafts_key = key("set_drafts")
+        revision_key = key("set_revision")
+        revision = st.session_state.get(revision_key, 0)
+
+        def set_key(name):
+            return key(f"sets_{revision}_{name}")
+
+        for s in range(number_of_sets):
+            n = s + 1
+            old = old_row if old_row is not None else {}
+
+            is_saved = (
+                old_row is not None
+                and n in saved_set_numbers(old_row)
+            )
+
+            summary = (
+                gym_set_summary(old, n)
+                if is_saved
+                else ""
+            )
+
+            title = (
+                f"Set {n} · {summary} · gespeichert ✓"
+                if is_saved
+                else f"Set {n} · noch nicht gespeichert"
+            )
+
+            with st.expander(title, expanded=not is_saved):
+                render_old = dict(old)
+                render_old.update(
+                    st.session_state.get(drafts_key, {})
+                )
+
+                payload, errors = render_gym_set(
+                    n,
+                    render_old,
+                    set_key,
+                    execution_type,
+                    is_time_exercise,
+                    uses_weight
+                )
+
+                all_set_entries.update(payload)
+                set_errors[n] = errors
+
+                if is_saved:
+                    changed = any(
+                        safe_string(old.get(col, ""))
+                        != safe_string(value)
+                        if col.endswith("Notiz")
+                        else safe_float(old.get(col, 0))
+                        != safe_float(value)
+                        for col, value in payload.items()
+                    )
+
+                    if changed:
+                        st.caption(
+                            "Geänderte Eingaben sind noch nicht gespeichert."
+                        )
+
+                if st.button(
+                    f"💾 Set {n} speichern",
+                    key=key(f"save_{s}"),
+                    disabled=(
+                        st.session_state.gym_pending_save
+                        or bool(pending_delete)
+                    )
+                ):
+                    if errors:
+                        for error in errors:
+                            st.warning(error)
+                        return
+
+                    if st.session_state.active_training_id is None:
+                        st.session_state.active_training_id = str(
+                            uuid.uuid4()
+                        )
+
+                    training_id = st.session_state.active_training_id
+
+                    entry = dict(base_entry, **payload)
+                    entry["Status"] = "In Bearbeitung"
+
+                    previous = (
+                        saved_set_numbers(old_row)
+                        if old_row is not None
+                        else []
+                    )
+
+                    entry["Anzahl Sets"] = len(
+                        set(previous) | {n}
+                    )
+
+                    def save_current_set():
+                        persist_training_with_day(
+                            entry,
+                            training_id,
+                            legacy_index=legacy_index
+                        )
+                        st.session_state.gym_active_identity = identity
+
+                    run_gym_save(
+                        save_current_set,
+                        f"Set {n} wird gespeichert. Bitte kurz warten.",
+                        f"Set {n} gespeichert! ✓"
+                    )
+                    return
+
+                if st.button(
+                    f"🗑️ Set {n} löschen",
+                    key=set_key(f"delete_{n}"),
+                    disabled=(
+                        st.session_state.gym_pending_save
+                        or (
+                            pending_delete is not None
+                            and pending_delete["number"] != n
+                        )
+                    )
+                ):
+                    delete_set = n
+
+        # Entwürfe sind jetzt in die neuen Formularfelder übernommen.
+        st.session_state.pop(drafts_key, None)
+
+        # Erst nach allen Sets löschen, damit die anderen Eingaben
+        # vollständig erfasst und im Formular erhalten bleiben.
+        if delete_set is not None:
+            remaining_drafts = gym_remove_set_fields(
+                all_set_entries,
+                delete_set
+            )
+
+            request = pending_delete or {
+                "number": delete_set,
+                "patch": None
+            }
+
+            st.session_state[delete_request_key] = request
+
+            def delete_current_set():
                 training_id = st.session_state.active_training_id
 
-                entry = dict(base_entry, **payload)
-                entry["Status"] = "In Bearbeitung"
-
-                previous = (
-                    saved_set_numbers(old_row)
-                    if old_row is not None
-                    else []
-                )
-
-                entry["Anzahl Sets"] = len(
-                    set(previous) | {n}
-                )
-
-                def save_current_set():
-                    persist_training_with_day(
-                        entry,
+                if (
+                    training_id is not None
+                    and request["patch"] is not None
+                ):
+                    # Bei einem erneuten Versuch dieselben Zielwerte
+                    # schreiben, statt ein zweites Set zu entfernen.
+                    persist_set(
+                        request["patch"],
                         training_id,
                         legacy_index=legacy_index
                     )
-                    st.session_state.gym_active_identity = identity
 
-                run_gym_save(
-                    save_current_set,
-                    f"Set {n} wird gespeichert. Bitte kurz warten.",
-                    f"Set {n} gespeichert! ✓"
+                elif training_id is not None:
+                    _, headers, rows = read_sheet()
+
+                    id_column = (
+                        headers.index("Training ID")
+                        if "Training ID" in headers
+                        else None
+                    )
+
+                    matches = [
+                        index
+                        for index, row in enumerate(rows)
+                        if id_column is not None
+                        and len(row) > id_column
+                        and str(row[id_column]) == str(training_id)
+                    ]
+
+                    if len(matches) > 1:
+                        raise ValueError(
+                            "Doppelte Training ID. Löschen abgebrochen."
+                        )
+
+                    target = (
+                        matches[0]
+                        if matches
+                        else legacy_index
+                    )
+
+                    if target is not None:
+                        if target < 0 or target >= len(rows):
+                            raise ValueError(
+                                "Die Trainingszeile existiert nicht mehr."
+                            )
+
+                        stored = dict(zip(headers, rows[target]))
+
+                        if (
+                            clean(stored.get("Datum")) != selected_date
+                            or clean(stored.get("Übung")) != exercise
+                        ):
+                            raise ValueError(
+                                "Die Trainingszeile hat sich verändert. "
+                                "Bitte neu öffnen."
+                            )
+
+                        if (
+                            not matches
+                            and nonempty(stored.get("Training ID", ""))
+                        ):
+                            raise ValueError(
+                                "Die Trainingszeile hat inzwischen "
+                                "eine andere ID."
+                            )
+
+                        patch = gym_remove_set_fields(
+                            stored,
+                            delete_set
+                        )
+
+                        numbers = {
+                            int(match.group(1))
+                            for col in patch
+                            if (match := re.match(
+                                r"^Set (\d+) ",
+                                col
+                            ))
+                        }
+
+                        updated = dict(stored, **patch)
+
+                        patch["Anzahl Sets"] = sum(
+                            bool(gym_set_parts(updated, number))
+                            for number in numbers
+                        )
+
+                        if patch["Anzahl Sets"] == 0:
+                            patch["Status"] = "In Bearbeitung"
+
+                        patch["Datum"] = selected_date
+                        patch["Übung"] = exercise
+
+                        request["patch"] = patch
+
+                        persist_set(
+                            patch,
+                            training_id,
+                            legacy_index=legacy_index
+                        )
+
+                    elif old_row is not None:
+                        raise ValueError(
+                            "Die gespeicherte Übung wurde nicht gefunden."
+                        )
+
+                # Nur die Setfelder neu aufbauen.
+                # Datum, Übung und andere Angaben behalten ihren Zustand.
+                st.session_state[drafts_key] = remaining_drafts
+                st.session_state[revision_key] = revision + 1
+                st.session_state[visible_sets_key] = max(
+                    1,
+                    number_of_sets - 1
                 )
+
+                st.session_state.pop(delete_request_key, None)
+
+            run_gym_save(
+                delete_current_set,
+                f"Set {delete_set} wird gelöscht. Bitte kurz warten.",
+                f"Set {delete_set} gelöscht. ✓"
+            )
+            return
+
+        if st.button(
+            "➕ Weiteres Set hinzufügen",
+            key=key("add_set"),
+            use_container_width=True,
+            disabled=(
+                st.session_state.gym_pending_save
+                or bool(pending_delete)
+            )
+        ):
+            st.session_state[visible_sets_key] += 1
+            st.rerun()
+
+        if st.button(
+            "✓ Übung abschliessen",
+            type="primary",
+            key=key("finish"),
+            disabled=(
+                st.session_state.gym_pending_save
+                or bool(pending_delete)
+            )
+        ):
+            invalid = {
+                n: errors
+                for n, errors in set_errors.items()
+                if errors
+            }
+
+            if invalid:
+                for n, errors in invalid.items():
+                    st.warning(
+                        f"Set {n}: " + " ".join(errors)
+                    )
                 return
 
-            if st.button(
-                f"🗑️ Set {n} löschen",
-                key=set_key(f"delete_{n}"),
-                disabled=(
-                    st.session_state.gym_pending_save
-                    or (
-                        pending_delete is not None
-                        and pending_delete["number"] != n
-                    )
+            if st.session_state.active_training_id is None:
+                st.session_state.active_training_id = str(
+                    uuid.uuid4()
                 )
-            ):
-                delete_set = n
 
-    # Entwürfe sind jetzt in die neuen Formularfelder übernommen.
-    st.session_state.pop(drafts_key, None)
-
-    # Erst nach allen Sets löschen, damit die anderen Eingaben
-    # vollständig erfasst und im Formular erhalten bleiben.
-    if delete_set is not None:
-        remaining_drafts = gym_remove_set_fields(
-            all_set_entries,
-            delete_set
-        )
-
-        request = pending_delete or {
-            "number": delete_set,
-            "patch": None
-        }
-
-        st.session_state[delete_request_key] = request
-
-        def delete_current_set():
             training_id = st.session_state.active_training_id
 
-            if (
-                training_id is not None
-                and request["patch"] is not None
-            ):
-                # Bei einem erneuten Versuch dieselben Zielwerte
-                # schreiben, statt ein zweites Set zu entfernen.
-                persist_set(
-                    request["patch"],
+            entry = dict(base_entry, **all_set_entries)
+            entry["Status"] = "Abgeschlossen"
+            entry["Anzahl Sets"] = number_of_sets
+
+            def finish_current_exercise():
+                persist_training_with_day(
+                    entry,
                     training_id,
                     legacy_index=legacy_index
                 )
 
-            elif training_id is not None:
-                _, headers, rows = read_sheet()
+                st.session_state.active_training_id = None
+                st.session_state.gym_active_identity = None
+                st.session_state.gym_edit_row = None
+                st.session_state.exercise_edit_index = None
+                st.session_state.gym_editor_version += 1
 
-                id_column = (
-                    headers.index("Training ID")
-                    if "Training ID" in headers
-                    else None
-                )
-
-                matches = [
-                    index
-                    for index, row in enumerate(rows)
-                    if id_column is not None
-                    and len(row) > id_column
-                    and str(row[id_column]) == str(training_id)
-                ]
-
-                if len(matches) > 1:
-                    raise ValueError(
-                        "Doppelte Training ID. Löschen abgebrochen."
-                    )
-
-                target = (
-                    matches[0]
-                    if matches
-                    else legacy_index
-                )
-
-                if target is not None:
-                    if target < 0 or target >= len(rows):
-                        raise ValueError(
-                            "Die Trainingszeile existiert nicht mehr."
-                        )
-
-                    stored = dict(zip(headers, rows[target]))
-
-                    if (
-                        clean(stored.get("Datum")) != selected_date
-                        or clean(stored.get("Übung")) != exercise
-                    ):
-                        raise ValueError(
-                            "Die Trainingszeile hat sich verändert. "
-                            "Bitte neu öffnen."
-                        )
-
-                    if (
-                        not matches
-                        and nonempty(stored.get("Training ID", ""))
-                    ):
-                        raise ValueError(
-                            "Die Trainingszeile hat inzwischen "
-                            "eine andere ID."
-                        )
-
-                    patch = gym_remove_set_fields(
-                        stored,
-                        delete_set
-                    )
-
-                    numbers = {
-                        int(match.group(1))
-                        for col in patch
-                        if (match := re.match(
-                            r"^Set (\d+) ",
-                            col
-                        ))
-                    }
-
-                    updated = dict(stored, **patch)
-
-                    patch["Anzahl Sets"] = sum(
-                        bool(gym_set_parts(updated, number))
-                        for number in numbers
-                    )
-
-                    if patch["Anzahl Sets"] == 0:
-                        patch["Status"] = "In Bearbeitung"
-
-                    patch["Datum"] = selected_date
-                    patch["Übung"] = exercise
-
-                    request["patch"] = patch
-
-                    persist_set(
-                        patch,
-                        training_id,
-                        legacy_index=legacy_index
-                    )
-
-                elif old_row is not None:
-                    raise ValueError(
-                        "Die gespeicherte Übung wurde nicht gefunden."
-                    )
-
-            # Nur die Setfelder neu aufbauen.
-            # Datum, Übung und andere Angaben behalten ihren Zustand.
-            st.session_state[drafts_key] = remaining_drafts
-            st.session_state[revision_key] = revision + 1
-            st.session_state[visible_sets_key] = max(
-                1,
-                number_of_sets - 1
+            run_gym_save(
+                finish_current_exercise,
+                "Alle Sets werden gespeichert und die Übung "
+                "abgeschlossen. Bitte kurz warten.",
+                "Alle Sets gespeichert – Übung abgeschlossen! ✓"
             )
-
-            st.session_state.pop(delete_request_key, None)
-
-        run_gym_save(
-            delete_current_set,
-            f"Set {delete_set} wird gelöscht. Bitte kurz warten.",
-            f"Set {delete_set} gelöscht. ✓"
-        )
-        return
-
-    if st.button(
-        "➕ Weiteres Set hinzufügen",
-        key=key("add_set"),
-        use_container_width=True,
-        disabled=(
-            st.session_state.gym_pending_save
-            or bool(pending_delete)
-        )
-    ):
-        st.session_state[visible_sets_key] += 1
-        st.rerun()
-
-    if st.button(
-        "✓ Übung abschliessen",
-        type="primary",
-        key=key("finish"),
-        disabled=(
-            st.session_state.gym_pending_save
-            or bool(pending_delete)
-        )
-    ):
-        invalid = {
-            n: errors
-            for n, errors in set_errors.items()
-            if errors
-        }
-
-        if invalid:
-            for n, errors in invalid.items():
-                st.warning(
-                    f"Set {n}: " + " ".join(errors)
-                )
             return
 
-        if st.session_state.active_training_id is None:
-            st.session_state.active_training_id = str(
-                uuid.uuid4()
-            )
-
-        training_id = st.session_state.active_training_id
-
-        entry = dict(base_entry, **all_set_entries)
-        entry["Status"] = "Abgeschlossen"
-        entry["Anzahl Sets"] = number_of_sets
-
-        def finish_current_exercise():
-            persist_training_with_day(
-                entry,
-                training_id,
-                legacy_index=legacy_index
-            )
-
-            st.session_state.active_training_id = None
-            st.session_state.gym_active_identity = None
-            st.session_state.gym_edit_row = None
-            st.session_state.exercise_edit_index = None
-            st.session_state.gym_editor_version += 1
-
-        run_gym_save(
-            finish_current_exercise,
-            "Alle Sets werden gespeichert und die Übung "
-            "abgeschlossen. Bitte kurz warten.",
-            "Alle Sets gespeichert – Übung abgeschlossen! ✓"
-        )
-        return
 # ============================================================
 # LOGIN
 # ============================================================
