@@ -3130,383 +3130,395 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             legacy_index = None
 
     
-    # ============================================================
-    # ALLGEMEINE ANGABEN & CARDIO PRO TRAININGSTAG
-    # ============================================================
+        has_saved_strength = any(
+        gym_set_parts(row, number)
+        for _, row in day_rows.iterrows()
+        for number in saved_set_numbers(row)
+    )
 
-    day_df = load_day_data(username)
+    with st.expander(
+        "Allgemeine Angaben & Cardio",
+        expanded=not has_saved_strength
+    ):
+        # ============================================================
+        # ALLGEMEINE ANGABEN & CARDIO PRO TRAININGSTAG
+        # ============================================================
 
-    day_row = None
+        day_df = load_day_data(username)
 
-    if not day_df.empty and "Datum" in day_df.columns:
-        matching_days = day_df[
-            day_df["Datum"].astype(str) == selected_date
-        ]
+        day_row = None
 
-        if not matching_days.empty:
-            day_row = matching_days.iloc[0]
+        if not day_df.empty and "Datum" in day_df.columns:
+            matching_days = day_df[
+                day_df["Datum"].astype(str) == selected_date
+            ]
 
-    # Alte Trainingsdaten als Übergang berücksichtigen
-    if day_row is None and not day_rows.empty:
-        day_row = day_rows.iloc[0]
+            if not matching_days.empty:
+                day_row = matching_days.iloc[0]
 
-    def day_value(column, default=""):
-        if day_row is None:
-            return default
+        # Alte Trainingsdaten als Übergang berücksichtigen
+        if day_row is None and not day_rows.empty:
+            day_row = day_rows.iloc[0]
 
-        value = day_row.get(column, default)
+        def day_value(column, default=""):
+            if day_row is None:
+                return default
 
-        if not nonempty(value):
-            return default
+            value = day_row.get(column, default)
 
-        return value
-
-    def last_saved_day_value(column, default):
-        # Tagesdaten haben bei gleichem Datum Vorrang.
-        # Alte Trainingsdaten bleiben als Übergang verfügbar.
-        histories = []
-
-        for source in (day_df, latest):
-            if (
-                not source.empty
-                and "Datum" in source.columns
-                and column in source.columns
-            ):
-                part = source[["Datum", column]].copy()
-                part["_day"] = pd.to_datetime(
-                    part["Datum"], errors="coerce"
-                ).dt.date
-
-                part = part[
-                    part["_day"].notna()
-                    & part["_day"].apply(
-                        lambda value: (
-                            value <= selected_day
-                            if pd.notna(value) else False
-                        )
-                    )
-                ]
-
-                histories.append(part)
-
-        if not histories:
-            return default
-
-        history = pd.concat(histories, ignore_index=True)
-        history = history.sort_values(
-            "_day",
-            ascending=False,
-            kind="stable"
-        )
-
-        for value in history[column]:
             if not nonempty(value):
-                continue
-
-            if column == "Modus":
-                if str(value) not in ("Maintaining", "Bulk", "Cut"):
-                    continue
-
-            if column == "Period Mode":
-                text = str(value).strip().lower()
-                if text in ("true", "false"):
-                    return text == "true"
-                continue
+                return default
 
             return value
 
-        return default
+        def last_saved_day_value(column, default):
+            # Tagesdaten haben bei gleichem Datum Vorrang.
+            # Alte Trainingsdaten bleiben als Übergang verfügbar.
+            histories = []
 
-    last_mode = str(
-        last_saved_day_value("Modus", "Maintaining")
-    )
-    last_calories = safe_int(
-        last_saved_day_value("Kalorienziel", 2200),
-        default=2200
-    )
-    modes = ["Maintaining", "Bulk", "Cut"]
+            for source in (day_df, latest):
+                if (
+                    not source.empty
+                    and "Datum" in source.columns
+                    and column in source.columns
+                ):
+                    part = source[["Datum", column]].copy()
+                    part["_day"] = pd.to_datetime(
+                        part["Datum"], errors="coerce"
+                    ).dt.date
 
-    default_mode = str(day_value("Modus", last_mode))
+                    part = part[
+                        part["_day"].notna()
+                        & part["_day"].apply(
+                            lambda value: (
+                                value <= selected_day
+                                if pd.notna(value) else False
+                            )
+                        )
+                    ]
 
-    if default_mode not in modes:
-        default_mode = "Maintaining"
+                    histories.append(part)
 
-    default_cal = safe_int(
-        day_value("Kalorienziel", last_calories),
-        default=safe_int(last_calories)
-    )
+            if not histories:
+                return default
 
-    st.subheader("Allgemeine Angaben")
+            history = pd.concat(histories, ignore_index=True)
+            history = history.sort_values(
+                "_day",
+                ascending=False,
+                kind="stable"
+            )
 
-    c1, c2 = st.columns(2)
+            for value in history[column]:
+                if not nonempty(value):
+                    continue
 
-    with c1:
-        mode = st.selectbox(
-            "Modus",
-            modes,
-            index=modes.index(default_mode),
-            key=key("mode")
+                if column == "Modus":
+                    if str(value) not in ("Maintaining", "Bulk", "Cut"):
+                        continue
+
+                if column == "Period Mode":
+                    text = str(value).strip().lower()
+                    if text in ("true", "false"):
+                        return text == "true"
+                    continue
+
+                return value
+
+            return default
+
+        last_mode = str(
+            last_saved_day_value("Modus", "Maintaining")
+        )
+        last_calories = safe_int(
+            last_saved_day_value("Kalorienziel", 2200),
+            default=2200
+        )
+        modes = ["Maintaining", "Bulk", "Cut"]
+
+        default_mode = str(day_value("Modus", last_mode))
+
+        if default_mode not in modes:
+            default_mode = "Maintaining"
+
+        default_cal = safe_int(
+            day_value("Kalorienziel", last_calories),
+            default=safe_int(last_calories)
         )
 
-    with c2:
-        calories = st.number_input(
-            "Kalorienziel",
-            min_value=0,
-            max_value=10000,
-            value=int(default_cal),
-            step=50,
-            key=key("calories")
-        )
+        st.subheader("Allgemeine Angaben")
 
-    # ============================================================
-    # PERIOD MODE
-    # ============================================================
-
-    period_mode = False
-    period_start = ""
-    period_end = ""
-
-    if USERS[username]["gender"] == "female":
-
-        old_period = last_saved_day_value(
-            "Period Mode", False
-        )
-
-        if day_row is not None:
-            stored_period = str(
-                day_row.get("Period Mode", "")
-            ).strip().lower()
-
-            if stored_period in ("true", "false"):
-                old_period = stored_period == "true"
-
-
-        period_mode = st.checkbox(
-            "Period Mode",
-            value=old_period,
-            key=key("period")
-        )
-
-        if period_mode:
-
-            def period_date(column):
-                value = day_value(column, "")
-
-                if nonempty(value):
-                    parsed = pd.to_datetime(
-                        value, errors="coerce"
-                    )
-
-                    if pd.notna(parsed):
-                        return parsed.date()
-
-                return selected_day
-
-            p1, p2 = st.columns(2)
-
-            with p1:
-                period_start = st.date_input(
-                    "Periode Start",
-                    value=period_date("Periode Start"),
-                    key=key("period_start")
-                )
-
-            with p2:
-                period_end = st.date_input(
-                    "Periode Ende",
-                    value=period_date("Periode Ende"),
-                    key=key("period_end")
-                )
-
-    # ============================================================
-    # STIMMUNG & SCHMERZEN
-    # ============================================================
-
-    mood_default = safe_int(
-        day_value("Stimmung", 3),
-        default=3
-    )
-
-    mood = st.slider(
-        "Stimmung / Gefühl",
-        min_value=1,
-        max_value=5,
-        value=min(5, max(1, mood_default)),
-        help="1 = super toll, 3 = normal, 5 = dreckig",
-        key=key("mood")
-    )
-
-    pain = ""
-
-    if mood >= 4:
-        pain = st.text_input(
-            "Gab es Schmerzen? Wenn ja, wo?",
-            value=str(day_value("Schmerzen", "")),
-            key=key("pain")
-        )
-
-    # ============================================================
-    # CARDIO
-    # ============================================================
-
-    st.subheader("Cardio")
-
-    cardio_options = [
-        "Kein Cardio",
-        "Laufen",
-        "Fahrrad",
-        "Skaten",
-        "Stepper",
-        "Stairmaster",
-        "Crosstrainer",
-        "Rudern",
-        "Walking",
-        "Anderes"
-    ]
-
-    old_cardio = str(
-        day_value("Cardio Form", "Kein Cardio")
-    )
-
-    if old_cardio not in cardio_options:
-        old_cardio = "Kein Cardio"
-
-    cardio_type = st.selectbox(
-        "Cardio-Form",
-        cardio_options,
-        index=cardio_options.index(old_cardio),
-        key=key("cardio_type")
-    )
-
-    cardio_time = 0.0
-    cardio_distance = 0.0
-    cardio_calories = 0.0
-
-    if cardio_type != "Kein Cardio":
-
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
 
         with c1:
-            cardio_time = st.number_input(
-                "Zeit in Minuten",
-                min_value=0.0,
-                value=safe_float(
-                    day_value("Cardio Zeit min", 0)
-                ),
-                step=1.0,
-                key=key("cardio_time")
+            mode = st.selectbox(
+                "Modus",
+                modes,
+                index=modes.index(default_mode),
+                key=key("mode")
             )
 
         with c2:
-            cardio_distance = st.number_input(
-                "Distanz in km",
-                min_value=0.0,
-                value=safe_float(
-                    day_value("Cardio Distanz km", 0)
-                ),
-                step=0.1,
-                key=key("cardio_distance")
+            calories = st.number_input(
+                "Kalorienziel",
+                min_value=0,
+                max_value=10000,
+                value=int(default_cal),
+                step=50,
+                key=key("calories")
             )
 
-        with c3:
-            cardio_calories = st.number_input(
-                "Cardio Kalorien",
-                min_value=0.0,
-                value=safe_float(
-                    day_value("Cardio Kalorien", 0)
-                ),
-                step=10.0,
-                key=key("cardio_calories")
+        # ============================================================
+        # PERIOD MODE
+        # ============================================================
+
+        period_mode = False
+        period_start = ""
+        period_end = ""
+
+        if USERS[username]["gender"] == "female":
+
+            old_period = last_saved_day_value(
+                "Period Mode", False
             )
 
-    # ============================================================
-    # TAGESDATEN SPEICHERN
-    # ============================================================
+            if day_row is not None:
+                stored_period = str(
+                    day_row.get("Period Mode", "")
+                ).strip().lower()
 
-    # Tagesangaben und Cardio getrennt von den Kraftsets speichern.
-    day_entry = {
-        "Modus": mode,
-        "Kalorienziel": calories,
-        "Period Mode": period_mode,
-        "Periode Start": period_start,
-        "Periode Ende": period_end,
-        "Stimmung": mood,
-        "Schmerzen": pain,
-    }
+                if stored_period in ("true", "false"):
+                    old_period = stored_period == "true"
 
-    cardio_columns = (
-        "Cardio Form", "Cardio Zeit min",
-        "Cardio Distanz km", "Cardio Kalorien",
-    )
 
-    def persist_training_with_day(entry, training_id, legacy_index=None):
-        # Frisch prüfen, ob dieser Tag bereits Tagesangaben hat.
-        load_day_data.clear()
-        current_days = load_day_data(username)
-        has_day = (
-            not current_days.empty
-            and "Datum" in current_days.columns
-            and current_days["Datum"].astype(str).eq(selected_date).any()
+            period_mode = st.checkbox(
+                "Period Mode",
+                value=old_period,
+                key=key("period")
+            )
+
+            if period_mode:
+
+                def period_date(column):
+                    value = day_value(column, "")
+
+                    if nonempty(value):
+                        parsed = pd.to_datetime(
+                            value, errors="coerce"
+                        )
+
+                        if pd.notna(parsed):
+                            return parsed.date()
+
+                    return selected_day
+
+                p1, p2 = st.columns(2)
+
+                with p1:
+                    period_start = st.date_input(
+                        "Periode Start",
+                        value=period_date("Periode Start"),
+                        key=key("period_start")
+                    )
+
+                with p2:
+                    period_end = st.date_input(
+                        "Periode Ende",
+                        value=period_date("Periode Ende"),
+                        key=key("period_end")
+                    )
+
+        # ============================================================
+        # STIMMUNG & SCHMERZEN
+        # ============================================================
+
+        mood_default = safe_int(
+            day_value("Stimmung", 3),
+            default=3
         )
 
-        initial_day = dict(day_entry)
+        mood = st.slider(
+            "Stimmung / Gefühl",
+            min_value=1,
+            max_value=5,
+            value=min(5, max(1, mood_default)),
+            help="1 = super toll, 3 = normal, 5 = dreckig",
+            key=key("mood")
+        )
 
-        if not has_day:
-            if period_mode and period_start > period_end:
-                raise ValueError(
-                    "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
+        pain = ""
+
+        if mood >= 4:
+            pain = st.text_input(
+                "Gab es Schmerzen? Wenn ja, wo?",
+                value=str(day_value("Schmerzen", "")),
+                key=key("pain")
+            )
+
+        # ============================================================
+        # CARDIO
+        # ============================================================
+
+        st.subheader("Cardio")
+
+        cardio_options = [
+            "Kein Cardio",
+            "Laufen",
+            "Fahrrad",
+            "Skaten",
+            "Stepper",
+            "Stairmaster",
+            "Crosstrainer",
+            "Rudern",
+            "Walking",
+            "Anderes"
+        ]
+
+        old_cardio = str(
+            day_value("Cardio Form", "Kein Cardio")
+        )
+
+        if old_cardio not in cardio_options:
+            old_cardio = "Kein Cardio"
+
+        cardio_type = st.selectbox(
+            "Cardio-Form",
+            cardio_options,
+            index=cardio_options.index(old_cardio),
+            key=key("cardio_type")
+        )
+
+        cardio_time = 0.0
+        cardio_distance = 0.0
+        cardio_calories = 0.0
+
+        if cardio_type != "Kein Cardio":
+
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                cardio_time = st.number_input(
+                    "Zeit in Minuten",
+                    min_value=0.0,
+                    value=safe_float(
+                        day_value("Cardio Zeit min", 0)
+                    ),
+                    step=1.0,
+                    key=key("cardio_time")
                 )
 
-            # Vorhandenes Cardio aus alten Trainingsdaten übernehmen.
-            # Ungespeicherte Cardio-Eingaben werden hier nicht übernommen.
-            for _, legacy_day in day_rows.iterrows():
-                legacy_cardio = legacy_day.get("Cardio Form", "")
+            with c2:
+                cardio_distance = st.number_input(
+                    "Distanz in km",
+                    min_value=0.0,
+                    value=safe_float(
+                        day_value("Cardio Distanz km", 0)
+                    ),
+                    step=0.1,
+                    key=key("cardio_distance")
+                )
 
-                if nonempty(legacy_cardio) and str(legacy_cardio) != "Kein Cardio":
-                    initial_day.update({
-                        col: legacy_day.get(col, "")
-                        for col in cardio_columns
+            with c3:
+                cardio_calories = st.number_input(
+                    "Cardio Kalorien",
+                    min_value=0.0,
+                    value=safe_float(
+                        day_value("Cardio Kalorien", 0)
+                    ),
+                    step=10.0,
+                    key=key("cardio_calories")
+                )
+
+        # ============================================================
+        # TAGESDATEN SPEICHERN
+        # ============================================================
+
+        # Tagesangaben und Cardio getrennt von den Kraftsets speichern.
+        day_entry = {
+            "Modus": mode,
+            "Kalorienziel": calories,
+            "Period Mode": period_mode,
+            "Periode Start": period_start,
+            "Periode Ende": period_end,
+            "Stimmung": mood,
+            "Schmerzen": pain,
+        }
+
+        cardio_columns = (
+            "Cardio Form", "Cardio Zeit min",
+            "Cardio Distanz km", "Cardio Kalorien",
+        )
+
+        def persist_training_with_day(entry, training_id, legacy_index=None):
+            # Frisch prüfen, ob dieser Tag bereits Tagesangaben hat.
+            load_day_data.clear()
+            current_days = load_day_data(username)
+            has_day = (
+                not current_days.empty
+                and "Datum" in current_days.columns
+                and current_days["Datum"].astype(str).eq(selected_date).any()
+            )
+
+            initial_day = dict(day_entry)
+
+            if not has_day:
+                if period_mode and period_start > period_end:
+                    raise ValueError(
+                        "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
+                    )
+
+                # Vorhandenes Cardio aus alten Trainingsdaten übernehmen.
+                # Ungespeicherte Cardio-Eingaben werden hier nicht übernommen.
+                for _, legacy_day in day_rows.iterrows():
+                    legacy_cardio = legacy_day.get("Cardio Form", "")
+
+                    if nonempty(legacy_cardio) and str(legacy_cardio) != "Kein Cardio":
+                        initial_day.update({
+                            col: legacy_day.get(col, "")
+                            for col in cardio_columns
+                        })
+                        break
+
+            persist_set(entry, training_id, legacy_index=legacy_index)
+
+            if not has_day:
+                save_day_data(username, selected_date, initial_day)
+
+        if cardio_type != "Kein Cardio":
+            if st.button(
+                "💾 Cardio speichern",
+                key=key("save_day"),
+                use_container_width=True,
+                disabled=st.session_state.gym_pending_save,
+            ):
+                if cardio_time <= 0 and cardio_distance <= 0:
+                    st.warning("Bitte bei Cardio eine Zeit oder Distanz eingeben.")
+
+                elif period_mode and period_start > period_end:
+                    st.warning(
+                        "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
+                    )
+
+                else:
+                    cardio_entry = dict(day_entry)
+                    cardio_entry.update({
+                        "Cardio Form": cardio_type,
+                        "Cardio Zeit min": cardio_time,
+                        "Cardio Distanz km": cardio_distance,
+                        "Cardio Kalorien": cardio_calories,
                     })
-                    break
 
-        persist_set(entry, training_id, legacy_index=legacy_index)
+                    def save_current_cardio():
+                        save_day_data(username, selected_date, cardio_entry)
 
-        if not has_day:
-            save_day_data(username, selected_date, initial_day)
+                    run_gym_save(
+                        save_current_cardio,
+                        "Cardio und Tagesangaben werden gespeichert.",
+                        "Cardio und Tagesangaben gespeichert! ✓",
+                    )
+                    return
 
-    if cardio_type != "Kein Cardio":
-        if st.button(
-            "💾 Cardio speichern",
-            key=key("save_day"),
-            use_container_width=True,
-            disabled=st.session_state.gym_pending_save,
-        ):
-            if cardio_time <= 0 and cardio_distance <= 0:
-                st.warning("Bitte bei Cardio eine Zeit oder Distanz eingeben.")
 
-            elif period_mode and period_start > period_end:
-                st.warning(
-                    "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
-                )
-
-            else:
-                cardio_entry = dict(day_entry)
-                cardio_entry.update({
-                    "Cardio Form": cardio_type,
-                    "Cardio Zeit min": cardio_time,
-                    "Cardio Distanz km": cardio_distance,
-                    "Cardio Kalorien": cardio_calories,
-                })
-
-                def save_current_cardio():
-                    save_day_data(username, selected_date, cardio_entry)
-
-                run_gym_save(
-                    save_current_cardio,
-                    "Cardio und Tagesangaben werden gespeichert.",
-                    "Cardio und Tagesangaben gespeichert! ✓",
-                )
-                return
 
 
 
