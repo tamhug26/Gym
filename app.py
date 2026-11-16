@@ -2609,8 +2609,17 @@ def get_exercise_note_worksheet(username):
 def exercise_note_store(username, exercise, machine, new_note=None):
     ws = get_exercise_note_worksheet(username)
     values = ws.get_all_values()
-    headers = ["Übung", "Machine", "Hinweis"]
 
+    # Ein vollständig leeres Blatt auch als leer behandeln,
+    # wenn Google Sheets leere Zeilen zurückliefert.
+    if not any(
+        str(cell).strip()
+        for row in values
+        for cell in row
+    ):
+        values = []
+
+    headers = ["Übung", "Machine", "Hinweis"]
     if values and values[0][:3] != headers:
         raise ValueError(
             "Unerwartete Spalten im Blatt für Übungshinweise."
