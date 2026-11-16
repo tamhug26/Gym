@@ -2675,6 +2675,47 @@ def load_exercise_note(username, exercise, machine):
         username, exercise, machine
     )
 
+@st.dialog("Übungshinweis bearbeiten")
+def edit_exercise_note_dialog(username, exercise, machine, draft_key):
+    st.caption(f"{exercise} · {machine}")
+
+    draft = st.text_area(
+        "Geräteeinstellung / Ausführung",
+        height=100,
+        placeholder="z. B. Sitz 4 · Ellbogen tief · langsam ablassen",
+        key=draft_key
+    )
+
+    st.caption(
+        "Dauerhafter Hinweis. Zum Entfernen leeren und speichern."
+    )
+
+    save_col, cancel_col = st.columns(2)
+
+    with save_col:
+        if st.button(
+            "Speichern",
+            type="primary",
+            key=draft_key + "_save"
+        ):
+            try:
+                exercise_note_store(
+                    username, exercise, machine, draft
+                )
+            except Exception as exc:
+                st.error(
+                    f"Hinweis konnte nicht gespeichert werden: {exc}"
+                )
+            else:
+                st.rerun()
+
+    with cancel_col:
+        if st.button(
+            "Abbrechen",
+            key=draft_key + "_cancel"
+        ):
+            st.rerun()
+
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
 
@@ -3541,7 +3582,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     last_weights = get_last_training_weights(history, exercise)
     if last_weights:
         st.caption(f"Letztes Training: {last_weights}")
-            # Dauerhafter Hinweis, unabhängig von Datum und Trainingssets.
+    # Dauerhafter Hinweis mit kleinem Bearbeiten-Button.
     try:
         permanent_note = load_exercise_note(
             username, exercise, machine
@@ -3553,52 +3594,41 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         )
 
     else:
-        if permanent_note:
-            st.caption("📌 " + permanent_note)
+        hint_col, edit_col = st.columns([12, 1])
 
-        with st.expander(
-            "📌 Übungshinweis bearbeiten",
-            expanded=False
-        ):
-            note_identity = str(
-                (username, exercise, machine)
-            )
-
-            permanent_draft = st.text_area(
-                "Geräteeinstellung / Ausführung",
-                value=permanent_note,
-                height=80,
-                placeholder=(
-                    "z. B. Sitz 4 · Ellbogen tief · langsam ablassen"
-                ),
-                key=key("permanent_note_" + note_identity)
-            )
-
+        with hint_col:
             st.caption(
-                "Bleibt für diese Übung und Machine gespeichert. "
-                "Zum Entfernen den Text leeren und speichern."
+                "📌 " + (
+                    permanent_note or "Noch kein Übungshinweis"
+                )
             )
 
+        with edit_col:
             if st.button(
-                "Hinweis speichern",
-                key=key("save_permanent_note_" + note_identity),
+                "✏️",
+                help="Übungshinweis bearbeiten",
+                key=key(
+                    "edit_note_"
+                    + str((username, exercise, machine))
+                ),
                 disabled=st.session_state.gym_pending_save
             ):
-                try:
-                    exercise_note_store(
-                        username,
-                        exercise,
-                        machine,
-                        permanent_draft
-                    )
+                draft_key = key(
+                    "note_dialog_"
+                    + str((username, exercise, machine))
+                )
 
-                except Exception as exc:
-                    st.error(
-                        f"Hinweis konnte nicht gespeichert werden: {exc}"
-                    )
+                # Beim Öffnen den gespeicherten Text einsetzen.
+                st.session_state[draft_key] = permanent_note
 
-                else:
-                    st.rerun()
+                edit_exercise_note_dialog(
+                    username,
+                    exercise,
+                    machine,
+                    draft_key
+                )
+                return
+
     weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
     exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
     max_weight = None
