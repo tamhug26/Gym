@@ -3226,6 +3226,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     # TAGESDATEN SPEICHERN
     # ============================================================
 
+    # Tagesangaben und Cardio getrennt von den Kraftsets speichern.
     day_entry = {
         "Modus": mode,
         "Kalorienziel": calories,
@@ -3234,50 +3235,82 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         "Periode Ende": period_end,
         "Stimmung": mood,
         "Schmerzen": pain,
-        "Cardio Form": cardio_type,
-        "Cardio Zeit min": cardio_time,
-        "Cardio Distanz km": cardio_distance,
-        "Cardio Kalorien": cardio_calories
     }
 
-    if st.button(
-        "💾 Tagesangaben & Cardio speichern",
-        key=key("save_day"),
-        use_container_width=True
-    ):
-        try:
-            if (
-                cardio_type != "Kein Cardio"
-                and cardio_time <= 0
-                and cardio_distance <= 0
-            ):
-                st.warning(
-                    "Bitte bei Cardio eine Zeit oder Distanz eingeben."
+    cardio_columns = (
+        "Cardio Form", "Cardio Zeit min",
+        "Cardio Distanz km", "Cardio Kalorien",
+    )
+
+    def persist_training_with_day(entry, training_id, legacy_index=None):
+        # Frisch prüfen, ob dieser Tag bereits Tagesangaben hat.
+        load_day_data.clear()
+        current_days = load_day_data(username)
+        has_day = (
+            not current_days.empty
+            and "Datum" in current_days.columns
+            and current_days["Datum"].astype(str).eq(selected_date).any()
+        )
+
+        initial_day = dict(day_entry)
+
+        if not has_day:
+            if period_mode and period_start > period_end:
+                raise ValueError(
+                    "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
                 )
-            elif (
-                period_mode
-                and period_start > period_end
-            ):
+
+            # Vorhandenes Cardio aus alten Trainingsdaten übernehmen.
+            # Ungespeicherte Cardio-Eingaben werden hier nicht übernommen.
+            for _, legacy_day in day_rows.iterrows():
+                legacy_cardio = legacy_day.get("Cardio Form", "")
+
+                if nonempty(legacy_cardio) and str(legacy_cardio) != "Kein Cardio":
+                    initial_day.update({
+                        col: legacy_day.get(col, "")
+                        for col in cardio_columns
+                    })
+                    break
+
+        persist_set(entry, training_id, legacy_index=legacy_index)
+
+        if not has_day:
+            save_day_data(username, selected_date, initial_day)
+
+    if cardio_type != "Kein Cardio":
+        if st.button(
+            "💾 Cardio speichern",
+            key=key("save_day"),
+            use_container_width=True,
+            disabled=st.session_state.gym_pending_save,
+        ):
+            if cardio_time <= 0 and cardio_distance <= 0:
+                st.warning("Bitte bei Cardio eine Zeit oder Distanz eingeben.")
+
+            elif period_mode and period_start > period_end:
                 st.warning(
-                    "Das Perioden-Enddatum muss nach "
-                    "dem Startdatum liegen."
+                    "Das Perioden-Enddatum darf nicht vor dem Startdatum liegen."
                 )
+
             else:
-                with st.spinner("Tagesdaten werden gespeichert..."):
-                    save_day_data(
-                        username,
-                        selected_date,
-                        day_entry
-                    )
+                cardio_entry = dict(day_entry)
+                cardio_entry.update({
+                    "Cardio Form": cardio_type,
+                    "Cardio Zeit min": cardio_time,
+                    "Cardio Distanz km": cardio_distance,
+                    "Cardio Kalorien": cardio_calories,
+                })
 
-                st.success(
-                    "Tagesangaben erfolgreich gespeichert! ✓"
+                def save_current_cardio():
+                    save_day_data(username, selected_date, cardio_entry)
+
+                run_gym_save(
+                    save_current_cardio,
+                    "Cardio und Tagesangaben werden gespeichert.",
+                    "Cardio und Tagesangaben gespeichert! ✓",
                 )
+                return
 
-        except Exception as exc:
-            st.error(
-                f"Tagesangaben konnten nicht gespeichert werden: {exc}"
-            )
 
 
     st.subheader("Krafttraining")
@@ -3394,15 +3427,17 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         uses_weight = st.checkbox("Mit Gewicht gearbeitet?", value=default_weight, key=key("uses_weight"))
 
     base_entry = {
-        "Benutzer": username, "Datum": selected_day, "Modus": mode,
-        "Kalorienziel": calories, "Ausführung": execution_type,
-        "Period Mode": period_mode, "Periode Start": period_start,
-        "Periode Ende": period_end, "Stimmung": mood, "Schmerzen": pain,
-        "Cardio Form": cardio_type, "Cardio Zeit min": cardio_time,
-        "Cardio Distanz km": cardio_distance, "Cardio Kalorien": cardio_calories,
-        "Übung": exercise, "Machine": machine, "Griff": griff,
-        "Extra Info": extra_info, "Notiz Übung": note, "Anzahl Sets": number_of_sets,
-        "Status": clean(old_row.get("Status", "In Bearbeitung")) if old_row is not None else "In Bearbeitung"
+        "Benutzer": username,
+        "Datum": selected_day,
+        "Ausführung": execution_type,
+        "Übung": exercise,
+        "Machine": machine,
+        "Griff": griff,
+        "Extra Info": extra_info,
+        "Notiz Übung": note,
+        "Anzahl Sets": number_of_sets,
+        "Status": clean(old_row.get("Status", "In Bearbeitung"))
+        if old_row is not None else "In Bearbeitung",
     }
     if not base_entry["Status"]:
         base_entry["Status"] = "In Bearbeitung"
@@ -3522,7 +3557,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 )
 
                 def save_current_set():
-                    persist_set(
+                    persist_training_with_day(
                         entry,
                         training_id,
                         legacy_index=legacy_index
@@ -3740,7 +3775,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         entry["Anzahl Sets"] = number_of_sets
 
         def finish_current_exercise():
-            persist_set(
+            persist_training_with_day(
                 entry,
                 training_id,
                 legacy_index=legacy_index
