@@ -3130,7 +3130,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             legacy_index = None
 
     
-        has_saved_strength = any(
+    has_saved_strength = any(
         gym_set_parts(row, number)
         for _, row in day_rows.iterrows()
         for number in saved_set_numbers(row)
