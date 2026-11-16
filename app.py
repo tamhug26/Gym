@@ -4949,44 +4949,116 @@ with tab3:
         )
 
         st.download_button(
-            label="⬇️ CSV exportieren",
+            label="⬇️ CSV exportieren– nur Krafttraining",
             data=csv_data,
             file_name=f"{username}_gym_export.csv",
             mime="text/csv"
         )
 
 
-        # Excel im Arbeitsspeicher erzeugen
-        excel_buffer = BytesIO()
+                # Excel mit Krafttraining, Tagesdaten und dauerhaften Hinweisen.
+        try:
+            export_days = load_day_data(username)
+            note_values = (
+                get_exercise_note_worksheet(username).get_all_values()
+            )
 
-        with pd.ExcelWriter(
-            excel_buffer,
-            engine="openpyxl"
-        ) as writer:
+            if not any(
+                str(cell).strip()
+                for row in note_values
+                for cell in row
+            ):
+                note_values = [["Übung", "Machine", "Hinweis"]]
 
-            saved_df.to_excel(
-                writer,
-                index=False,
-                sheet_name="Gym Notes"
+            excel_buffer = BytesIO()
+
+            with pd.ExcelWriter(
+                excel_buffer,
+                engine="openpyxl"
+            ) as writer:
+                saved_df.to_excel(
+                    writer,
+                    index=False,
+                    sheet_name="Gym Notes"
+                )
+
+                export_days.to_excel(
+                    writer,
+                    index=False,
+                    sheet_name="Tagesdaten"
+                )
+
+                # Die Überschriften sind bereits in der ersten Zeile enthalten.
+                pd.DataFrame(note_values).to_excel(
+                    writer,
+                    index=False,
+                    header=False,
+                    sheet_name="Uebungshinweise"
+                )
+
+        except Exception as exc:
+            st.error(
+                f"Excel-Export konnte nicht erstellt werden: {exc}"
+            )
+
+        else:
+            st.download_button(
+                label="⬇️ Excel mit Tagesdaten und Hinweisen exportieren",
+                data=excel_buffer.getvalue(),
+                file_name=f"{username}_gym_export.xlsx",
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                )
             )
 
 
-        st.download_button(
-            label="⬇️ Excel exportieren",
-            data=excel_buffer.getvalue(),
-            file_name=f"{username}_gym_export.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-
-        # ====================================================
+                # ====================================================
         # STATISTIK
         # ====================================================
+
+        # Tagesbezogene Kennzahlen unabhängig von Kraftübungen auswerten.
+        daily_stats = load_day_data(username).copy()
+        legacy_stats = saved_df.copy()
+
+        def normalize_stats_dates(frame):
+            result = frame.copy()
+            if "Datum" not in result.columns:
+                result["Datum"] = pd.Series(dtype="object")
+            result["Datum"] = pd.to_datetime(
+                result["Datum"], errors="coerce"
+            ).dt.strftime("%Y-%m-%d")
+            return result.dropna(subset=["Datum"])
+
+        daily_stats = normalize_stats_dates(daily_stats)
+        legacy_stats = normalize_stats_dates(legacy_stats)
+
+        stored_days = set(daily_stats["Datum"]) | set(legacy_stats["Datum"])
+        st.metric("Gespeicherte Tage", len(stored_days))
+
+        def mood_per_day(frame):
+            if frame.empty or "Stimmung" not in frame.columns:
+                return pd.Series(dtype=float)
+            result = frame[["Datum", "Stimmung"]].copy()
+            result["Stimmung"] = pd.to_numeric(
+                result["Stimmung"].astype(str).str.replace(",", ".", regex=False),
+                errors="coerce"
+            )
+            result = result[result["Stimmung"].between(1, 5)]
+            return result.groupby("Datum")["Stimmung"].mean()
+
+        # Neue Tagesangaben haben Vorrang; ältere Tage bleiben berücksichtigt.
+        moods = mood_per_day(daily_stats).combine_first(
+            mood_per_day(legacy_stats)
+        )
+        if not moods.empty:
+            st.metric("Ø Stimmung pro Tag", round(float(moods.mean()), 2))
+
 
         if saved_df.empty:
 
             st.info(
-                "Noch keine Daten für Statistik vorhanden."
+                "Noch keine Krafttrainingsdaten für die Übungsstatistik vorhanden."
             )
 
 
@@ -5039,16 +5111,6 @@ with tab3:
             # ------------------------------------------------
             # KENNZAHLEN
             # ------------------------------------------------
-
-            if "Datum" in stats_df.columns:
-
-                st.metric(
-                    "Anzahl Trainings",
-                    stats_df[
-                        "Datum"
-                    ].nunique()
-                )
-
 
             st.metric(
                 "Anzahl Übungen gesamt",
@@ -5168,100 +5230,82 @@ with tab3:
 
 
 
-            # ------------------------------------------------
-            # STIMMUNG
-            # ------------------------------------------------
 
-            if "Stimmung" in stats_df.columns:
+                    # Cardio aus Tagesdaten und historischen Trainings zusammenführen.
+        # Dieser Abschnitt steht außerhalb der Krafttraining-Auswertung.
+        cardio_columns = [
+            "Cardio Zeit min",
+            "Cardio Distanz km",
+            "Cardio Kalorien",
+        ]
 
-                st.subheader(
-                    "Durchschnittliche Stimmung"
+        def prepare_cardio_stats(frame):
+            if frame.empty or "Datum" not in frame.columns:
+                return pd.DataFrame(
+                    columns=["Datum", "Cardio Form"] + cardio_columns
                 )
 
+            result = frame.copy()
+            result["Datum"] = pd.to_datetime(
+                result["Datum"], errors="coerce"
+            ).dt.strftime("%Y-%m-%d")
+            result = result.dropna(subset=["Datum"])
 
-                avg_mood = \
-                    stats_df[
-                        "Stimmung"
-                    ].mean()
+            if "Cardio Form" not in result.columns:
+                result["Cardio Form"] = ""
+            result["Cardio Form"] = (
+                result["Cardio Form"].fillna("").astype(str).str.strip()
+            )
 
+            for column in cardio_columns:
+                if column not in result.columns:
+                    result[column] = 0.0
+                result[column] = pd.to_numeric(
+                    result[column].astype(str).str.replace(",", ".", regex=False),
+                    errors="coerce"
+                ).fillna(0)
 
-                st.metric(
-                    "Ø Stimmung",
-                    round(
-                        avg_mood,
-                        2
-                    )
-                )
-
-
-            # ------------------------------------------------
-            # CARDIO
-            # ------------------------------------------------
-
-            cardio_columns = [
-                "Cardio Zeit min",
-                "Cardio Distanz km",
-                "Cardio Kalorien"
+            return result[
+                ["Datum", "Cardio Form"] + cardio_columns
             ]
 
+        daily_cardio = prepare_cardio_stats(load_day_data(username))
+        legacy_cardio = prepare_cardio_stats(saved_df)
 
-            if all(
-                col in stats_df.columns
-                for col in cardio_columns
-            ):
+        # Reine Tagesangaben ohne gespeichertes Cardio ersetzen kein altes Cardio.
+        daily_cardio = daily_cardio[
+            daily_cardio[cardio_columns].gt(0).any(axis=1)
+            | ~daily_cardio["Cardio Form"].isin(["", "Kein Cardio"])
+        ]
 
-                st.subheader(
-                    "Cardio gesamt"
-                )
+        duplicate_days = daily_cardio["Datum"].duplicated(keep=False)
+        if duplicate_days.any():
+            st.error(
+                "Cardio-Auswertung gestoppt: doppelte Tagesdaten vorhanden."
+            )
+        else:
+            # Neue Tagesdaten haben für ihr Datum Vorrang.
+            legacy_cardio = legacy_cardio[
+                ~legacy_cardio["Datum"].isin(daily_cardio["Datum"])
+            ]
 
+            # Früher wurde dasselbe Cardio bei mehreren Kraftübungen mitgespeichert.
+            legacy_cardio = legacy_cardio.drop_duplicates(
+                subset=["Datum", "Cardio Form"] + cardio_columns
+            )
 
-                total_cardio_time = \
-                    stats_df[
-                        "Cardio Zeit min"
-                    ].sum()
+            cardio_stats = pd.concat(
+                [daily_cardio, legacy_cardio], ignore_index=True
+            )
+            totals = cardio_stats[cardio_columns].sum()
 
-
-                total_cardio_distance = \
-                    stats_df[
-                        "Cardio Distanz km"
-                    ].sum()
-
-
-                total_cardio_calories = \
-                    stats_df[
-                        "Cardio Kalorien"
-                    ].sum()
-
-
-                c1, c2, c3 = \
-                    st.columns(3)
-
-
-                c1.metric(
-                    "Cardio Minuten",
-                    round(
-                        total_cardio_time,
-                        1
-                    )
-                )
+            st.subheader("Cardio gesamt")
+            time_col, distance_col, calories_col = st.columns(3)
+            time_col.metric("Cardio Minuten", round(totals["Cardio Zeit min"], 1))
+            distance_col.metric("Cardio km", round(totals["Cardio Distanz km"], 1))
+            calories_col.metric("Cardio kcal", round(totals["Cardio Kalorien"], 0))
 
 
-                c2.metric(
-                    "Cardio km",
-                    round(
-                        total_cardio_distance,
-                        1
-                    )
-                )
-
-
-                c3.metric(
-                    "Cardio kcal",
-                    round(
-                        total_cardio_calories,
-                        0
-                    )
-                )
 
     # ========================================================
     # MEALPLAN
