@@ -2593,6 +2593,79 @@ def run_gym_save(action, message, success):
 
     gym_save_dialog(job)
 
+@st.cache_resource
+def get_exercise_note_worksheet(username):
+    title = f"{username}_Uebungshinweise"
+
+    try:
+        return sheet.worksheet(title)
+    except gspread.WorksheetNotFound:
+        return sheet.add_worksheet(
+            title=title,
+            rows=1000,
+            cols=3
+        )
+
+def exercise_note_store(username, exercise, machine, new_note=None):
+    ws = get_exercise_note_worksheet(username)
+    values = ws.get_all_values()
+    headers = ["Übung", "Machine", "Hinweis"]
+
+    if values and values[0][:3] != headers:
+        raise ValueError(
+            "Unerwartete Spalten im Blatt für Übungshinweise."
+        )
+
+    matches = [
+        (number, row)
+        for number, row in enumerate(values[1:], start=2)
+        if len(row) >= 2
+        and row[0] == exercise
+        and row[1] == machine
+    ]
+
+    if len(matches) > 1:
+        raise ValueError(
+            "Doppelte Übungshinweise gefunden. Bitte prüfen."
+        )
+
+    if new_note is None:
+        return (
+            matches[0][1][2]
+            if matches and len(matches[0][1]) > 2
+            else ""
+        )
+
+    text = str(new_note).strip()
+
+    if matches:
+        ws.update(
+            range_name=f"C{matches[0][0]}",
+            values=[[text]],
+            value_input_option="RAW"
+        )
+
+    elif text:
+        if not values:
+            ws.update(
+                range_name="A1",
+                values=[headers]
+            )
+
+        ws.append_row(
+            [exercise, machine, text],
+            value_input_option="RAW"
+        )
+
+    load_exercise_note.clear()
+    return text
+
+@st.cache_data(ttl=30, show_spinner=False)
+def load_exercise_note(username, exercise, machine):
+    return exercise_note_store(
+        username, exercise, machine
+    )
+
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
 
@@ -3009,8 +3082,69 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
         return value
 
-    last_mode, last_calories = get_last_mode_and_calories(latest)
+    def last_saved_day_value(column, default):
+        # Tagesdaten haben bei gleichem Datum Vorrang.
+        # Alte Trainingsdaten bleiben als Übergang verfügbar.
+        histories = []
 
+        for source in (day_df, latest):
+            if (
+                not source.empty
+                and "Datum" in source.columns
+                and column in source.columns
+            ):
+                part = source[["Datum", column]].copy()
+                part["_day"] = pd.to_datetime(
+                    part["Datum"], errors="coerce"
+                ).dt.date
+
+                part = part[
+                    part["_day"].notna()
+                    & part["_day"].apply(
+                        lambda value: (
+                            value <= selected_day
+                            if pd.notna(value) else False
+                        )
+                    )
+                ]
+
+                histories.append(part)
+
+        if not histories:
+            return default
+
+        history = pd.concat(histories, ignore_index=True)
+        history = history.sort_values(
+            "_day",
+            ascending=False,
+            kind="stable"
+        )
+
+        for value in history[column]:
+            if not nonempty(value):
+                continue
+
+            if column == "Modus":
+                if str(value) not in ("Maintaining", "Bulk", "Cut"):
+                    continue
+
+            if column == "Period Mode":
+                text = str(value).strip().lower()
+                if text in ("true", "false"):
+                    return text == "true"
+                continue
+
+            return value
+
+        return default
+
+    last_mode = str(
+        last_saved_day_value("Modus", "Maintaining")
+    )
+    last_calories = safe_int(
+        last_saved_day_value("Kalorienziel", 2200),
+        default=2200
+    )
     modes = ["Maintaining", "Bulk", "Cut"]
 
     default_mode = str(day_value("Modus", last_mode))
@@ -3055,34 +3189,18 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
     if USERS[username]["gender"] == "female":
 
-        old_period = False
+        old_period = last_saved_day_value(
+            "Period Mode", False
+        )
 
-        if day_row is not None and nonempty(
-            day_row.get("Period Mode", "")
-        ):
-            old_period = (
-                str(day_row.get("Period Mode")).lower() == "true"
-            )
+        if day_row is not None:
+            stored_period = str(
+                day_row.get("Period Mode", "")
+            ).strip().lower()
 
-        elif not latest.empty and "Period Mode" in latest.columns:
-            history = latest.copy()
+            if stored_period in ("true", "false"):
+                old_period = stored_period == "true"
 
-            history["_sort_date"] = pd.to_datetime(
-                history["Datum"], errors="coerce"
-            )
-
-            history = history.sort_values(
-                "_sort_date",
-                ascending=False,
-                kind="stable"
-            )
-
-            for value in history["Period Mode"]:
-                if str(value).strip().lower() in ("true", "false"):
-                    old_period = (
-                        str(value).strip().lower() == "true"
-                    )
-                    break
 
         period_mode = st.checkbox(
             "Period Mode",
@@ -3390,8 +3508,13 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         old_grip = clean(old_row.get("Griff", "Neutral")) if old_row is not None else "Neutral"
         griff = st.selectbox("Griff", grip_options,
             index=grip_options.index(old_grip) if old_grip in grip_options else 0, key=key("grip"))
-    note = st.text_input("Notiz zur Übung",
-        value=clean(old_row.get("Notiz Übung", "")) if old_row is not None else "", key=key("note"))
+    note = st.text_input(
+        "Tagesnotiz zur Übung",
+        value=clean(old_row.get("Notiz Übung", ""))
+        if old_row is not None else "",
+        placeholder="Nur für heute, z. B. Schulter gespürt",
+        key=key("note")
+    )
     if any(g in muscle_groups for g in ("Rücken", "Schultern")):
         st.warning("⚠️ Schulterblätter nach hinten und runter drücken.")
 
@@ -3409,6 +3532,64 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     last_weights = get_last_training_weights(history, exercise)
     if last_weights:
         st.caption(f"Letztes Training: {last_weights}")
+            # Dauerhafter Hinweis, unabhängig von Datum und Trainingssets.
+        try:
+            permanent_note = load_exercise_note(
+                username, exercise, machine
+            )
+
+        except Exception as exc:
+            st.error(
+                f"Übungshinweis konnte nicht geladen werden: {exc}"
+            )
+
+        else:
+            if permanent_note:
+                st.caption("📌 " + permanent_note)
+
+            with st.expander(
+                "📌 Übungshinweis bearbeiten",
+                expanded=False
+            ):
+                note_identity = str(
+                    (username, exercise, machine)
+                )
+
+                permanent_draft = st.text_area(
+                    "Geräteeinstellung / Ausführung",
+                    value=permanent_note,
+                    height=80,
+                    placeholder=(
+                        "z. B. Sitz 4 · Ellbogen tief · langsam ablassen"
+                    ),
+                    key=key("permanent_note_" + note_identity)
+                )
+
+                st.caption(
+                    "Bleibt für diese Übung und Machine gespeichert. "
+                    "Zum Entfernen den Text leeren und speichern."
+                )
+
+                if st.button(
+                    "Hinweis speichern",
+                    key=key("save_permanent_note_" + note_identity),
+                    disabled=st.session_state.gym_pending_save
+                ):
+                    try:
+                        exercise_note_store(
+                            username,
+                            exercise,
+                            machine,
+                            permanent_draft
+                        )
+
+                    except Exception as exc:
+                        st.error(
+                            f"Hinweis konnte nicht gespeichert werden: {exc}"
+                        )
+
+                    else:
+                        st.rerun()
     weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
     exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
     max_weight = None
