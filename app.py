@@ -2716,6 +2716,35 @@ def edit_exercise_note_dialog(username, exercise, machine, draft_key):
         ):
             st.rerun()
 
+@st.dialog("Letztes Training")
+def show_last_training_dialog(exercise, machine, execution_type,
+                              last_day, summaries, training):
+    st.write(exercise)
+    st.caption(f"{last_day} · {machine} · {execution_type}")
+
+    for n, summary in summaries:
+        st.write(f"Set {n}: {summary}")
+
+        note = safe_string(
+            training.get(f"Set {n} Notiz", "")
+        ).strip()
+
+        if note:
+            st.caption("Notiz: " + note)
+
+    daily_note = safe_string(
+        training.get("Notiz Übung", "")
+    ).strip()
+
+    if daily_note:
+        st.write("Tagesnotiz: " + daily_note)
+
+    if st.button(
+        "Schließen",
+        key="close_last_training_details"
+    ):
+        st.rerun()
+
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
 
@@ -3690,35 +3719,31 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 f"{n}. " + " / ".join(labels)
             )
 
-        st.caption(
-            f"Letztes Training ({last_day}): "
-            + " · ".join(compact)
-        )
+        last_col, details_col = st.columns([12, 1])
 
-        with st.expander(
-            "Details zum letzten Training",
-            expanded=False
-        ):
+        with last_col:
             st.caption(
-                f"{last_day} · {machine} · {execution_type}"
+                f"Letztes Training ({last_day}): "
+                + " · ".join(compact)
             )
 
-            for n, summary in summaries:
-                st.write(f"Set {n}: {summary}")
-
-                set_note = clean(
-                    last_training.get(f"Set {n} Notiz", "")
+        with details_col:
+            if st.button(
+                "🔍",
+                help="Details zum letzten Training ansehen",
+                key=key("last_training_details"),
+                disabled=st.session_state.gym_pending_save
+            ):
+                show_last_training_dialog(
+                    exercise,
+                    machine,
+                    execution_type,
+                    last_day,
+                    summaries,
+                    dict(last_training)
                 )
+                return
 
-                if nonempty(set_note):
-                    st.caption("Notiz: " + set_note)
-
-            previous_note = clean(
-                last_training.get("Notiz Übung", "")
-            )
-
-            if nonempty(previous_note):
-                st.write("Tagesnotiz: " + previous_note)
 
     # Dauerhafter Hinweis mit kleinem Bearbeiten-Button.
     try:
