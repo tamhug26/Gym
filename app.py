@@ -4720,183 +4720,200 @@ with tab1:
     # ========================================================
 
 with tab2:
-        show_avatar(username, avatar_level)
-        st.subheader(
-            "📖 Gespeicherte Trainings"
+    show_avatar(username, avatar_level)
+    st.subheader("📖 Gespeicherte Trainings")
+
+    training_history = saved_df.copy()
+    daily_history = load_day_data(username).copy()
+
+    for frame in (training_history, daily_history):
+        if "Datum" in frame.columns:
+            frame["Datum"] = frame["Datum"].fillna("").astype(str).str.strip()
+
+    def rows_on_day(frame, day):
+        if "Datum" not in frame.columns:
+            return frame.iloc[0:0]
+        return frame[frame["Datum"] == day]
+
+    def overview_day_record(day):
+        daily_rows = rows_on_day(daily_history, day)
+        if not daily_rows.empty:
+            return daily_rows.iloc[0]
+
+        # Historisches Cardio bleibt auch ohne Tagesdatenblatt sichtbar.
+        legacy_rows = rows_on_day(training_history, day)
+        for _, row in legacy_rows.iterrows():
+            cardio = safe_string(row.get("Cardio Form", "")).strip()
+            if cardio and cardio != "Kein Cardio":
+                return row
+        return legacy_rows.iloc[0] if not legacy_rows.empty else {}
+
+    available_dates = sorted({
+        day
+        for frame in (training_history, daily_history)
+        if "Datum" in frame.columns
+        for day in frame["Datum"]
+        if day and day.lower() not in ("nan", "none", "nat")
+    }, reverse=True)
+
+    if not available_dates:
+        st.info("Noch keine gespeicherten Trainings vorhanden.")
+
+    else:
+        date_labels = {}
+        for training_date in available_dates:
+            rows_for_date = rows_on_day(training_history, training_date)
+            exercises_for_date = (
+                set(rows_for_date["Übung"].dropna().astype(str).str.strip())
+                if "Übung" in rows_for_date.columns else set()
+            )
+            groups = [
+                group for group, exercises in exercises_by_group.items()
+                if exercises_for_date.intersection(exercises)
+            ]
+            record = overview_day_record(training_date)
+            cardio = safe_string(record.get("Cardio Form", "")).strip()
+            if cardio and cardio != "Kein Cardio":
+                groups.append("Cardio: " + cardio)
+
+            date_labels[training_date] = (
+                f"🔴 {training_date}"
+                + (" · " + ", ".join(groups) if groups else "")
+            )
+
+        selected_date_str = st.selectbox(
+            "Trainingstag auswählen",
+            available_dates,
+            format_func=lambda value: date_labels[value],
+            key="saved_training_day"
         )
 
+        day_df = rows_on_day(training_history, selected_date_str)
+        record = overview_day_record(selected_date_str)
 
-        if saved_df.empty:
+        day_labels = []
+        for column, label in (
+            ("Modus", "Modus"),
+            ("Kalorienziel", "Kalorienziel"),
+            ("Stimmung", "Stimmung"),
+            ("Schmerzen", "Schmerzen"),
+        ):
+            value = safe_string(record.get(column, "")).strip()
+            if value:
+                day_labels.append(f"{label}: {value}")
+        if day_labels:
+            st.caption(" · ".join(day_labels))
 
-            st.info(
-                "Noch keine gespeicherten Trainings vorhanden."
+        cardio = safe_string(record.get("Cardio Form", "")).strip()
+        if cardio and cardio != "Kein Cardio":
+            cardio_details = []
+            for column, unit in (
+                ("Cardio Zeit min", "min"),
+                ("Cardio Distanz km", "km"),
+                ("Cardio Kalorien", "kcal"),
+            ):
+                value = safe_float(record.get(column, 0))
+                if value > 0:
+                    cardio_details.append(f"{value:g} {unit}")
+            st.write("Cardio: " + cardio)
+            if cardio_details:
+                st.caption(" · ".join(cardio_details))
+
+        if day_df.empty:
+            st.caption("Für diesen Tag sind keine Kraftübungen gespeichert.")
+        else:
+            import re
+            preferred = [
+                "Übung", "Status", "Anzahl Sets", "Ausführung",
+                "Machine", "Griff", "Extra Info"
+            ]
+            set_columns = sorted(
+                [col for col in day_df.columns if re.match(r"^Set \d+ ", str(col))],
+                key=lambda col: (int(re.search(r"\d+", col).group()), col)
+            )
+            display_columns = [
+                col for col in preferred + set_columns + ["Notiz Übung"]
+                if col in day_df.columns
+            ]
+            st.dataframe(
+                day_df[display_columns],
+                use_container_width=True,
+                hide_index=True
             )
 
+        c1, c2 = st.columns(2)
 
-        elif "Datum" not in saved_df.columns:
+
+        with c1:
+
+            if st.button(
+                "✏️ Dieses Training bearbeiten"
+            ):
+
+                if st.session_state.get("active_training_id"):
+                    st.warning("Schließe zuerst die aktuelle Übung ab.")
+                else:
+                    st.session_state.edit_date = selected_date_str
+                    st.session_state.exercise_edit_index = None
+                    st.session_state.gym_edit_row = None
+                    st.session_state.gym_editor_version = st.session_state.get("gym_editor_version", 0) + 1
+                    st.rerun()
+
+
+        
+        with c2:
+
+            if st.button(
+                "🗑️ Kraftübungen löschen",
+                disabled=day_df.empty
+            ):
+                st.session_state.confirm_delete_date = (
+                    selected_date_str
+                )
+
+        if st.session_state.get(
+            "confirm_delete_date"
+        ) == selected_date_str:
 
             st.warning(
-                "Die Tabelle enthält noch keine Datum-Spalte."
+                f"Willst du wirklich alle Übungen "
+                f"vom {selected_date_str} löschen?"
             )
 
+            confirm_col, cancel_col = st.columns(2)
 
-        else:
-
-            saved_df["Datum"] = \
-                saved_df["Datum"].astype(str)
-
-
-            available_dates = sorted(
-                saved_df["Datum"].dropna().unique(),
-                reverse=True
-            )
-
-            date_labels = {}
-
-            for training_date in available_dates:
-                rows_for_date = saved_df[
-                    saved_df["Datum"] == training_date
-                ]
-
-                exercises_for_date = (
-                    set(
-                        rows_for_date["Übung"]
-                        .dropna()
-                        .astype(str)
-                        .str.strip()
-                    )
-                    if "Übung" in rows_for_date.columns
-                    else set()
-                )
-
-                groups_for_date = [
-                    group
-                    for group, exercises in exercises_by_group.items()
-                    if exercises_for_date.intersection(exercises)
-                ]
-
-                label = f"🔴 {training_date}"
-
-                if groups_for_date:
-                    label += " · " + ", ".join(groups_for_date)
-
-                date_labels[training_date] = label
-
-            selected_date_str = st.selectbox(
-                "Trainingstag auswählen",
-                available_dates,
-                format_func=lambda value: date_labels[value],
-                key="saved_training_day"
-            )
-
-
-
-            day_df = saved_df[
-                saved_df["Datum"]
-                == selected_date_str
-            ]
-
-
-            if day_df.empty:
-
-                st.info(
-                    "Für dieses Datum gibt es kein gespeichertes Training."
-                )
-
-
-            else:
-
-                # Nur interessante Spalten anzeigen
-                import re
-                preferred = ["Übung", "Status", "Anzahl Sets", "Ausführung", "Machine", "Griff", "Extra Info"]
-                set_columns = sorted(
-                    [col for col in day_df.columns if re.match(r"^Set \d+ ", str(col))],
-                    key=lambda col: (int(re.search(r"\d+", col).group()), col)
-                )
-                display_columns = [col for col in preferred + set_columns + ["Notiz Übung"]
-                                   if col in day_df.columns]
-
-
-                st.dataframe(
-                    day_df[
-                        display_columns
-                    ],
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-
-                c1, c2 = st.columns(2)
-
-
-                with c1:
-
-                    if st.button(
-                        "✏️ Dieses Training bearbeiten"
-                    ):
-
-                        if st.session_state.get("active_training_id"):
-                            st.warning("Schließe zuerst die aktuelle Übung ab.")
-                        else:
-                            st.session_state.edit_date = selected_date_str
-                            st.session_state.exercise_edit_index = None
-                            st.session_state.gym_edit_row = None
-                            st.session_state.gym_editor_version = st.session_state.get("gym_editor_version", 0) + 1
-                            st.rerun()
-
-
-                
-                with c2:
-
-                    if st.button(
-                        "🗑️ Dieses Training löschen"
-                    ):
-                        st.session_state.confirm_delete_date = (
+            with confirm_col:
+                if st.button(
+                    "Ja, endgültig löschen",
+                    type="primary"
+                ):
+                    try:
+                        deleted_count = delete_training_day(
+                            username,
                             selected_date_str
                         )
 
-                if st.session_state.get(
-                    "confirm_delete_date"
-                ) == selected_date_str:
+                        st.session_state.pop(
+                            "confirm_delete_date", None
+                        )
 
-                    st.warning(
-                        f"Willst du wirklich alle Übungen "
-                        f"vom {selected_date_str} löschen?"
+                        st.toast(
+                            f"{deleted_count} Übung(en) gelöscht."
+                        )
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(
+                            f"Löschen fehlgeschlagen: {e}"
+                        )
+
+            with cancel_col:
+                if st.button("Abbrechen"):
+                    st.session_state.pop(
+                        "confirm_delete_date", None
                     )
+                    st.rerun()
 
-                    confirm_col, cancel_col = st.columns(2)
-
-                    with confirm_col:
-                        if st.button(
-                            "Ja, endgültig löschen",
-                            type="primary"
-                        ):
-                            try:
-                                deleted_count = delete_training_day(
-                                    username,
-                                    selected_date_str
-                                )
-
-                                st.session_state.pop(
-                                    "confirm_delete_date", None
-                                )
-
-                                st.toast(
-                                    f"{deleted_count} Übung(en) gelöscht."
-                                )
-                                st.rerun()
-
-                            except Exception as e:
-                                st.error(
-                                    f"Löschen fehlgeschlagen: {e}"
-                                )
-
-                    with cancel_col:
-                        if st.button("Abbrechen"):
-                            st.session_state.pop(
-                                "confirm_delete_date", None
-                            )
-                            st.rerun()
 
 with tab3:
         show_avatar(username, avatar_level)
