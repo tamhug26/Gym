@@ -3533,63 +3533,63 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     if last_weights:
         st.caption(f"Letztes Training: {last_weights}")
             # Dauerhafter Hinweis, unabhängig von Datum und Trainingssets.
-        try:
-            permanent_note = load_exercise_note(
-                username, exercise, machine
+    try:
+        permanent_note = load_exercise_note(
+            username, exercise, machine
+        )
+
+    except Exception as exc:
+        st.error(
+            f"Übungshinweis konnte nicht geladen werden: {exc}"
+        )
+
+    else:
+        if permanent_note:
+            st.caption("📌 " + permanent_note)
+
+        with st.expander(
+            "📌 Übungshinweis bearbeiten",
+            expanded=False
+        ):
+            note_identity = str(
+                (username, exercise, machine)
             )
 
-        except Exception as exc:
-            st.error(
-                f"Übungshinweis konnte nicht geladen werden: {exc}"
+            permanent_draft = st.text_area(
+                "Geräteeinstellung / Ausführung",
+                value=permanent_note,
+                height=80,
+                placeholder=(
+                    "z. B. Sitz 4 · Ellbogen tief · langsam ablassen"
+                ),
+                key=key("permanent_note_" + note_identity)
             )
 
-        else:
-            if permanent_note:
-                st.caption("📌 " + permanent_note)
+            st.caption(
+                "Bleibt für diese Übung und Machine gespeichert. "
+                "Zum Entfernen den Text leeren und speichern."
+            )
 
-            with st.expander(
-                "📌 Übungshinweis bearbeiten",
-                expanded=False
+            if st.button(
+                "Hinweis speichern",
+                key=key("save_permanent_note_" + note_identity),
+                disabled=st.session_state.gym_pending_save
             ):
-                note_identity = str(
-                    (username, exercise, machine)
-                )
+                try:
+                    exercise_note_store(
+                        username,
+                        exercise,
+                        machine,
+                        permanent_draft
+                    )
 
-                permanent_draft = st.text_area(
-                    "Geräteeinstellung / Ausführung",
-                    value=permanent_note,
-                    height=80,
-                    placeholder=(
-                        "z. B. Sitz 4 · Ellbogen tief · langsam ablassen"
-                    ),
-                    key=key("permanent_note_" + note_identity)
-                )
+                except Exception as exc:
+                    st.error(
+                        f"Hinweis konnte nicht gespeichert werden: {exc}"
+                    )
 
-                st.caption(
-                    "Bleibt für diese Übung und Machine gespeichert. "
-                    "Zum Entfernen den Text leeren und speichern."
-                )
-
-                if st.button(
-                    "Hinweis speichern",
-                    key=key("save_permanent_note_" + note_identity),
-                    disabled=st.session_state.gym_pending_save
-                ):
-                    try:
-                        exercise_note_store(
-                            username,
-                            exercise,
-                            machine,
-                            permanent_draft
-                        )
-
-                    except Exception as exc:
-                        st.error(
-                            f"Hinweis konnte nicht gespeichert werden: {exc}"
-                        )
-
-                    else:
-                        st.rerun()
+                else:
+                    st.rerun()
     weight_cols = [c for c in history.columns if re.fullmatch(r"Set \d+ (Gewicht|Links Gewicht|Rechts Gewicht)", str(c))]
     exercise_history = history[history["Übung"].astype(str) == exercise] if "Übung" in history.columns else history.iloc[0:0]
     max_weight = None
