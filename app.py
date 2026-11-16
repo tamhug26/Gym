@@ -3575,13 +3575,151 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         else:
             st.caption("Noch kein Körpergewicht unter 'Body Maße' gespeichert.")
 
-    # Letztes Training kompakt anzeigen, ohne das aktuelle Training zu verwenden.
+    # Passendes vorheriges Training finden.
     history = latest.copy()
+
     if active_id and "Training ID" in history.columns:
-        history = history[history["Training ID"].astype(str) != str(active_id)]
-    last_weights = get_last_training_weights(history, exercise)
-    if last_weights:
-        st.caption(f"Letztes Training: {last_weights}")
+        history = history[
+            history["Training ID"].astype(str) != str(active_id)
+        ]
+
+    if old_row is not None and old_row.name in history.index:
+        history = history.drop(index=old_row.name)
+
+    last_training = None
+    candidates = history.copy()
+
+    for column, expected in (
+        ("Übung", exercise),
+        ("Machine", machine),
+        ("Ausführung", execution_type),
+    ):
+        if column not in candidates.columns:
+            candidates = candidates.iloc[0:0]
+            break
+
+        candidates = candidates[
+            candidates[column].astype(str).str.strip()
+            == str(expected)
+        ]
+
+    if not candidates.empty and "Datum" in candidates.columns:
+        candidates = candidates.copy()
+        candidates["_day"] = pd.to_datetime(
+            candidates["Datum"], errors="coerce"
+        )
+
+        candidates = candidates[
+            candidates["_day"].notna()
+            & (
+                candidates["_day"]
+                < pd.Timestamp(selected_day) + pd.Timedelta(days=1)
+            )
+        ]
+
+        candidates = candidates.iloc[::-1].sort_values(
+            "_day",
+            ascending=False,
+            kind="stable"
+        )
+
+        for _, candidate in candidates.iterrows():
+            numbers = sorted({
+                int(match.group(1))
+                for column in candidate.index
+                if (
+                    match := re.match(
+                        r"^Set (\d+) ", str(column)
+                    )
+                )
+            })
+
+            if any(gym_set_parts(candidate, n) for n in numbers):
+                last_training = candidate
+                break
+
+    if last_training is None:
+        st.caption(
+            "Noch kein passendes vorheriges Training gespeichert."
+        )
+
+    else:
+        last_day = last_training["_day"].strftime("%d.%m.%Y")
+
+        set_numbers = sorted({
+            int(match.group(1))
+            for column in last_training.index
+            if (
+                match := re.match(
+                    r"^Set (\d+) ", str(column)
+                )
+            )
+        })
+
+        summaries = [
+            (n, gym_set_summary(last_training, n))
+            for n in set_numbers
+            if gym_set_parts(last_training, n)
+        ]
+
+        # Kompakte Zeile: Ausgangssätze mit Gewichten und Wiederholungen.
+        compact = []
+
+        for n, _ in summaries:
+            labels = []
+
+            for part in gym_set_parts(last_training, n):
+                if part["reduction"]:
+                    continue
+
+                if part["duration"] > 0:
+                    label = f"{part['duration']:g} s"
+
+                else:
+                    label = (
+                        f"{part['weight']:g} kg × "
+                        f"{part['reps']:g}"
+                    )
+
+                    if part["side"]:
+                        label = part["side"] + ": " + label
+
+                labels.append(label)
+
+            compact.append(
+                f"{n}. " + " / ".join(labels)
+            )
+
+        st.caption(
+            f"Letztes Training ({last_day}): "
+            + " · ".join(compact)
+        )
+
+        with st.expander(
+            "Details zum letzten Training",
+            expanded=False
+        ):
+            st.caption(
+                f"{last_day} · {machine} · {execution_type}"
+            )
+
+            for n, summary in summaries:
+                st.write(f"Set {n}: {summary}")
+
+                set_note = clean(
+                    last_training.get(f"Set {n} Notiz", "")
+                )
+
+                if nonempty(set_note):
+                    st.caption("Notiz: " + set_note)
+
+            previous_note = clean(
+                last_training.get("Notiz Übung", "")
+            )
+
+            if nonempty(previous_note):
+                st.write("Tagesnotiz: " + previous_note)
+
     # Dauerhafter Hinweis mit kleinem Bearbeiten-Button.
     try:
         permanent_note = load_exercise_note(
