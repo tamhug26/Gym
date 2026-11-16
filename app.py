@@ -4735,31 +4735,48 @@ with tab2:
 
 
             available_dates = sorted(
-                saved_df[
-                    "Datum"
-                ].dropna().unique(),
+                saved_df["Datum"].dropna().unique(),
                 reverse=True
             )
 
+            date_labels = {}
 
-            date_options = [
-                f"🔴 {d}"
-                for d in available_dates
-            ]
+            for training_date in available_dates:
+                rows_for_date = saved_df[
+                    saved_df["Datum"] == training_date
+                ]
 
-
-            selected_date_label = \
-                st.selectbox(
-                    "Trainingstag auswählen",
-                    date_options
+                exercises_for_date = (
+                    set(
+                        rows_for_date["Übung"]
+                        .dropna()
+                        .astype(str)
+                        .str.strip()
+                    )
+                    if "Übung" in rows_for_date.columns
+                    else set()
                 )
 
+                groups_for_date = [
+                    group
+                    for group, exercises in exercises_by_group.items()
+                    if exercises_for_date.intersection(exercises)
+                ]
 
-            selected_date_str = \
-                selected_date_label.replace(
-                    "🔴 ",
-                    ""
-                )
+                label = f"🔴 {training_date}"
+
+                if groups_for_date:
+                    label += " · " + ", ".join(groups_for_date)
+
+                date_labels[training_date] = label
+
+            selected_date_str = st.selectbox(
+                "Trainingstag auswählen",
+                available_dates,
+                format_func=lambda value: date_labels[value],
+                key="saved_training_day"
+            )
+
 
 
             day_df = saved_df[
