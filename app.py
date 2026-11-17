@@ -2745,6 +2745,104 @@ def show_last_training_dialog(exercise, machine, execution_type,
     ):
         st.rerun()
 
+def save_general_day_changes(username, selected_date, entry, legacy_cardio):
+    # Vorhandenes Cardio nicht mit den Formularwerten überschreiben.
+    load_day_data.clear()
+    current = load_day_data(username)
+    has_day = (
+        not current.empty
+        and "Datum" in current.columns
+        and current["Datum"].astype(str).eq(str(selected_date)).any()
+    )
+    patch = dict(entry)
+    if not has_day:
+        # Bei alten Trainings vorhandenes Cardio beim Übergang bewahren.
+        patch.update(legacy_cardio)
+    save_day_data(username, selected_date, patch)
+
+@st.dialog("Tagesangaben bearbeiten")
+def edit_general_day_dialog(username, selected_day, draft_prefix, legacy_cardio):
+    st.caption(selected_day.strftime("%d.%m.%Y"))
+    st.caption("Änderungen gelten für diesen Tag.")
+
+    new_mode = st.selectbox(
+        "Modus", ["Maintaining", "Bulk", "Cut"],
+        key=draft_prefix + "mode"
+    )
+    new_calories = st.number_input(
+        "Kalorienziel", min_value=0, max_value=10000,
+        step=50, key=draft_prefix + "calories"
+    )
+    new_period = False
+    new_start = ""
+    new_end = ""
+
+    if USERS[username]["gender"] == "female":
+        new_period = st.checkbox(
+            "Period Mode", key=draft_prefix + "period"
+        )
+        if new_period:
+            new_start = st.date_input(
+                "Periode Start", key=draft_prefix + "period_start"
+            )
+            new_end = st.date_input(
+                "Periode Ende", key=draft_prefix + "period_end"
+            )
+
+    new_mood = st.slider(
+        "Stimmung / Gefühl", min_value=1, max_value=5,
+        key=draft_prefix + "mood",
+        help="1 = super toll, 3 = normal, 5 = dreckig"
+    )
+    new_pain = st.text_input(
+        "Schmerzen / Beschwerden", key=draft_prefix + "pain"
+    )
+
+    save_col, cancel_col = st.columns(2)
+    with save_col:
+        if st.button(
+            "Speichern", type="primary", key=draft_prefix + "save"
+        ):
+            if new_period and new_start > new_end:
+                st.warning("Das Perioden-Enddatum darf nicht vor dem Startdatum liegen.")
+                return
+
+            entry = {
+                "Modus": new_mode,
+                "Kalorienziel": new_calories,
+                "Period Mode": new_period,
+                "Periode Start": new_start,
+                "Periode Ende": new_end,
+                "Stimmung": new_mood,
+                "Schmerzen": new_pain,
+            }
+            try:
+                save_general_day_changes(
+                    username, str(selected_day), entry, legacy_cardio
+                )
+            except Exception as exc:
+                st.error(f"Tagesangaben konnten nicht gespeichert werden: {exc}")
+            else:
+                # Hauptformular erst beim nächsten vollständigen Durchlauf anpassen.
+                st.session_state.gym_day_editor_sync = {
+                    "username": username,
+                    "date": str(selected_day),
+                    "values": {
+                        "mode": new_mode,
+                        "calories": new_calories,
+                        "period": new_period,
+                        "period_start": new_start if new_period else selected_day,
+                        "period_end": new_end if new_period else selected_day,
+                        "mood": new_mood,
+                        "pain": new_pain,
+                    },
+                }
+                st.rerun()
+
+    with cancel_col:
+        if st.button("Abbrechen", key=draft_prefix + "cancel"):
+            st.rerun()
+
 def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     """Einzelne Sets sicher in einer Google-Sheets-Zeile speichern.
 
@@ -3144,6 +3242,15 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         # ALLGEMEINE ANGABEN & CARDIO PRO TRAININGSTAG
         # ============================================================
 
+        pending_day_sync = st.session_state.pop("gym_day_editor_sync", None)
+        if (
+            pending_day_sync
+            and pending_day_sync["username"] == username
+            and pending_day_sync["date"] == selected_date
+        ):
+            for field, value in pending_day_sync["values"].items():
+                st.session_state[key(field)] = value
+
         day_df = load_day_data(username)
 
         day_row = None
@@ -3246,7 +3353,9 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             default=safe_int(last_calories)
         )
 
-        st.subheader("Allgemeine Angaben")
+        day_title_col, day_edit_col = st.columns([12, 1])
+        with day_title_col:
+            st.subheader("Allgemeine Angaben")
 
         c1, c2 = st.columns(2)
 
@@ -3444,6 +3553,49 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
             "Schmerzen": pain,
         }
 
+        # Den Stift neben der Überschrift platzieren.
+        with day_edit_col:
+            if st.button(
+                "✏️", help="Gespeicherte Tagesangaben bearbeiten",
+                key=key("edit_general_day"),
+                disabled=st.session_state.gym_pending_save or day_row is None
+            ):
+                draft_prefix = key("day_dialog_" + selected_date + "_")
+
+                def edit_date_default(value):
+                    parsed = pd.to_datetime(value, errors="coerce")
+                    return parsed.date() if pd.notna(parsed) else selected_day
+
+                draft_values = {
+                    "mode": mode,
+                    "calories": int(calories),
+                    "period": bool(period_mode),
+                    "period_start": edit_date_default(period_start),
+                    "period_end": edit_date_default(period_end),
+                    "mood": int(mood),
+                    "pain": pain,
+                }
+                for field, value in draft_values.items():
+                    st.session_state[draft_prefix + field] = value
+
+                legacy_cardio = {}
+                for _, historical_row in day_rows.iterrows():
+                    historical_type = clean(historical_row.get("Cardio Form", ""))
+                    if nonempty(historical_type) and historical_type != "Kein Cardio":
+                        legacy_cardio = {
+                            column: historical_row.get(column, "")
+                            for column in (
+                                "Cardio Form", "Cardio Zeit min",
+                                "Cardio Distanz km", "Cardio Kalorien"
+                            )
+                        }
+                        break
+
+                edit_general_day_dialog(
+                    username, selected_day, draft_prefix, legacy_cardio
+                )
+                return
+
         cardio_columns = (
             "Cardio Form", "Cardio Zeit min",
             "Cardio Distanz km", "Cardio Kalorien",
@@ -3522,7 +3674,8 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
 
 
 
-        saved_cardio_type = str(day_value("Cardio Form", "")).strip()
+    saved_cardio_type = str(day_value("Cardio Form", "")).strip()
+
     has_saved_cardio = (
         saved_cardio_type not in ("", "Kein Cardio")
         and (
@@ -4789,8 +4942,17 @@ with tab2:
             if cardio and cardio != "Kein Cardio":
                 groups.append("Cardio: " + cardio)
 
+            parsed_date = pd.to_datetime(
+                training_date, errors="coerce"
+            )
+            display_date = (
+                parsed_date.strftime("%d.%m.%Y")
+                if pd.notna(parsed_date)
+                else training_date
+            )
+
             date_labels[training_date] = (
-                f"🔴 {training_date}"
+                f"🔴 {display_date}"
                 + (" · " + ", ".join(groups) if groups else "")
             )
 
@@ -5227,11 +5389,7 @@ with tab3:
 
                     show_gym_weight_chart(progress_df)
 
-
-
-
-
-                    # Cardio aus Tagesdaten und historischen Trainings zusammenführen.
+        # Cardio aus Tagesdaten und historischen Trainings zusammenführen.
         # Dieser Abschnitt steht außerhalb der Krafttraining-Auswertung.
         cardio_columns = [
             "Cardio Zeit min",
