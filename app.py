@@ -2912,6 +2912,20 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         else:
             target = None
 
+        if target is not None:
+            stored = dict(zip(headers, rows[target]))
+            if saved_set_numbers(stored):
+                for field in ("Datum", "Übung", "Machine", "Ausführung"):
+                    if (
+                        field in entry
+                        and nonempty(stored.get(field, ""))
+                        and clean(entry[field]) != clean(stored[field])
+                    ):
+                        raise ValueError(
+                            f"{field} gehört zu bereits gespeicherten Sets. "
+                            "Schließe die Übung ab und starte die andere Variante neu."
+                        )
+
         if target is None and "Übung" not in entry:
             raise ValueError("Trainingszeile fehlt. Abschluss ohne Sets abgebrochen.")
 
@@ -2957,14 +2971,16 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         return training_id
 
     def saved_set_numbers(row):
-        result = []
-        for col in row.index:
-            match = re.fullmatch(r"Set (\d+) (Gewicht|Wdh|Links Gewicht|Links Wdh|Rechts Gewicht|Rechts Wdh|Dauer Sekunden|Notiz)", str(col))
-            if match and nonempty(row[col]):
-                number = int(match.group(1))
-                if number not in result:
-                    result.append(number)
-        return sorted(result)
+        numbers = {
+            int(match.group(1))
+            for column in row.keys()
+            if (match := re.match(r"^Set (\d+) ", str(column)))
+        }
+        # Nullwerte und eine bloße Notiz sind noch kein Trainingsset.
+        return sorted(
+            number for number in numbers
+            if gym_set_parts(row, number)
+        )
 
     if "gym_editor_version" not in st.session_state:
         st.session_state.gym_editor_version = 0
@@ -2980,6 +2996,33 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     version = st.session_state.gym_editor_version
     def key(name):
         return f"gym_{version}_{name}"
+
+    # Frühere Editorversionen sind abgeschlossen; deren Entwürfe entfernen.
+    for state_name in list(st.session_state):
+        match = re.match(r"^gym_(\d+)_", state_name)
+        if match and int(match.group(1)) != version:
+            st.session_state.pop(state_name, None)
+
+    # Nur Eingabefelder behalten, keine Button-Zustände verändern.
+    input_names = {
+        "date", "mode", "calories", "period", "period_start", "period_end",
+        "mood", "pain", "cardio_type", "cardio_time", "cardio_distance",
+        "cardio_calories", "muscle_groups", "exercise", "execution",
+        "machine", "extra", "grip", "note", "uses_weight",
+    }
+    prefix = f"gym_{version}_"
+    for state_name in list(st.session_state):
+        if not state_name.startswith(prefix):
+            continue
+        suffix = state_name[len(prefix):]
+        is_set_input = (
+            re.match(r"^sets_\d+_", suffix)
+            and not re.match(r"^sets_\d+_delete_", suffix)
+        )
+        if suffix in input_names or is_set_input:
+            # Vor dem Rendern neu zuweisen: Fenster und frühe Rücksprünge
+            # dürfen diese Eingaben nicht durch Widget-Cleanup verlieren.
+            st.session_state[state_name] = st.session_state[state_name]
 
     # Das ausgewählte Datum bleibt frei wählbar; keine automatische Datumswiederherstellung.
         # Erst die ausgewählte Übung laden, dann das Datumsfeld erstellen.
@@ -3028,6 +3071,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
     selected_day = st.date_input(
         "Datum",
         value=default_day,
+        format="DD.MM.YYYY",
         key=key("date")
     )
 
@@ -3720,11 +3764,20 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                          "Wähle wieder die ursprüngliche Übung und das Datum.")
                 return
 
+        variant_locked = (
+            old_row is not None and bool(saved_set_numbers(old_row))
+        )
         execution_options = ["Beidseitig", "Einseitig"]
-        old_execution = clean(old_row.get("Ausführung", "Beidseitig")) if old_row is not None else "Beidseitig"
-        execution_type = st.segmented_control("Ausführung", options=execution_options,
+        old_execution = clean(old_row.get("Ausführung", "")) if old_row is not None else ""
+        execution_locked = variant_locked and old_execution in execution_options
+        if execution_locked:
+            st.session_state[key("execution")] = old_execution
+        execution_type = st.segmented_control(
+            "Ausführung", options=execution_options,
             default=old_execution if old_execution in execution_options else "Beidseitig",
-            selection_mode="single", key=key("execution")) or "Beidseitig"
+            selection_mode="single", key=key("execution"),
+            disabled=execution_locked
+        ) or "Beidseitig"
     
         # Anzahl sichtbarer Sets automatisch verwalten
         visible_sets_key = key("visible_sets")
@@ -3745,9 +3798,19 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
         else:
             machine_options = ["Cable", "Freigewicht", "Maschine"]
         old_machine = clean(old_row.get("Machine", "")) if old_row is not None else ""
-        machine = st.selectbox("Machine", machine_options,
+        machine_locked = variant_locked and old_machine in machine_options
+        if machine_locked:
+            st.session_state[key("machine")] = old_machine
+        machine = st.selectbox(
+            "Machine", machine_options,
             index=machine_options.index(old_machine) if old_machine in machine_options else 0,
-            key=key("machine"))
+            key=key("machine"), disabled=machine_locked
+        )
+        if execution_locked or machine_locked:
+            st.caption(
+                "Machine und Ausführung gehören zu den gespeicherten Sets. "
+                "Für eine andere Variante zuerst die Übung abschließen."
+            )
         extra_info = ""
         if exercise in exercises_by_group.get("TRX", []):
             extra_options = ["Sehr aufrecht / leicht", "Mittel", "Sehr schräg / schwer"]
@@ -4354,6 +4417,7 @@ def training_form(username, saved_df, edit_date=None, edit_row_index=None):
                 "Alle Sets gespeichert – Übung abgeschlossen! ✓"
             )
             return
+
 
 # ============================================================
 # LOGIN
